@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const Number = 1
+const Number = 2
 
 // 这个方法用于初始化任务,需要提前将执行节点，调度节点启动
 func TestDemoStart(t *testing.T) {

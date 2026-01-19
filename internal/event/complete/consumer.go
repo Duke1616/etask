@@ -50,10 +50,10 @@ func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
 	var err error
 	if evt.ExecStatus.IsSuccess() {
 		err = c.execSvc.UpdateScheduleResult(ctx, evt.ExecID, domain.TaskExecutionStatusSuccess,
-			number100, time.Now().UnixMilli(), nil, "")
+			number100, time.Now().UnixMilli(), nil, evt.ExecNodeId)
 	} else {
 		err = c.execSvc.UpdateScheduleResult(ctx, evt.ExecID, domain.TaskExecutionStatusFailed,
-			number0, time.Now().UnixMilli(), nil, "")
+			number0, time.Now().UnixMilli(), nil, evt.ExecNodeId)
 	}
 	if err != nil {
 		return err

@@ -72,7 +72,7 @@ type TaskExecutionDAO interface {
 	// SetRunningState 设置任务为运行状态并更新进度
 	SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateProgress 更新任务执行进度、开始时间（仅在RUNNING状态下有效）
-	UpdateProgress(ctx context.Context, id int64, progress int32) error
+	UpdateProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateScheduleResult 更新调度结果
 	UpdateScheduleResult(ctx context.Context, id int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
 	// FindReschedulableExecutions 查找所有可以重调度的执行记录
@@ -260,12 +260,13 @@ func (g *GORMTaskExecutionDAO) SetRunningState(ctx context.Context, id int64, pr
 	return nil
 }
 
-func (g *GORMTaskExecutionDAO) UpdateProgress(ctx context.Context, id int64, progress int32) error {
+func (g *GORMTaskExecutionDAO) UpdateProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error {
 	result := g.db.WithContext(ctx).
 		Model(&TaskExecution{}).
 		Where("id = ? AND status = ?", id, TaskExecutionStatusRunning).
 		Updates(map[string]any{
 			"running_progress": progress,
+			"executor_node_id": sql.NullString{String: executorNodeID, Valid: executorNodeID != ""},
 			"utime":            time.Now().UnixMilli(),
 		})
 

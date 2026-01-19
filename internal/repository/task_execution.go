@@ -27,7 +27,7 @@ type TaskExecutionRepository interface {
 	// SetRunningState 设置任务为运行状态并更新进度
 	SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateRunningProgress 更新任务执行进度（仅在RUNNING状态下有效）
-	UpdateRunningProgress(ctx context.Context, id int64, progress int32) error
+	UpdateRunningProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateScheduleResult 更新调度结果
 	UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
 	// FindReschedulableExecutions 查找所有可以重调度的执行记录
@@ -136,8 +136,8 @@ func (r *taskExecutionRepository) SetRunningState(ctx context.Context, id int64,
 	return r.dao.SetRunningState(ctx, id, progress, executorNodeID)
 }
 
-func (r *taskExecutionRepository) UpdateRunningProgress(ctx context.Context, id int64, progress int32) error {
-	return r.dao.UpdateProgress(ctx, id, progress)
+func (r *taskExecutionRepository) UpdateRunningProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error {
+	return r.dao.UpdateProgress(ctx, id, progress, executorNodeID)
 }
 
 func (r *taskExecutionRepository) UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {

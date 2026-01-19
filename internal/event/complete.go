@@ -7,6 +7,7 @@ type Event struct {
 	ExecID         int64                      `json:"execId"`
 	Version        int64                      `json:"version"`
 	ScheduleNodeID string                     `json:"scheduleNodeId"`
+	ExecNodeId     string                     `json:"execNodeId"`
 	ExecStatus     domain.TaskExecutionStatus `json:"execStatus"`
 	Name           string                     `json:"name"`
 }

@@ -35,7 +35,7 @@ type ExecutionService interface {
 	// SetRunningState 设置任务为运行状态并更新进度
 	SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateRunningProgress 更新任务执行进度（仅在RUNNING状态下有效）
-	UpdateRunningProgress(ctx context.Context, id int64, progress int32) error
+	UpdateRunningProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateRetryResult 更新重试结果
 	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
 	// UpdateScheduleResult 更新调度结果
@@ -103,8 +103,8 @@ func (s *executionService) SetRunningState(ctx context.Context, id int64, progre
 	return s.repo.SetRunningState(ctx, id, progress, executorNodeID)
 }
 
-func (s *executionService) UpdateRunningProgress(ctx context.Context, id int64, progress int32) error {
-	return s.repo.UpdateRunningProgress(ctx, id, progress)
+func (s *executionService) UpdateRunningProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error {
+	return s.repo.UpdateRunningProgress(ctx, id, progress, executorNodeID)
 }
 
 func (s *executionService) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {
@@ -216,7 +216,7 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 }
 
 func (s *executionService) updateRunningProgress(ctx context.Context, state domain.ExecutionState) error {
-	err := s.UpdateRunningProgress(ctx, state.ID, state.RunningProgress)
+	err := s.UpdateRunningProgress(ctx, state.ID, state.RunningProgress, state.ExecutorNodeID)
 	if err != nil {
 		s.logger.Error("更新运行进度失败",
 			elog.Int64("taskID", state.TaskID),
@@ -311,6 +311,7 @@ func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.
 	err := s.producer.Produce(ctx, event.Event{
 		ExecID:         execution.ID,
 		ScheduleNodeID: execution.Task.ScheduleNodeID,
+		ExecNodeId:     execution.ExecutorNodeID,
 		ExecStatus:     state.Status,
 		TaskID:         execution.Task.ID,
 		Name:           execution.Task.Name,
