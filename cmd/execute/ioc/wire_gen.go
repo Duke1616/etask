@@ -48,7 +48,7 @@ var (
 // InitRegistry 初始化注册中心
 func InitRegistry(client *clientv3.Client) registry.Registry {
 
-	reg, err := etcd.NewRegistryWithPrefix(client, "service")
+	reg, err := etcd.NewRegistry(client)
 	if err != nil {
 		panic(err)
 	}

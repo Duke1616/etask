@@ -14,7 +14,7 @@ import (
 
 const (
 	// DefaultPrefix 默认服务注册前缀
-	DefaultPrefix = "/services/etask/executor"
+	DefaultPrefix = "/grpc/services"
 )
 
 var typesMap = map[mvccpb.Event_EventType]registry.EventType{
@@ -128,4 +128,8 @@ func (r *Registry) Close() error {
 	r.mutex.Unlock()
 	// 因为 client 是外面传进来的，所以我们这里不能关掉它。它可能被其它的人使用着
 	return r.sess.Close()
+}
+
+func (r *Registry) Prefix() string {
+	return DefaultPrefix
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/Duke1616/ework-runner/internal/compensator"
 	"github.com/Duke1616/ework-runner/internal/service/runner"
 	"github.com/Duke1616/ework-runner/internal/service/task"
-	"github.com/Duke1616/ework-runner/pkg/grpc"
+	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
 	"github.com/spf13/viper"
 )
 
@@ -41,7 +41,7 @@ func InitRescheduleCompensator(
 }
 
 func InitInterruptCompensator(
-	grpcClients *grpc.Clients[executorv1.ExecutorServiceClient],
+	grpcClients *pool.Clients[executorv1.ExecutorServiceClient],
 	execSvc task.ExecutionService,
 ) *compensator.InterruptCompensator {
 	var cfg compensator.InterruptConfig

@@ -22,7 +22,8 @@ import (
 func InitSchedulerApp() *ioc.SchedulerApp {
 	v := ioc.InitGinMiddlewares()
 	client := ioc.InitEtcdClient()
-	clientConnInterface := ioc.InitECMDBGrpcClient(client)
+	registry := ioc.InitRegistry(client)
+	clientConnInterface := ioc.InitECMDBGrpcClient(registry)
 	policyServiceClient := ioc.InitPolicyServiceClient(clientConnInterface)
 	cmdable := ioc.InitRedis()
 	provider := ioc.InitSession(cmdable)
@@ -33,7 +34,6 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 	service := task.NewService(taskRepository)
 	handler := task2.NewHandler(service)
 	component := ioc.InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler)
-	registry := ioc.InitRegistry(client)
 	string2 := ioc.InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)

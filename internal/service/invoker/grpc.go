@@ -6,7 +6,7 @@ import (
 
 	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/executor/v1"
 	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/pkg/grpc"
+	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
 	"github.com/gotomicro/ego/core/elog"
 )
 
@@ -14,13 +14,13 @@ var _ Invoker = &GRPCInvoker{}
 
 // GRPCInvoker 远程执行器
 type GRPCInvoker struct {
-	grpcClients *grpc.Clients[executorv1.ExecutorServiceClient] // gRPC客户端池
+	grpcClients *pool.Clients[executorv1.ExecutorServiceClient] // gRPC客户端池
 	logger      *elog.Component
 }
 
 // NewGRPCInvoker 创建 GRPCInvoker 实例
 func NewGRPCInvoker(
-	grpcClients *grpc.Clients[executorv1.ExecutorServiceClient],
+	grpcClients *pool.Clients[executorv1.ExecutorServiceClient],
 ) *GRPCInvoker {
 	return &GRPCInvoker{
 		grpcClients: grpcClients,

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/Duke1616/ework-runner/cmd/execute/ioc"
 	"github.com/gotomicro/ego"
 	"github.com/gotomicro/ego/core/elog"
@@ -29,14 +31,23 @@ func main() {
 }
 
 func initViper() {
-	file := pflag.String("config",
-		"../../config/config.yaml", "配置文件路径")
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	f, err := os.Open(dir + "/../../config/config.yaml")
+	if err != nil {
+		panic(err)
+	}
+	viper.SetConfigFile(f.Name())
+
+	file := pflag.String("config", f.Name(), "配置文件路径")
 	pflag.Parse()
 
 	viper.SetConfigFile(*file)
 	viper.WatchConfig()
 
-	if err := viper.ReadInConfig(); err != nil {
+	if err = viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
 }

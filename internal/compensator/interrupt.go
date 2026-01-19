@@ -9,7 +9,7 @@ import (
 	"github.com/Duke1616/ework-runner/internal/domain"
 	"github.com/Duke1616/ework-runner/internal/errs"
 	"github.com/Duke1616/ework-runner/internal/service/task"
-	"github.com/Duke1616/ework-runner/pkg/grpc"
+	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
 	"github.com/gotomicro/ego/core/elog"
 )
 
@@ -24,12 +24,12 @@ type InterruptCompensator struct {
 	execSvc     task.ExecutionService
 	config      InterruptConfig
 	logger      *elog.Component
-	grpcClients *grpc.Clients[executorv1.ExecutorServiceClient] // gRPC客户端池
+	grpcClients *pool.Clients[executorv1.ExecutorServiceClient] // gRPC客户端池
 }
 
 // NewInterruptCompensator 创建中断补偿器
 func NewInterruptCompensator(
-	grpcClients *grpc.Clients[executorv1.ExecutorServiceClient],
+	grpcClients *pool.Clients[executorv1.ExecutorServiceClient],
 	execSvc task.ExecutionService,
 	config InterruptConfig,
 ) *InterruptCompensator {

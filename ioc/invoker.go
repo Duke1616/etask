@@ -3,10 +3,10 @@ package ioc
 import (
 	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/executor/v1"
 	"github.com/Duke1616/ework-runner/internal/service/invoker"
-	"github.com/Duke1616/ework-runner/pkg/grpc"
+	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
 )
 
-func InitInvoker(clients *grpc.Clients[executorv1.ExecutorServiceClient]) invoker.Invoker {
+func InitInvoker(clients *pool.Clients[executorv1.ExecutorServiceClient]) invoker.Invoker {
 	return invoker.NewDispatcher(
 		invoker.NewHTTPInvoker(),
 		invoker.NewGRPCInvoker(clients),
