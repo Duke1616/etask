@@ -41,22 +41,18 @@ func main() {
 }
 
 func initViper() {
-	dir, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	f, err := os.Open(dir + "/../../config/config.yaml")
-	if err != nil {
-		panic(err)
-	}
-	viper.SetConfigFile(f.Name())
+	dir, _ := os.Getwd()
 
-	file := pflag.String("config", f.Name(), "配置文件路径")
+	file := pflag.String(
+		"config",
+		dir+"/../../config/config.yaml",
+		"配置文件路径",
+	)
 	pflag.Parse()
-	// 直接指定文件路径
+
 	viper.SetConfigFile(*file)
-	viper.WatchConfig()
-	if err = viper.ReadInConfig(); err != nil {
+
+	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
 }
