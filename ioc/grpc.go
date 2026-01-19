@@ -5,6 +5,7 @@ import (
 
 	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/executor/v1"
 	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/reporter/v1"
+	taskv1 "github.com/Duke1616/ework-runner/api/proto/gen/task/v1"
 	grpcapi "github.com/Duke1616/ework-runner/internal/grpc"
 	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
 	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
@@ -14,7 +15,8 @@ import (
 )
 
 // InitSchedulerNodeGRPCServer 初始化 Scheduler gRPC 服务器
-func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcapi.ReporterServer) *grpcpkg.Server {
+func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcapi.ReporterServer,
+	task *grpcapi.TaskServer) *grpcpkg.Server {
 	var cfg grpcpkg.ServerConfig
 	if err := viper.UnmarshalKey("grpc.server.scheduler", &cfg); err != nil {
 		panic(err)
@@ -22,6 +24,7 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 
 	server := grpcpkg.NewServer(cfg, registry, grpcpkg.WithJWTAuth(cfg.AuthToken))
 	reporterv1.RegisterReporterServiceServer(server.Server, reporter)
+	taskv1.RegisterTaskServiceServer(server.Server, task)
 
 	return server
 }

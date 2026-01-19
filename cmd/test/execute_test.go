@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const Number = 1
+
 // 这个方法用于初始化任务,需要提前将执行节点，调度节点启动
 func TestDemoStart(t *testing.T) {
 	initViper()
@@ -23,7 +25,7 @@ func TestDemoStart(t *testing.T) {
 	db := ioc.InitDB()
 	taskDAO := dao.NewGORMTaskDAO(db)
 	// 初始化task
-	for i := 0; i < 1; i++ {
+	for i := 0; i < Number; i++ {
 		now := time.Now()
 		taskName := fmt.Sprintf("task_%s", uuid.New().String())
 		_, err := taskDAO.Create(t.Context(), dao.Task{
@@ -58,7 +60,7 @@ func TestShellStart(t *testing.T) {
 	// 初始化db
 	db := ioc.InitDB()
 	taskDAO := dao.NewGORMTaskDAO(db)
-	for i := 0; i < 1; i++ {
+	for i := 0; i < Number; i++ {
 		// 初始化task
 		now := time.Now()
 		taskName := fmt.Sprintf("task_shell_%s", uuid.New().String())

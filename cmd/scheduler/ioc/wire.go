@@ -91,6 +91,7 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 
 		// GRPC服务器
 		grpc.NewReporterServer,
+		grpc.NewTaskServer,
 		ioc.InitSchedulerNodeGRPCServer,
 		ioc.InitTasks,
 		wire.Struct(new(ioc.SchedulerApp), "*"),
