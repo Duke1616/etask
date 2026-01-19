@@ -48,6 +48,7 @@ func toDomain(req CreateTaskReq) domain.Task {
 		ScheduleParams:      req.ScheduleParams,
 		GrpcConfig: &domain.GrpcConfig{
 			ServiceName: req.GrpcConfig.ServiceName,
+			AuthToken:   req.GrpcConfig.AuthToken,
 			HandlerName: req.GrpcConfig.HandlerName,
 			Params:      req.GrpcConfig.Params,
 		},

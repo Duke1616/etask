@@ -102,7 +102,8 @@ func NewClientConn(reg registry.Registry, opts ...ClientOption) (*grpc.ClientCon
 	}
 	dialOpts = append(dialOpts, buildDialOptions(options)...)
 
-	// 使用 resolver 的 Scheme() 方法获取 scheme，和注册地址的前缀
-	target := fmt.Sprintf("%s:///%s/%s", rs.Scheme(), reg.Prefix(), options.serviceName)
+	// 构建 target: scheme:///serviceName
+	// 注意: 不要在 target 中包含 prefix,因为 resolver 会从 registry 中查询时自动添加
+	target := fmt.Sprintf("%s:///%s", rs.Scheme(), options.serviceName)
 	return grpc.NewClient(target, dialOpts...)
 }

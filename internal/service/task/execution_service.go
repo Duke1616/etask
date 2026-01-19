@@ -62,18 +62,16 @@ func NewExecutionService(
 	nodeID string,
 	repo repository.TaskExecutionRepository,
 	taskSvc Service,
-	taskAcquirer acquirer.TaskAcquirer,
 	producer event.CompleteProducer,
 	registry registry.Registry,
 ) ExecutionService {
 	return &executionService{
-		nodeID:       nodeID,
-		repo:         repo,
-		taskSvc:      taskSvc,
-		taskAcquirer: taskAcquirer,
-		producer:     producer,
-		registry:     registry,
-		logger:       elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
+		nodeID:   nodeID,
+		repo:     repo,
+		taskSvc:  taskSvc,
+		producer: producer,
+		registry: registry,
+		logger:   elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
 	}
 }
 
@@ -303,15 +301,6 @@ func (s *executionService) updateState(ctx context.Context, execution domain.Tas
 		elog.String("taskName", execution.Task.Name),
 		elog.Any("state", state))
 	return nil
-}
-
-func (s *executionService) releaseTask(ctx context.Context, task domain.Task) {
-	if err := s.taskAcquirer.Release(ctx, task.ID, s.nodeID); err != nil {
-		s.logger.Error("释放任务失败",
-			elog.Int64("taskID", task.ID),
-			elog.String("taskName", task.Name),
-			elog.FieldErr(err))
-	}
 }
 
 func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.ExecutionState, execution domain.TaskExecution) {

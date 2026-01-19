@@ -29,7 +29,7 @@ func NewClients[T any](
 }
 
 // Get 获取带有自定义负载均衡器的客户端
-func (c *Clients[T]) Get(serviceName string) T {
+func (c *Clients[T]) Get(serviceName, authToken string) T {
 	// 尝试加载，如果存在，直接返回
 	if client, ok := c.clientMap.Load(serviceName); ok {
 		return client
@@ -40,6 +40,7 @@ func (c *Clients[T]) Get(serviceName string) T {
 		c.registry,
 		grpcpkg.WithServiceName(serviceName),
 		grpcpkg.WithTimeout(c.timeout),
+		grpcpkg.WithClientJWTAuth(authToken),
 	)
 	if err != nil {
 		panic(err)

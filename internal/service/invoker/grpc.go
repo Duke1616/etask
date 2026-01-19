@@ -3,6 +3,7 @@ package invoker
 import (
 	"context"
 	"fmt"
+	"time"
 
 	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/executor/v1"
 	"github.com/Duke1616/ework-runner/internal/domain"
@@ -33,33 +34,46 @@ func (r *GRPCInvoker) Name() string {
 }
 
 func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domain.ExecutionState, error) {
-	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName)
+	// 获取 client
+	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName, exec.Task.GrpcConfig.AuthToken)
 
-	// 发送执行请求
-	resp, err := client.Execute(ctx, &executorv1.ExecuteRequest{
+	// 设置调用超时(30秒), 防止无 executor 节点时无限等待
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	resp, err := client.Execute(callCtx, &executorv1.ExecuteRequest{
 		Eid:             exec.ID,
 		TaskId:          exec.Task.ID,
 		TaskName:        exec.Task.Name,
 		TaskHandlerName: exec.Task.GrpcConfig.HandlerName,
 		Params:          exec.GRPCParams(),
 	})
+
 	if err != nil {
 		return domain.ExecutionState{}, fmt.Errorf("发送gRPC请求失败: %w", err)
 	}
+
 	return domain.ExecutionStateFromProto(resp.GetExecutionState()), nil
 }
 
 func (r *GRPCInvoker) Prepare(ctx context.Context, exec domain.TaskExecution) (map[string]string, error) {
-	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName)
+	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName, exec.Task.GrpcConfig.AuthToken)
+
+	// 设置调用超时(30秒), 防止无 executor 节点时无限等待
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	// 发送执行请求
-	resp, err := client.Prepare(ctx, &executorv1.PrepareRequest{
+	resp, err := client.Prepare(callCtx, &executorv1.PrepareRequest{
 		Eid:      exec.ID,
 		TaskId:   exec.Task.ID,
 		TaskName: exec.Task.Name,
 		Params:   exec.GRPCParams(),
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("发送gRPC请求失败: %w", err)
 	}
+
 	return resp.GetParams(), nil
 }

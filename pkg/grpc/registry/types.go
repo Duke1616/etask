@@ -12,8 +12,6 @@ type Registry interface {
 	ListServices(ctx context.Context, name string) ([]ServiceInstance, error)
 	Subscribe(name string) <-chan Event
 
-	Prefix() string
-
 	io.Closer
 }
 

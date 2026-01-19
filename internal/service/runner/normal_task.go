@@ -94,7 +94,16 @@ func (s *NormalTaskRunner) handleNormalTask(ctx context.Context, task domain.Tas
 		// 执行任务
 		state, err1 := s.invoker.Run(ctx, execution)
 		if err1 != nil {
-			s.logger.Error("执行器执行任务失败", elog.FieldErr(err))
+			s.logger.Error("执行器执行任务失败",
+				elog.Int64("task_id", execution.Task.ID),
+				elog.Int64("execution_id", execution.ID),
+				elog.String("task_name", execution.Task.Name),
+				elog.FieldErr(err1))
+
+			// 释放任务,允许重新调度
+			s.releaseTask(ctx, execution.Task)
+			s.logger.Info("任务已释放,可重新调度",
+				elog.Int64("task_id", execution.Task.ID))
 			return
 		}
 
@@ -133,7 +142,16 @@ func (s *NormalTaskRunner) Retry(ctx context.Context, execution domain.TaskExecu
 		// 执行任务，并在 context 中设置要排除的执行节点 ID，避免重调度到同一个节点
 		state, err1 := s.invoker.Run(s.WithExcludedNodeIDContext(ctx, execution.ExecutorNodeID), execution)
 		if err1 != nil {
-			s.logger.Error("执行器执行任务失败", elog.FieldErr(err1))
+			s.logger.Error("执行器执行任务失败",
+				elog.Int64("task_id", execution.Task.ID),
+				elog.Int64("execution_id", execution.ID),
+				elog.String("task_name", execution.Task.Name),
+				elog.FieldErr(err1))
+
+			// 释放任务,允许重新调度
+			s.releaseTask(ctx, execution.Task)
+			s.logger.Debug("任务已释放,可重新调度",
+				elog.Int64("task_id", execution.Task.ID))
 			return
 		}
 

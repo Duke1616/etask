@@ -129,7 +129,3 @@ func (r *Registry) Close() error {
 	// 因为 client 是外面传进来的，所以我们这里不能关掉它。它可能被其它的人使用着
 	return r.sess.Close()
 }
-
-func (r *Registry) Prefix() string {
-	return DefaultPrefix
-}

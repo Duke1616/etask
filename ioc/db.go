@@ -32,7 +32,7 @@ func InitDB() *gorm.DB {
 		Colorful                  bool   //使用彩色打印
 	}
 	var DBConnConfigurator = DataBaseConnConfigurator{
-		MaxIdleConns: 10, MaxOpenConns: 100, ConnMaxLifetime: 3600, SlowThreshold: 1, LogLevel: 3,
+		MaxIdleConns: 10, MaxOpenConns: 100, ConnMaxLifetime: 3600, SlowThreshold: 2, LogLevel: 3,
 		IgnoreRecordNotFoundError: true, Colorful: true}
 
 	myLogger := logger.New(

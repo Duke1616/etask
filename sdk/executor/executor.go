@@ -12,15 +12,18 @@ import (
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
 	"github.com/ecodeclub/ekit/syncx"
 	"github.com/gotomicro/ego/core/elog"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
+
+type Config struct {
+	Server grpcpkg.ServerConfig
+	Client grpcpkg.ClientConfig
+}
 
 // Executor 极简 Executor 实现
 type Executor struct {
 	executorv1.UnimplementedExecutorServiceServer
 
-	config   grpcpkg.Config
+	config   Config
 	registry registry.Registry
 	handlers map[string]TaskHandler
 
@@ -35,12 +38,12 @@ type Executor struct {
 }
 
 // NewExecutor 创建 Executor
-func NewExecutor(cfg grpcpkg.Config, reg registry.Registry) (*Executor, error) {
-	if err := cfg.Validate(); err != nil {
+func NewExecutor(cfg Config, reg registry.Registry) (*Executor, error) {
+	if err := cfg.Server.Validate(); err != nil {
 		return nil, err
 	}
 
-	if cfg.ServiceId == "" {
+	if cfg.Server.ServiceId == "" {
 		return nil, errors.New("service_id is required")
 	}
 
@@ -64,20 +67,21 @@ func (e *Executor) RegisterHandler(handler TaskHandler) *Executor {
 
 // InitComponents 初始化组件
 func (e *Executor) InitComponents() error {
-	// 1. 连接 Reporter - 使用 Resolver 服务发现模式
-	reporterConn, err := grpc.NewClient(
-		fmt.Sprintf("executor:///%s", "scheduler"),
-		grpc.WithResolvers(grpcpkg.NewResolverBuilder(e.registry, 10*time.Second)),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	// 1. 连接 Reporter - 使用封装的 NewClientConn
+	reporterConn, err := grpcpkg.NewClientConn(
+		e.registry,
+		grpcpkg.WithServiceName(e.config.Client.Name),
+		grpcpkg.WithClientJWTAuth(e.config.Client.AuthToken),
+		grpcpkg.WithTimeout(10*time.Second),
 	)
 	if err != nil {
 		return fmt.Errorf("连接 reporter 失败: %w", err)
 	}
+
 	e.reporterClient = reporterv1.NewReporterServiceClient(reporterConn)
 
 	// 2. 创建 gRPC Server
-	e.server = grpcpkg.NewServer(e.config, e.registry, grpcpkg.WithJWTAuth(e.config.AuthToken))
+	e.server = grpcpkg.NewServer(e.config.Server, e.registry, grpcpkg.WithJWTAuth(e.config.Server.AuthToken))
 
 	// 3. 注册 Executor 服务
 	executorv1.RegisterExecutorServiceServer(e.server.Server, e)
@@ -107,7 +111,7 @@ func (e *Executor) Execute(ctx context.Context, req *executorv1.ExecuteRequest) 
 		TaskName:        req.GetTaskName(),
 		Status:          executorv1.ExecutionStatus_RUNNING,
 		RunningProgress: 0,
-		ExecutorNodeId:  e.config.ServiceId,
+		ExecutorNodeId:  e.config.Server.ServiceId,
 	}
 	e.states.Store(eid, state)
 

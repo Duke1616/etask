@@ -56,17 +56,25 @@ func InitRegistry(client *clientv3.Client) registry.Registry {
 }
 
 // InitConfig 初始化配置
-func InitConfig() grpc.Config {
-	var cfg grpc.Config
-	if err := viper.UnmarshalKey("grpc.server.executor", &cfg); err != nil {
+func InitConfig() executor.Config {
+	var server grpc.ServerConfig
+	if err := viper.UnmarshalKey("grpc.server.executor", &server); err != nil {
 		panic(err)
 	}
 
-	return cfg
+	var client grpc.ClientConfig
+	if err := viper.UnmarshalKey("grpc.client.scheduler", &client); err != nil {
+		panic(err)
+	}
+
+	return executor.Config{
+		Server: server,
+		Client: client,
+	}
 }
 
 // InitExecutor 初始化 SDK Executor 实例
-func InitExecutor(cfg grpc.Config, reg registry.Registry) *executor.Executor {
+func InitExecutor(cfg executor.Config, reg registry.Registry) *executor.Executor {
 	exec, err := executor.NewExecutor(cfg, reg)
 	if err != nil {
 		panic(err)

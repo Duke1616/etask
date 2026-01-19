@@ -109,7 +109,7 @@ func (t *InterruptCompensator) interruptTaskExecution(ctx context.Context, execu
 	if execution.Task.GrpcConfig == nil {
 		return fmt.Errorf("未找到GPRC配置，无法执行中断任务")
 	}
-	client := t.grpcClients.Get(execution.Task.GrpcConfig.ServiceName)
+	client := t.grpcClients.Get(execution.Task.GrpcConfig.ServiceName, execution.Task.GrpcConfig.AuthToken)
 	resp, err := client.Interrupt(ctx, &executorv1.InterruptRequest{
 		Eid: execution.ID,
 	})

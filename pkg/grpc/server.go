@@ -20,7 +20,7 @@ const (
 	ComponentName = "grpc.server"
 )
 
-type Config struct {
+type ServerConfig struct {
 	ServiceId     string `mapstructure:"id"`             // 可选:实例ID，执行节点必填
 	ServiceName   string `mapstructure:"name"`           // 必填:服务名
 	ListenAddr    string `mapstructure:"listen_addr"`    // 必填:绑定地址
@@ -29,7 +29,7 @@ type Config struct {
 }
 
 // Validate 验证配置
-func (c *Config) Validate() error {
+func (c *ServerConfig) Validate() error {
 	if c.ServiceName == "" {
 		return fmt.Errorf("ServiceName 不能为空")
 	}
@@ -43,7 +43,7 @@ type Server struct {
 	*grpc.Server
 
 	// 配置文件
-	config Config
+	config ServerConfig
 
 	// 服务注册相关
 	registry       registry.Registry
@@ -74,7 +74,7 @@ func WithJWTAuth(authToken string) ServerOption {
 }
 
 // NewServer 创建 gRPC Server 实例
-func NewServer(cfg Config, reg registry.Registry, opts ...ServerOption) *Server {
+func NewServer(cfg ServerConfig, reg registry.Registry, opts ...ServerOption) *Server {
 	s := &Server{
 		Server:        grpc.NewServer(),
 		registry:      reg,
