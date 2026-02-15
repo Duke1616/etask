@@ -1,11 +1,18 @@
 package executor
 
 import (
+	"encoding/json"
 	"strconv"
 
 	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/reporter/v1"
 	"github.com/gotomicro/ego/core/elog"
 )
+
+type Variable struct {
+	Key    string `json:"key"`
+	Value  string `json:"value"`
+	Secret bool   `json:"secret"`
+}
 
 // TaskHandler 任务处理函数接口
 type TaskHandler interface {
@@ -13,6 +20,7 @@ type TaskHandler interface {
 	Run(*Context) error
 }
 
+// Context 任务执行上下文
 // Context 任务执行上下文
 type Context struct {
 	ExecutionID int64
@@ -24,12 +32,28 @@ type Context struct {
 	// 内部字段
 	reporter reporterv1.ReporterServiceClient
 	logger   *elog.Component
+
+	// 日志模块
+	taskLogger TaskLogger
 }
 
 // newContext 创建上下文(内部使用)
 func newContext(eid, taskID int64, taskName, handlerName string, params map[string]string,
 	reporter reporterv1.ReporterServiceClient, logger *elog.Component) *Context {
-	return &Context{
+
+	var masks []string
+	if variablesStr := params["variables"]; variablesStr != "" {
+		var vars []Variable
+		if err := json.Unmarshal([]byte(variablesStr), &vars); err == nil {
+			for _, v := range vars {
+				if v.Secret && v.Value != "" {
+					masks = append(masks, v.Value)
+				}
+			}
+		}
+	}
+
+	ctx := &Context{
 		ExecutionID: eid,
 		TaskID:      taskID,
 		TaskName:    taskName,
@@ -37,6 +61,21 @@ func newContext(eid, taskID int64, taskName, handlerName string, params map[stri
 		Params:      params,
 		reporter:    reporter,
 		logger:      logger,
+		taskLogger:  newTaskLogger(eid, reporter, logger, masks),
+	}
+
+	return ctx
+}
+
+// Log 记录日志 (代理给 taskLogger)
+func (c *Context) Log(format string, args ...any) {
+	c.taskLogger.Log(format, args...)
+}
+
+// Close 关闭 Context，清理资源
+func (c *Context) Close() {
+	if c.taskLogger != nil {
+		c.taskLogger.Close()
 	}
 }
 

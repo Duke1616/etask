@@ -1074,6 +1074,181 @@ func (x *ListTasksResponse) GetTotal() int64 {
 	return 0
 }
 
+// GetExecutionLogsRequest 获取执行日志请求
+type GetExecutionLogsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   int64                  `protobuf:"varint,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"` // 执行ID
+	MinId         int64                  `protobuf:"varint,2,opt,name=min_id,json=minId,proto3" json:"min_id,omitempty"`                   // 最小ID(增量查询,首次传0)
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`                                // 限制条数(默认50)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExecutionLogsRequest) Reset() {
+	*x = GetExecutionLogsRequest{}
+	mi := &file_task_v1_task_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExecutionLogsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExecutionLogsRequest) ProtoMessage() {}
+
+func (x *GetExecutionLogsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_task_v1_task_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExecutionLogsRequest.ProtoReflect.Descriptor instead.
+func (*GetExecutionLogsRequest) Descriptor() ([]byte, []int) {
+	return file_task_v1_task_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetExecutionLogsRequest) GetExecutionId() int64 {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return 0
+}
+
+func (x *GetExecutionLogsRequest) GetMinId() int64 {
+	if x != nil {
+		return x.MinId
+	}
+	return 0
+}
+
+func (x *GetExecutionLogsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// ExecutionLog 执行日志
+type ExecutionLog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`          // 日志ID
+	Time          int64                  `protobuf:"varint,2,opt,name=time,proto3" json:"time,omitempty"`      // 日志时间
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"` // 日志内容
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecutionLog) Reset() {
+	*x = ExecutionLog{}
+	mi := &file_task_v1_task_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionLog) ProtoMessage() {}
+
+func (x *ExecutionLog) ProtoReflect() protoreflect.Message {
+	mi := &file_task_v1_task_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionLog.ProtoReflect.Descriptor instead.
+func (*ExecutionLog) Descriptor() ([]byte, []int) {
+	return file_task_v1_task_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ExecutionLog) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ExecutionLog) GetTime() int64 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
+func (x *ExecutionLog) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+// GetExecutionLogsResponse 获取执行日志响应
+type GetExecutionLogsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Logs          []*ExecutionLog        `protobuf:"bytes,1,rep,name=logs,proto3" json:"logs,omitempty"`                 // 日志列表
+	MaxId         int64                  `protobuf:"varint,2,opt,name=max_id,json=maxId,proto3" json:"max_id,omitempty"` // 当前返回的最大ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExecutionLogsResponse) Reset() {
+	*x = GetExecutionLogsResponse{}
+	mi := &file_task_v1_task_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExecutionLogsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExecutionLogsResponse) ProtoMessage() {}
+
+func (x *GetExecutionLogsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_task_v1_task_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExecutionLogsResponse.ProtoReflect.Descriptor instead.
+func (*GetExecutionLogsResponse) Descriptor() ([]byte, []int) {
+	return file_task_v1_task_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetExecutionLogsResponse) GetLogs() []*ExecutionLog {
+	if x != nil {
+		return x.Logs
+	}
+	return nil
+}
+
+func (x *GetExecutionLogsResponse) GetMaxId() int64 {
+	if x != nil {
+		return x.MaxId
+	}
+	return 0
+}
+
 var File_task_v1_task_proto protoreflect.FileDescriptor
 
 const file_task_v1_task_proto_rawDesc = "" +
@@ -1173,7 +1348,18 @@ const file_task_v1_task_proto_rawDesc = "" +
 	"\x04type\x18\x04 \x01(\x0e2\x11.task.v1.TaskTypeR\x04type\"N\n" +
 	"\x11ListTasksResponse\x12#\n" +
 	"\x05tasks\x18\x01 \x03(\v2\r.task.v1.TaskR\x05tasks\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total*B\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\"i\n" +
+	"\x17GetExecutionLogsRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\x03R\vexecutionId\x12\x15\n" +
+	"\x06min_id\x18\x02 \x01(\x03R\x05minId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"L\n" +
+	"\fExecutionLog\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04time\x18\x02 \x01(\x03R\x04time\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\"\\\n" +
+	"\x18GetExecutionLogsResponse\x12)\n" +
+	"\x04logs\x18\x01 \x03(\v2\x15.task.v1.ExecutionLogR\x04logs\x12\x15\n" +
+	"\x06max_id\x18\x02 \x01(\x03R\x05maxId*B\n" +
 	"\bTaskType\x12\x19\n" +
 	"\x15TASK_TYPE_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tRECURRING\x10\x01\x12\f\n" +
@@ -1184,7 +1370,7 @@ const file_task_v1_task_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\r\n" +
 	"\tPREEMPTED\x10\x02\x12\f\n" +
-	"\bINACTIVE\x10\x032\xe4\x02\n" +
+	"\bINACTIVE\x10\x032\xbd\x03\n" +
 	"\vTaskService\x12E\n" +
 	"\n" +
 	"CreateTask\x12\x1a.task.v1.CreateTaskRequest\x1a\x1b.task.v1.CreateTaskResponse\x12<\n" +
@@ -1193,7 +1379,8 @@ const file_task_v1_task_proto_rawDesc = "" +
 	"UpdateTask\x12\x1a.task.v1.UpdateTaskRequest\x1a\x1b.task.v1.UpdateTaskResponse\x12E\n" +
 	"\n" +
 	"DeleteTask\x12\x1a.task.v1.DeleteTaskRequest\x1a\x1b.task.v1.DeleteTaskResponse\x12B\n" +
-	"\tListTasks\x12\x19.task.v1.ListTasksRequest\x1a\x1a.task.v1.ListTasksResponseB\x94\x01\n" +
+	"\tListTasks\x12\x19.task.v1.ListTasksRequest\x1a\x1a.task.v1.ListTasksResponse\x12W\n" +
+	"\x10GetExecutionLogs\x12 .task.v1.GetExecutionLogsRequest\x1a!.task.v1.GetExecutionLogsResponseB\x94\x01\n" +
 	"\vcom.task.v1B\tTaskProtoP\x01Z=github.com/Duke1616/ework-runner/api/proto/gen/task/v1;taskv1\xa2\x02\x03TXX\xaa\x02\aTask.V1\xca\x02\aTask\\V1\xe2\x02\x13Task\\V1\\GPBMetadata\xea\x02\bTask::V1b\x06proto3"
 
 var (
@@ -1209,69 +1396,75 @@ func file_task_v1_task_proto_rawDescGZIP() []byte {
 }
 
 var file_task_v1_task_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_task_v1_task_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_task_v1_task_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_task_v1_task_proto_goTypes = []any{
-	(TaskType)(0),              // 0: task.v1.TaskType
-	(TaskStatus)(0),            // 1: task.v1.TaskStatus
-	(*GrpcConfig)(nil),         // 2: task.v1.GrpcConfig
-	(*HTTPConfig)(nil),         // 3: task.v1.HTTPConfig
-	(*RetryConfig)(nil),        // 4: task.v1.RetryConfig
-	(*Task)(nil),               // 5: task.v1.Task
-	(*CreateTaskRequest)(nil),  // 6: task.v1.CreateTaskRequest
-	(*CreateTaskResponse)(nil), // 7: task.v1.CreateTaskResponse
-	(*GetTaskRequest)(nil),     // 8: task.v1.GetTaskRequest
-	(*GetTaskResponse)(nil),    // 9: task.v1.GetTaskResponse
-	(*UpdateTaskRequest)(nil),  // 10: task.v1.UpdateTaskRequest
-	(*UpdateTaskResponse)(nil), // 11: task.v1.UpdateTaskResponse
-	(*DeleteTaskRequest)(nil),  // 12: task.v1.DeleteTaskRequest
-	(*DeleteTaskResponse)(nil), // 13: task.v1.DeleteTaskResponse
-	(*ListTasksRequest)(nil),   // 14: task.v1.ListTasksRequest
-	(*ListTasksResponse)(nil),  // 15: task.v1.ListTasksResponse
-	nil,                        // 16: task.v1.GrpcConfig.ParamsEntry
-	nil,                        // 17: task.v1.HTTPConfig.ParamsEntry
-	nil,                        // 18: task.v1.Task.ScheduleParamsEntry
-	nil,                        // 19: task.v1.CreateTaskRequest.ScheduleParamsEntry
-	nil,                        // 20: task.v1.UpdateTaskRequest.ScheduleParamsEntry
+	(TaskType)(0),                    // 0: task.v1.TaskType
+	(TaskStatus)(0),                  // 1: task.v1.TaskStatus
+	(*GrpcConfig)(nil),               // 2: task.v1.GrpcConfig
+	(*HTTPConfig)(nil),               // 3: task.v1.HTTPConfig
+	(*RetryConfig)(nil),              // 4: task.v1.RetryConfig
+	(*Task)(nil),                     // 5: task.v1.Task
+	(*CreateTaskRequest)(nil),        // 6: task.v1.CreateTaskRequest
+	(*CreateTaskResponse)(nil),       // 7: task.v1.CreateTaskResponse
+	(*GetTaskRequest)(nil),           // 8: task.v1.GetTaskRequest
+	(*GetTaskResponse)(nil),          // 9: task.v1.GetTaskResponse
+	(*UpdateTaskRequest)(nil),        // 10: task.v1.UpdateTaskRequest
+	(*UpdateTaskResponse)(nil),       // 11: task.v1.UpdateTaskResponse
+	(*DeleteTaskRequest)(nil),        // 12: task.v1.DeleteTaskRequest
+	(*DeleteTaskResponse)(nil),       // 13: task.v1.DeleteTaskResponse
+	(*ListTasksRequest)(nil),         // 14: task.v1.ListTasksRequest
+	(*ListTasksResponse)(nil),        // 15: task.v1.ListTasksResponse
+	(*GetExecutionLogsRequest)(nil),  // 16: task.v1.GetExecutionLogsRequest
+	(*ExecutionLog)(nil),             // 17: task.v1.ExecutionLog
+	(*GetExecutionLogsResponse)(nil), // 18: task.v1.GetExecutionLogsResponse
+	nil,                              // 19: task.v1.GrpcConfig.ParamsEntry
+	nil,                              // 20: task.v1.HTTPConfig.ParamsEntry
+	nil,                              // 21: task.v1.Task.ScheduleParamsEntry
+	nil,                              // 22: task.v1.CreateTaskRequest.ScheduleParamsEntry
+	nil,                              // 23: task.v1.UpdateTaskRequest.ScheduleParamsEntry
 }
 var file_task_v1_task_proto_depIdxs = []int32{
-	16, // 0: task.v1.GrpcConfig.params:type_name -> task.v1.GrpcConfig.ParamsEntry
-	17, // 1: task.v1.HTTPConfig.params:type_name -> task.v1.HTTPConfig.ParamsEntry
+	19, // 0: task.v1.GrpcConfig.params:type_name -> task.v1.GrpcConfig.ParamsEntry
+	20, // 1: task.v1.HTTPConfig.params:type_name -> task.v1.HTTPConfig.ParamsEntry
 	0,  // 2: task.v1.Task.type:type_name -> task.v1.TaskType
 	2,  // 3: task.v1.Task.grpc_config:type_name -> task.v1.GrpcConfig
 	3,  // 4: task.v1.Task.http_config:type_name -> task.v1.HTTPConfig
 	4,  // 5: task.v1.Task.retry_config:type_name -> task.v1.RetryConfig
-	18, // 6: task.v1.Task.schedule_params:type_name -> task.v1.Task.ScheduleParamsEntry
+	21, // 6: task.v1.Task.schedule_params:type_name -> task.v1.Task.ScheduleParamsEntry
 	1,  // 7: task.v1.Task.status:type_name -> task.v1.TaskStatus
 	0,  // 8: task.v1.CreateTaskRequest.type:type_name -> task.v1.TaskType
 	2,  // 9: task.v1.CreateTaskRequest.grpc_config:type_name -> task.v1.GrpcConfig
 	3,  // 10: task.v1.CreateTaskRequest.http_config:type_name -> task.v1.HTTPConfig
 	4,  // 11: task.v1.CreateTaskRequest.retry_config:type_name -> task.v1.RetryConfig
-	19, // 12: task.v1.CreateTaskRequest.schedule_params:type_name -> task.v1.CreateTaskRequest.ScheduleParamsEntry
+	22, // 12: task.v1.CreateTaskRequest.schedule_params:type_name -> task.v1.CreateTaskRequest.ScheduleParamsEntry
 	5,  // 13: task.v1.GetTaskResponse.task:type_name -> task.v1.Task
 	0,  // 14: task.v1.UpdateTaskRequest.type:type_name -> task.v1.TaskType
 	2,  // 15: task.v1.UpdateTaskRequest.grpc_config:type_name -> task.v1.GrpcConfig
 	3,  // 16: task.v1.UpdateTaskRequest.http_config:type_name -> task.v1.HTTPConfig
 	4,  // 17: task.v1.UpdateTaskRequest.retry_config:type_name -> task.v1.RetryConfig
-	20, // 18: task.v1.UpdateTaskRequest.schedule_params:type_name -> task.v1.UpdateTaskRequest.ScheduleParamsEntry
+	23, // 18: task.v1.UpdateTaskRequest.schedule_params:type_name -> task.v1.UpdateTaskRequest.ScheduleParamsEntry
 	1,  // 19: task.v1.UpdateTaskRequest.status:type_name -> task.v1.TaskStatus
 	1,  // 20: task.v1.ListTasksRequest.status:type_name -> task.v1.TaskStatus
 	0,  // 21: task.v1.ListTasksRequest.type:type_name -> task.v1.TaskType
 	5,  // 22: task.v1.ListTasksResponse.tasks:type_name -> task.v1.Task
-	6,  // 23: task.v1.TaskService.CreateTask:input_type -> task.v1.CreateTaskRequest
-	8,  // 24: task.v1.TaskService.GetTask:input_type -> task.v1.GetTaskRequest
-	10, // 25: task.v1.TaskService.UpdateTask:input_type -> task.v1.UpdateTaskRequest
-	12, // 26: task.v1.TaskService.DeleteTask:input_type -> task.v1.DeleteTaskRequest
-	14, // 27: task.v1.TaskService.ListTasks:input_type -> task.v1.ListTasksRequest
-	7,  // 28: task.v1.TaskService.CreateTask:output_type -> task.v1.CreateTaskResponse
-	9,  // 29: task.v1.TaskService.GetTask:output_type -> task.v1.GetTaskResponse
-	11, // 30: task.v1.TaskService.UpdateTask:output_type -> task.v1.UpdateTaskResponse
-	13, // 31: task.v1.TaskService.DeleteTask:output_type -> task.v1.DeleteTaskResponse
-	15, // 32: task.v1.TaskService.ListTasks:output_type -> task.v1.ListTasksResponse
-	28, // [28:33] is the sub-list for method output_type
-	23, // [23:28] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	17, // 23: task.v1.GetExecutionLogsResponse.logs:type_name -> task.v1.ExecutionLog
+	6,  // 24: task.v1.TaskService.CreateTask:input_type -> task.v1.CreateTaskRequest
+	8,  // 25: task.v1.TaskService.GetTask:input_type -> task.v1.GetTaskRequest
+	10, // 26: task.v1.TaskService.UpdateTask:input_type -> task.v1.UpdateTaskRequest
+	12, // 27: task.v1.TaskService.DeleteTask:input_type -> task.v1.DeleteTaskRequest
+	14, // 28: task.v1.TaskService.ListTasks:input_type -> task.v1.ListTasksRequest
+	16, // 29: task.v1.TaskService.GetExecutionLogs:input_type -> task.v1.GetExecutionLogsRequest
+	7,  // 30: task.v1.TaskService.CreateTask:output_type -> task.v1.CreateTaskResponse
+	9,  // 31: task.v1.TaskService.GetTask:output_type -> task.v1.GetTaskResponse
+	11, // 32: task.v1.TaskService.UpdateTask:output_type -> task.v1.UpdateTaskResponse
+	13, // 33: task.v1.TaskService.DeleteTask:output_type -> task.v1.DeleteTaskResponse
+	15, // 34: task.v1.TaskService.ListTasks:output_type -> task.v1.ListTasksResponse
+	18, // 35: task.v1.TaskService.GetExecutionLogs:output_type -> task.v1.GetExecutionLogsResponse
+	30, // [30:36] is the sub-list for method output_type
+	24, // [24:30] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_task_v1_task_proto_init() }
@@ -1285,7 +1478,7 @@ func file_task_v1_task_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_task_v1_task_proto_rawDesc), len(file_task_v1_task_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   19,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

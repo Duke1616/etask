@@ -1,7 +1,9 @@
 package scripts
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,7 +13,13 @@ import (
 	"github.com/gotomicro/ego/core/elog"
 )
 
-const TEMPDIR = "/app"
+// getTempDir 获取临时目录，默认为 /app
+func getTempDir() string {
+	if dir := os.Getenv("SCRIPT_TEMP_DIR"); dir != "" {
+		return dir
+	}
+	return "/app"
+}
 
 // ---------------------------
 // 通用抽象定义
@@ -81,13 +89,41 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 
 	// 4. 执行命令
 	logger.Info("开始执行脚本", elog.String("language", e.language))
-	output, err := cmd.CombinedOutput()
-	logger.Info("脚本输出", elog.String("output", string(output)))
 
+	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
+		return fmt.Errorf("get stdout pipe failed: %w", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("get stderr pipe failed: %w", err)
+	}
+
+	// 强制开启 ANSI 颜色
+	// 不同的语言/工具有不同的开启方式
+	// Python: FORCE_COLOR=1, PRE_COMMIT_COLOR=always, etc.
+	// Shell: 依靠 ls --color=always 等，或者 TERM=xterm-256color
+	cmd.Env = append(os.Environ(), "FORCE_COLOR=1", "TERM=xterm-256color", "PYTHONUNBUFFERED=1")
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start cmd failed: %w", err)
+	}
+
+	// 异步读取输出
+	go streamOutput(ctx, stdoutPipe)
+	go streamOutput(ctx, stderrPipe)
+
+	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("execution failed: %w", err)
 	}
 	return nil
+}
+
+func streamOutput(ctx *executor.Context, reader io.Reader) {
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		ctx.Log(scanner.Text())
+	}
 }
 
 // archive 归档执行现场
@@ -95,7 +131,7 @@ func (e *ScriptExecutor) archive(taskID int64, codeFile string, args string, raw
 	// 创建归档目录
 	currentTime := time.Now().Format("20060102150405")
 	dirName := fmt.Sprintf("%d_%s", taskID, currentTime)
-	archiveDir := filepath.Join(TEMPDIR, dirName)
+	archiveDir := filepath.Join(getTempDir(), dirName)
 
 	if err := os.MkdirAll(archiveDir, 0755); err != nil {
 		fmt.Printf("create archive dir failed: %v\n", err)
@@ -130,7 +166,7 @@ func (e *ScriptExecutor) archive(taskID int64, codeFile string, args string, raw
 // 基础 Helper 函数
 // ---------------------------
 func createTempFile(pattern string, content []byte) (string, error) {
-	f, err := os.CreateTemp(TEMPDIR, pattern)
+	f, err := os.CreateTemp(getTempDir(), pattern)
 	if err != nil {
 		return "", err
 	}

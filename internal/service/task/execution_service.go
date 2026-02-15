@@ -51,6 +51,7 @@ type executionService struct {
 	nodeID       string
 	repo         repository.TaskExecutionRepository
 	taskSvc      Service
+	logSvc       LogService             // 日志服务
 	taskAcquirer acquirer.TaskAcquirer  // 任务抢占器
 	producer     event.CompleteProducer // 任务完成事件生产者
 	registry     registry.Registry
@@ -62,6 +63,7 @@ func NewExecutionService(
 	nodeID string,
 	repo repository.TaskExecutionRepository,
 	taskSvc Service,
+	logSvc LogService,
 	producer event.CompleteProducer,
 	registry registry.Registry,
 ) ExecutionService {
@@ -69,6 +71,7 @@ func NewExecutionService(
 		nodeID:   nodeID,
 		repo:     repo,
 		taskSvc:  taskSvc,
+		logSvc:   logSvc,
 		producer: producer,
 		registry: registry,
 		logger:   elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
@@ -126,16 +129,35 @@ func (s *executionService) HandleReports(ctx context.Context, reports []*domain.
 	skippedCount := 0
 
 	for i := range reports {
-		err1 := s.UpdateState(ctx, reports[i].ExecutionState)
+		report := reports[i]
+
+		// 1. 保存日志
+		if len(report.LogChunks) > 0 {
+			logs := make([]domain.TaskExecutionLog, len(report.LogChunks))
+			now := time.Now().UnixMilli()
+			for j, chunk := range report.LogChunks {
+				logs[j] = domain.TaskExecutionLog{
+					ExecutionID: report.ExecutionState.ID,
+					Content:     chunk,
+					CTime:       now,
+				}
+			}
+			if logErr := s.logSvc.BatchAddLogs(ctx, logs); logErr != nil {
+				s.logger.Error("保存任务日志失败", elog.Int64("execID", report.ExecutionState.ID), elog.FieldErr(logErr))
+				// 日志保存失败不影响状态更新，记录错误即可
+			}
+		}
+
+		err1 := s.UpdateState(ctx, report.ExecutionState)
 		if err1 != nil {
 			skippedCount++
 			s.logger.Error("处理执行节点上报的结果失败",
-				elog.Any("result", reports[i].ExecutionState),
+				elog.Any("result", report.ExecutionState),
 				elog.FieldErr(err1))
 			// 包装错误，添加上报场景的特定信息
 			err = multierr.Append(err,
 				fmt.Errorf("处理执行节点上报的结果失败: taskID=%d, executionID=%d: %w",
-					reports[i].ExecutionState.TaskID, reports[i].ExecutionState.ID, err1))
+					report.ExecutionState.TaskID, report.ExecutionState.ID, err1))
 			continue
 		}
 		processedCount++

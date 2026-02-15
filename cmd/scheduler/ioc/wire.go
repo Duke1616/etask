@@ -38,11 +38,13 @@ var (
 		dao.NewGORMTaskDAO,
 		repository.NewTaskRepository,
 		taskSvc.NewService,
+		taskSvc.NewLogService,
 		task.NewHandler,
 	)
 
 	taskExecutionSet = wire.NewSet(
 		dao.NewGORMTaskExecutionDAO,
+		dao.NewGORMTaskExecutionLogDAO,
 		repository.NewTaskExecutionRepository,
 		taskSvc.NewExecutionService,
 	)

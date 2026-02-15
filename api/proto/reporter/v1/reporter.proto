@@ -16,6 +16,8 @@ service ReporterService {
 // 异步 Kafka 消息定义参考这个
 message ReportRequest {
   executor.v1.ExecutionState execution_state = 1;
+  // 日志内容 (为了减少数据库写入，建议每条是个 Chunk)
+  repeated string log_chunks = 2;
 }
 
 message ReportResponse {}

@@ -3,6 +3,7 @@ package domain
 // Report 进度上报结构
 type Report struct {
 	ExecutionState ExecutionState `json:"executionState"`
+	LogChunks      []string       `json:"logChunks"`
 }
 
 type ExecutionState struct {

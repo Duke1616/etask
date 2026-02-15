@@ -64,6 +64,7 @@ func (s *ReporterServer) toDomainReports(reqs []*reporterv1.ReportRequest) []*do
 	return slice.Map(reqs, func(_ int, src *reporterv1.ReportRequest) *domain.Report {
 		return &domain.Report{
 			ExecutionState: domain.ExecutionStateFromProto(src.GetExecutionState()),
+			LogChunks:      src.GetLogChunks(),
 		}
 	})
 }

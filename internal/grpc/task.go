@@ -15,15 +15,44 @@ import (
 type TaskServer struct {
 	taskv1.UnimplementedTaskServiceServer
 	taskSvc task.Service
+	logSvc  task.LogService
 	logger  *elog.Component
 }
 
 // NewTaskServer 创建 TaskServer 实例
-func NewTaskServer(taskSvc task.Service) *TaskServer {
+func NewTaskServer(taskSvc task.Service, logSvc task.LogService) *TaskServer {
 	return &TaskServer{
 		taskSvc: taskSvc,
+		logSvc:  logSvc,
 		logger:  elog.DefaultLogger.With(elog.FieldComponentName("grpc.TaskServer")),
 	}
+}
+
+// GetExecutionLogs 获取执行日志
+func (s *TaskServer) GetExecutionLogs(ctx context.Context, req *taskv1.GetExecutionLogsRequest) (*taskv1.GetExecutionLogsResponse, error) {
+	logs, err := s.logSvc.GetLogs(ctx, req.GetExecutionId(), req.GetMinId(), int(req.GetLimit()))
+	if err != nil {
+		s.logger.Error("获取日志失败", elog.FieldErr(err))
+		return nil, status.Error(codes.Internal, "获取日志失败")
+	}
+
+	pbLogs := make([]*taskv1.ExecutionLog, len(logs))
+	var maxID int64
+	for i, l := range logs {
+		pbLogs[i] = &taskv1.ExecutionLog{
+			Id:      l.ID,
+			Time:    l.CTime,
+			Content: l.Content,
+		}
+		if l.ID > maxID {
+			maxID = l.ID
+		}
+	}
+
+	return &taskv1.GetExecutionLogsResponse{
+		Logs:  pbLogs,
+		MaxId: maxID,
+	}, nil
 }
 
 // CreateTask 创建任务

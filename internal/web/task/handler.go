@@ -10,21 +10,35 @@ import (
 var _ ginx.Handler = &Handler{}
 
 type Handler struct {
-	svc task.Service
+	svc    task.Service
+	logSvc task.LogService
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
 }
 
-func NewHandler(svc task.Service) *Handler {
+func NewHandler(svc task.Service, logSvc task.LogService) *Handler {
 	return &Handler{
-		svc: svc,
+		svc:    svc,
+		logSvc: logSvc,
 	}
 }
 
 func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/task")
 	g.POST("/create", ginx.B[CreateTaskReq](h.Create))
+	g.POST("/logs", ginx.B[GetLogsReq](h.GetLogs))
+}
+
+func (h *Handler) GetLogs(ctx *ginx.Context, req GetLogsReq) (ginx.Result, error) {
+	logs, err := h.logSvc.GetLogs(ctx, req.ExecutionID, req.MinID, req.Limit)
+	if err != nil {
+		return systemErrorResult, err
+	}
+	return ginx.Result{
+		Data: logs,
+		Msg:  "success",
+	}, nil
 }
 
 func (h *Handler) Create(ctx *ginx.Context, req CreateTaskReq) (ginx.Result, error) {

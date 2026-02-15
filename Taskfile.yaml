@@ -1,4 +1,9 @@
 version: '3'
+
+env:
+  EGO_DEBUG: "true"
+  SCRIPT_TEMP_DIR: "./app"
+
 tasks:
   default:
     desc: 命令提示
@@ -7,9 +12,19 @@ tasks:
   run:
     desc: 启动服务
     cmds:
-      - EGO_DEBUG=true go run main.go
+      - go run main.go
 
   gen:
     desc: 代码生成
     cmds:
       - buf generate api/proto
+
+  execute:
+    desc: 启动执行器
+    cmds:
+      - go run cmd/execute/main.go --config ./config/config.yaml
+
+  scheduler:
+    desc: 启动调度器
+    cmds:
+      - go run cmd/scheduler/main.go --config ./config/config.yaml

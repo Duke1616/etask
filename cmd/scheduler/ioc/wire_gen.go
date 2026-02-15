@@ -32,16 +32,18 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 	taskDAO := dao.NewGORMTaskDAO(db)
 	taskRepository := repository.NewTaskRepository(taskDAO)
 	service := task.NewService(taskRepository)
-	handler := task2.NewHandler(service)
+	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
+	logService := task.NewLogService(taskExecutionLogDAO)
+	handler := task2.NewHandler(service, logService)
 	component := ioc.InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler)
 	string2 := ioc.InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
 	mq := ioc.InitMQ()
 	completeProducer := ioc.InitCompleteProducer(mq)
-	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, completeProducer, registry)
+	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
 	reporterServer := grpc.NewReporterServer(executionService)
-	taskServer := grpc.NewTaskServer(service)
+	taskServer := grpc.NewTaskServer(service, logService)
 	server := ioc.InitSchedulerNodeGRPCServer(registry, reporterServer, taskServer)
 	taskAcquirer := ioc.InitMySQLTaskAcquirer(taskRepository)
 	clients := ioc.InitExecutorServiceGRPCClients(registry)
@@ -70,9 +72,9 @@ var (
 
 	webSetup = wire.NewSet(ioc.InitECMDBGrpcClient, ioc.InitPolicyServiceClient, middleware.NewCheckPolicyMiddlewareBuilder, ioc.InitSession, ioc.InitGinMiddlewares, ioc.InitGinWebServer)
 
-	taskSet = wire.NewSet(dao.NewGORMTaskDAO, repository.NewTaskRepository, task.NewService, task2.NewHandler)
+	taskSet = wire.NewSet(dao.NewGORMTaskDAO, repository.NewTaskRepository, task.NewService, task.NewLogService, task2.NewHandler)
 
-	taskExecutionSet = wire.NewSet(dao.NewGORMTaskExecutionDAO, repository.NewTaskExecutionRepository, task.NewExecutionService)
+	taskExecutionSet = wire.NewSet(dao.NewGORMTaskExecutionDAO, dao.NewGORMTaskExecutionLogDAO, repository.NewTaskExecutionRepository, task.NewExecutionService)
 
 	schedulerSet = wire.NewSet(ioc.InitNodeID, ioc.InitScheduler, ioc.InitMySQLTaskAcquirer, ioc.InitExecutorNodePicker)
 

@@ -28,3 +28,9 @@ type RetryConfig struct {
 	InitialInterval int64 `json:"initial_interval"` // 毫秒
 	MaxInterval     int64 `json:"max_interval"`     // 毫秒
 }
+
+type GetLogsReq struct {
+	ExecutionID int64 `json:"execution_id" form:"execution_id"`
+	MinID       int64 `json:"min_id" form:"min_id"`
+	Limit       int   `json:"limit" form:"limit"`
+}

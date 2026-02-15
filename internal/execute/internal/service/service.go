@@ -4,17 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Duke1616/ework-runner/internal/execute/internal/domain"
-	"github.com/Duke1616/ework-runner/internal/runner"
-	"github.com/ecodeclub/mq-api"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/Duke1616/ework-runner/internal/execute/internal/domain"
+	"github.com/Duke1616/ework-runner/internal/runner"
+	"github.com/ecodeclub/mq-api"
 )
 
-const TEMPDIR = "/app"
+// getTempDir 获取临时目录，默认为 /app
+func getTempDir() string {
+	if dir := os.Getenv("SCRIPT_TEMP_DIR"); dir != "" {
+		return dir
+	}
+	return "/app"
+}
 
 type Service interface {
 	Receive(ctx context.Context, req domain.ExecuteReceive) (string, domain.Status, error)
@@ -73,7 +80,7 @@ func createVariablesTempFile(vars string) string {
 	}
 
 	// 打开文件用于写入
-	tmpFile, err := os.CreateTemp(TEMPDIR, "scripts-*.vars")
+	tmpFile, err := os.CreateTemp(getTempDir(), "scripts-*.vars")
 	if err != nil {
 		slog.Error("creating temporary file:", slog.Any("错误信息", err))
 	}
@@ -110,7 +117,7 @@ func createCodeTempFile(code string, language string) string {
 	}
 
 	// 创建临时文件
-	tmpFile, err := os.CreateTemp(TEMPDIR, fileName)
+	tmpFile, err := os.CreateTemp(getTempDir(), fileName)
 	if err != nil {
 		slog.Error("creating temporary file:", slog.Any("错误信息", err))
 	}
@@ -152,7 +159,7 @@ func moveTempFile(cmd *exec.Cmd, taskId int64) {
 
 	// 创建以 taskId 和当前时间为名的新目录
 	dirName := fmt.Sprintf("%d_%s", taskId, currentTime)
-	newDirPath := filepath.Join(TEMPDIR, dirName)
+	newDirPath := filepath.Join(getTempDir(), dirName)
 
 	// 创建目录
 	if err := os.MkdirAll(newDirPath, os.ModePerm); err != nil {

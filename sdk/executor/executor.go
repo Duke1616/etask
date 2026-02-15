@@ -139,6 +139,8 @@ func (e *Executor) executeTask(runCtx context.Context, taskCtx *Context, eid int
 	logger := taskCtx.Logger()
 
 	// 查找处理函数
+	defer taskCtx.Close() // 确保日志被发送
+
 	handler, exists := e.handlers[taskCtx.HandlerName]
 
 	var err error
