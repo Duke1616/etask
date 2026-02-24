@@ -20,6 +20,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, checkPolicyMiddleware *middleware.
 
 	// 验证是否登录
 	server.Use(session.CheckLoginMiddleware())
+
 	// 检查权限策略
 	server.Use(checkPolicyMiddleware.Build())
 

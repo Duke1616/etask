@@ -12,7 +12,7 @@ import (
 	"github.com/gotomicro/ego/core/elog"
 )
 
-const Resource = "ALERT"
+const Resource = "ETASK"
 
 type CheckPolicyMiddlewareBuilder struct {
 	policySvc policyv1.PolicyServiceClient
@@ -34,7 +34,7 @@ func (c *CheckPolicyMiddlewareBuilder) Build() gin.HandlerFunc {
 		sess, err := c.sp.Get(gCtx)
 		if err != nil {
 			gCtx.AbortWithStatus(http.StatusForbidden)
-			c.logger.Debug("用户未登录", elog.FieldErr(err))
+			c.logger.Warn("用户未登录", elog.FieldErr(err))
 			return
 		}
 
@@ -53,7 +53,7 @@ func (c *CheckPolicyMiddlewareBuilder) Build() gin.HandlerFunc {
 
 		if err != nil || !resp.Allowed {
 			gCtx.AbortWithStatus(http.StatusForbidden)
-			c.logger.Debug("用户无权限", elog.FieldErr(err))
+			c.logger.Warn("用户无权限", elog.FieldErr(err))
 			return
 		}
 	}

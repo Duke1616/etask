@@ -14,7 +14,7 @@ import (
 
 const (
 	defaultBufferSize  = 10
-	defaultLogInterval = 1 * time.Second
+	defaultLogInterval = 3 * time.Second
 )
 
 // TaskLogger 任务日志记录器接口
@@ -104,13 +104,14 @@ func (l *bufferTaskLogger) flush() {
 	l.buffer = make([]string, 0, l.bufferSize)
 	l.bufferLock.Unlock()
 
-	// 发送日志
+	// LogOnly=true 表示"仅上传日志"，调度节点收到后只保存日志，跳过状态机处理。
+	// 这样后台定时 flush goroutine 不会干扰主流程的状态迁移。
 	_, err := l.reporter.Report(context.Background(), &reporterv1.ReportRequest{
 		ExecutionState: &executorv1.ExecutionState{
-			Id:     l.executionID,
-			Status: executorv1.ExecutionStatus_RUNNING,
+			Id: l.executionID,
 		},
 		LogChunks: logs,
+		LogOnly:   true,
 	})
 	if err != nil {
 		l.sysLogger.Error("report logs failed", elog.FieldErr(err))

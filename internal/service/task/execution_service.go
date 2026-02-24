@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Duke1616/ework-runner/internal/domain"
@@ -132,20 +133,25 @@ func (s *executionService) HandleReports(ctx context.Context, reports []*domain.
 		report := reports[i]
 
 		// 1. 保存日志
+		// 将一次 flush 批次的所有 log_chunks 合并为一条记录存储，避免逐行写入造成的写放大问题。
+		// 前端展示时，按 \n 分割还原每行内容；limit 查询时，limit=N 表示最近 N 个上报批次。
 		if len(report.LogChunks) > 0 {
-			logs := make([]domain.TaskExecutionLog, len(report.LogChunks))
-			now := time.Now().UnixMilli()
-			for j, chunk := range report.LogChunks {
-				logs[j] = domain.TaskExecutionLog{
-					ExecutionID: report.ExecutionState.ID,
-					Content:     chunk,
-					CTime:       now,
-				}
+			log := domain.TaskExecutionLog{
+				ExecutionID: report.ExecutionState.ID,
+				Content:     strings.Join(report.LogChunks, "\n"),
+				CTime:       time.Now().UnixMilli(),
 			}
-			if logErr := s.logSvc.BatchAddLogs(ctx, logs); logErr != nil {
-				s.logger.Error("保存任务日志失败", elog.Int64("execID", report.ExecutionState.ID), elog.FieldErr(logErr))
+			if logErr := s.logSvc.AddLog(ctx, log); logErr != nil {
 				// 日志保存失败不影响状态更新，记录错误即可
+				s.logger.Error("保存任务日志失败", elog.Int64("execID", report.ExecutionState.ID), elog.FieldErr(logErr))
 			}
+		}
+
+		// 2. 更新状态
+		// SDK 日志 flush 设置 log_only=true，表示"仅上传日志，不触发状态机"。
+		// 此时跳过 UpdateState，从源头避免后台 flush goroutine 与终态上报产生竞态。
+		if report.LogOnly {
+			continue
 		}
 
 		err1 := s.UpdateState(ctx, report.ExecutionState)
@@ -154,7 +160,6 @@ func (s *executionService) HandleReports(ctx context.Context, reports []*domain.
 			s.logger.Error("处理执行节点上报的结果失败",
 				elog.Any("result", report.ExecutionState),
 				elog.FieldErr(err1))
-			// 包装错误，添加上报场景的特定信息
 			err = multierr.Append(err,
 				fmt.Errorf("处理执行节点上报的结果失败: taskID=%d, executionID=%d: %w",
 					report.ExecutionState.TaskID, report.ExecutionState.ID, err1))

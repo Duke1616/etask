@@ -65,6 +65,7 @@ func (s *ReporterServer) toDomainReports(reqs []*reporterv1.ReportRequest) []*do
 		return &domain.Report{
 			ExecutionState: domain.ExecutionStateFromProto(src.GetExecutionState()),
 			LogChunks:      src.GetLogChunks(),
+			LogOnly:        src.GetLogOnly(),
 		}
 	})
 }

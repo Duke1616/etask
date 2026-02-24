@@ -4,6 +4,8 @@ package domain
 type Report struct {
 	ExecutionState ExecutionState `json:"executionState"`
 	LogChunks      []string       `json:"logChunks"`
+	// LogOnly 为 true 时，调度节点仅保存日志，跳过状态机处理
+	LogOnly bool `json:"logOnly"`
 }
 
 type ExecutionState struct {

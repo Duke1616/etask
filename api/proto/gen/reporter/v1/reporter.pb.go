@@ -27,7 +27,9 @@ type ReportRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ExecutionState *v1.ExecutionState     `protobuf:"bytes,1,opt,name=execution_state,json=executionState,proto3" json:"execution_state,omitempty"`
 	// 日志内容 (为了减少数据库写入，建议每条是个 Chunk)
-	LogChunks     []string `protobuf:"bytes,2,rep,name=log_chunks,json=logChunks,proto3" json:"log_chunks,omitempty"`
+	LogChunks []string `protobuf:"bytes,2,rep,name=log_chunks,json=logChunks,proto3" json:"log_chunks,omitempty"`
+	// 是否仅传输日志
+	LogOnly       bool `protobuf:"varint,3,opt,name=log_only,json=logOnly,proto3" json:"log_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -74,6 +76,13 @@ func (x *ReportRequest) GetLogChunks() []string {
 		return x.LogChunks
 	}
 	return nil
+}
+
+func (x *ReportRequest) GetLogOnly() bool {
+	if x != nil {
+		return x.LogOnly
+	}
+	return false
 }
 
 type ReportResponse struct {
@@ -196,11 +205,12 @@ var File_reporter_v1_reporter_proto protoreflect.FileDescriptor
 
 const file_reporter_v1_reporter_proto_rawDesc = "" +
 	"\n" +
-	"\x1areporter/v1/reporter.proto\x12\vreporter.v1\x1a\x1aexecutor/v1/executor.proto\"t\n" +
+	"\x1areporter/v1/reporter.proto\x12\vreporter.v1\x1a\x1aexecutor/v1/executor.proto\"\x8f\x01\n" +
 	"\rReportRequest\x12D\n" +
 	"\x0fexecution_state\x18\x01 \x01(\v2\x1b.executor.v1.ExecutionStateR\x0eexecutionState\x12\x1d\n" +
 	"\n" +
-	"log_chunks\x18\x02 \x03(\tR\tlogChunks\"\x10\n" +
+	"log_chunks\x18\x02 \x03(\tR\tlogChunks\x12\x19\n" +
+	"\blog_only\x18\x03 \x01(\bR\alogOnly\"\x10\n" +
 	"\x0eReportResponse\"J\n" +
 	"\x12BatchReportRequest\x124\n" +
 	"\areports\x18\x01 \x03(\v2\x1a.reporter.v1.ReportRequestR\areports\"\x15\n" +
