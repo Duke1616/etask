@@ -3,6 +3,7 @@ package domain
 import (
 	"time"
 
+	taskv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/task/v1"
 	"github.com/Duke1616/ework-runner/pkg/retry"
 	"github.com/robfig/cron/v3"
 )
@@ -58,6 +59,49 @@ type Task struct {
 	Version             int64             // 版本号，用于乐观锁
 	CTime               int64             // 创建时间戳
 	UTime               int64             // 更新时间戳
+	ExecMode            ExecMode          // 执行模式：PUSH 或 PULL
+}
+
+// ExecMode 执行模式
+type ExecMode string
+
+const (
+	ExecModePush ExecMode = "PUSH" // 被动推送模式 (默认)
+	ExecModePull ExecMode = "PULL" // 主动拉取模式
+)
+
+func (m ExecMode) String() string {
+	return string(m)
+}
+
+func (m ExecMode) IsPull() bool {
+	return m == ExecModePull
+}
+
+func (m ExecMode) IsPush() bool {
+	return m == ExecModePush
+}
+
+func ExecModeFromProto(pb taskv1.ExecMode) ExecMode {
+	switch pb {
+	case taskv1.ExecMode_PUSH:
+		return ExecModePush
+	case taskv1.ExecMode_PULL:
+		return ExecModePull
+	default:
+		return ExecModePush // 默认 PUSH
+	}
+}
+
+func (m ExecMode) ToProto() taskv1.ExecMode {
+	switch m {
+	case ExecModePush:
+		return taskv1.ExecMode_PUSH
+	case ExecModePull:
+		return taskv1.ExecMode_PULL
+	default:
+		return taskv1.ExecMode_EXEC_MODE_UNSPECIFIED
+	}
 }
 
 // RetryConfig 重试配置

@@ -67,8 +67,15 @@ func InitConfig() executor.Config {
 		panic(err)
 	}
 
+	mode := viper.GetString("executor.mode")
+	if mode == "" {
+		mode = "PUSH"
+	}
+	desc := viper.GetString("executor.desc")
+
 	return executor.Config{
-		Desc:   "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群",
+		Mode:   mode,
+		Desc:   desc,
 		Server: server,
 		Client: client,
 	}

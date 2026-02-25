@@ -36,6 +36,7 @@ type Task struct {
 	Version             int64                               `gorm:"type:bigint;not null;default:1;comment:'版本号，用于乐观锁'"`
 	Ctime               int64                               `gorm:"comment:'创建时间'"`
 	Utime               int64                               `gorm:"index:idx_next_time_status_utime,priority:3;comment:'更新时间'"`
+	ExecMode            string                              `gorm:"type:ENUM('PUSH', 'PULL');not null;default:'PUSH';comment:'本次调度采用的执行模式，由 scheduler 选节点时写入'"`
 }
 
 // TableName 指定表名
@@ -65,6 +66,8 @@ type TaskDAO interface {
 	UpdateScheduleParams(ctx context.Context, id, version int64, scheduleParams map[string]string) (*Task, error)
 	// UpdateStatus 更新任务状态
 	UpdateStatus(ctx context.Context, id int64, status string) (*Task, error)
+	// UpdateExecMode 更新执行模式快照（由调度器在选定 executor 节点后写入）
+	UpdateExecMode(ctx context.Context, id int64, mode string) error
 }
 
 type GORMTaskDAO struct {
@@ -289,4 +292,16 @@ func (g *GORMTaskDAO) UpdateStatus(ctx context.Context, id int64, status string)
 		return nil, err
 	}
 	return updatedTask, nil
+}
+
+// UpdateExecMode 更新任务的执行模式快照（由调度器在选定 executor 节点后写入）
+func (g *GORMTaskDAO) UpdateExecMode(ctx context.Context, id int64, mode string) error {
+	result := g.db.WithContext(ctx).
+		Model(&Task{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"exec_mode": mode,
+			"utime":     time.Now().UnixMilli(),
+		})
+	return result.Error
 }

@@ -60,6 +60,7 @@ var (
 		ioc.InitScheduler,
 		ioc.InitMySQLTaskAcquirer,
 		ioc.InitExecutorNodePicker,
+		ioc.InitExecModeResolver,
 	)
 
 	compensatorSet = wire.NewSet(
@@ -101,6 +102,7 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 		// GRPC服务器
 		grpc.NewReporterServer,
 		grpc.NewTaskServer,
+		grpc.NewAgentServer,
 		ioc.InitSchedulerNodeGRPCServer,
 		ioc.InitTasks,
 		wire.Struct(new(ioc.SchedulerApp), "*"),

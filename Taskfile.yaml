@@ -1,5 +1,7 @@
 version: '3'
 
+dotenv: ['.env']
+
 env:
   EGO_DEBUG: "true"
   SCRIPT_TEMP_DIR: "./app"
@@ -33,3 +35,23 @@ tasks:
     desc: 启动调度器
     cmds:
       - go run cmd/scheduler/main.go endpoint --config ./config/config.yaml
+
+  migrate:up:
+    desc: 执行所有待执行的数据库迁移（DSN 从 .env 读取）
+    cmds:
+      - goose -dir deploy/migrations up
+
+  migrate:status:
+    desc: 查看数据库迁移状态
+    cmds:
+      - goose -dir deploy/migrations status
+
+  migrate:down:
+    desc: 回滚最近一次数据库迁移
+    cmds:
+      - goose -dir deploy/migrations down
+
+  migrate:create:
+    desc: 创建新的迁移文件（用法：task migrate:create NAME=add_new_table）
+    cmds:
+      - goose -dir deploy/migrations -s create {{.NAME}} sql

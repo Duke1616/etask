@@ -11,6 +11,7 @@ type TaskExecutionStatus string
 
 const (
 	TaskExecutionStatusUnknown           TaskExecutionStatus = "UNKNOWN"
+	TaskExecutionStatusWaitingPull       TaskExecutionStatus = "WAITING_PULL"       // 等待边缘节点拉取
 	TaskExecutionStatusPrepare           TaskExecutionStatus = "PREPARE"            // 已创建，准备执行
 	TaskExecutionStatusRunning           TaskExecutionStatus = "RUNNING"            // 正在执行
 	TaskExecutionStatusSuccess           TaskExecutionStatus = "SUCCESS"            // 执行成功
@@ -25,7 +26,8 @@ func (t TaskExecutionStatus) String() string {
 
 func (t TaskExecutionStatus) IsValid() bool {
 	switch t {
-	case TaskExecutionStatusPrepare,
+	case TaskExecutionStatusWaitingPull,
+		TaskExecutionStatusPrepare,
 		TaskExecutionStatusRunning,
 		TaskExecutionStatusSuccess,
 		TaskExecutionStatusFailed,

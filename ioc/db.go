@@ -53,10 +53,16 @@ func InitDB() *gorm.DB {
 		Logger: myLogger,
 	})
 
+	// AutoMigrate 创建/更新表结构（新增列、新建表）
 	err = dao.InitTables(db)
 	if err != nil {
 		panic(err)
 	}
+
+	// goose 处理 AutoMigrate 无法覆盖的变更：
+	// ENUM 修改、列删除、索引调整等需要版本化管理的 DDL
+	RunMigrations(db)
+
 	return db
 }
 

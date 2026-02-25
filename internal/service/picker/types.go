@@ -7,11 +7,19 @@ import (
 )
 
 // ExecutorNodePicker 是执行节点选择器的通用接口。
-// 任何实现该接口的类型都可以根据特定逻辑选择一个最优的执行节点。
+// 属于调度层辺辑：根据 task 的配置选出最优节点。
 type ExecutorNodePicker interface {
-	// Name 返回选择器的可读名称，主要用于日志和监控。
+	// Name 返回选择器的可读名称。
 	Name() string
-	// Pick 根据 task 的调度策略选择一个最优的执行节点。
-	// 如果没有可用的节点或发生错误，将返回错误。
+	// Pick 根据 task 选择最优执行节点，返回节点 ID。
 	Pick(ctx context.Context, task domain.Task) (nodeID string, err error)
+}
+
+// IExecModeResolver 负责感知节点的执行模式并进行持久化。
+// NOTE: 与 picker 责任分离：picker 只选节点，resolver 负责“感知模式 + 写 DB”。
+type IExecModeResolver interface {
+	// ResolveMode 查询选中节点在注册时声明的执行模式，
+	// 并将结果写入 tasks.exec_mode 作为快照记录，返回模式。
+	// 写 DB 失败不阻断调度，仅记录日志。
+	ResolveMode(ctx context.Context, task domain.Task, nodeID string) domain.ExecMode
 }

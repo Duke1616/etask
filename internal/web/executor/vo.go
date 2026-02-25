@@ -1,9 +1,5 @@
 package executor
 
-type ListExecutorsReq struct {
-	// 预留参数，可扩充比如分页、过滤名字等
-}
-
 type Executor struct {
 	Name     string          `json:"name"`     // 分组的执行器服务名
 	Desc     string          `json:"desc"`     // 执行器的总体功能描述

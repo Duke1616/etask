@@ -16,7 +16,7 @@ import (
 
 // InitSchedulerNodeGRPCServer 初始化 Scheduler gRPC 服务器
 func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcapi.ReporterServer,
-	task *grpcapi.TaskServer) *grpcpkg.Server {
+	task *grpcapi.TaskServer, agent *grpcapi.AgentServer) *grpcpkg.Server {
 	var cfg grpcpkg.ServerConfig
 	if err := viper.UnmarshalKey("grpc.server.scheduler", &cfg); err != nil {
 		panic(err)
@@ -25,6 +25,7 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 	server := grpcpkg.NewServer(cfg, registry, grpcpkg.WithJWTAuth(cfg.AuthToken))
 	reporterv1.RegisterReporterServiceServer(server.Server, reporter)
 	taskv1.RegisterTaskServiceServer(server.Server, task)
+	executorv1.RegisterAgentServiceServer(server.Server, agent)
 
 	return server
 }

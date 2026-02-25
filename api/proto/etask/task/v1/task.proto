@@ -40,6 +40,13 @@ message RetryConfig {
   int64 max_interval = 3; // 最大重试间隔(毫秒)
 }
 
+// ExecMode 执行模式
+enum ExecMode {
+  EXEC_MODE_UNSPECIFIED = 0; // 默认，推模式
+  PUSH = 1; // 调度中心主动推给节点
+  PULL = 2; // 边缘节点主动拉取任务
+}
+
 // Task 任务定义
 message Task {
   int64 id = 1; // 任务ID
@@ -57,6 +64,7 @@ message Task {
   int64 version = 13; // 版本号,用于乐观锁
   int64 ctime = 14; // 创建时间戳
   int64 utime = 15; // 更新时间戳
+  ExecMode exec_mode = 16; // 执行模式 (PUSH 或 PULL)
 }
 
 // CreateTaskRequest 创建任务请求
@@ -69,6 +77,7 @@ message CreateTaskRequest {
   RetryConfig retry_config = 6; // 重试配置
   int64 max_execution_seconds = 7; // 最大执行秒数,默认24小时
   map<string, string> schedule_params = 8; // 调度参数(如分页偏移量、处理进度等)
+  ExecMode exec_mode = 9; // 执行模式
 }
 
 // CreateTaskResponse 创建任务响应
@@ -98,6 +107,7 @@ message UpdateTaskRequest {
   int64 max_execution_seconds = 8; // 最大执行秒数
   map<string, string> schedule_params = 9; // 调度参数
   TaskStatus status = 10; // 任务状态
+  ExecMode exec_mode = 11; // 执行模式
 }
 
 // UpdateTaskResponse 更新任务响应

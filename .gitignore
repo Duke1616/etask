@@ -13,3 +13,4 @@ wx.json
 app/
 logs/
 .idea/
+.env

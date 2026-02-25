@@ -38,6 +38,8 @@ type TaskExecutionRepository interface {
 	FindExecutionByTaskIDAndPlanExecID(ctx context.Context, taskID int64, planExecID int64) (domain.TaskExecution, error)
 	// FindTimeoutExecutions 查找超时的执行记录
 	FindTimeoutExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
+	// ClaimPullTask 原子抢占一个等待拉取的任务
+	ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (domain.TaskExecution, error)
 }
 
 type taskExecutionRepository struct {
@@ -164,6 +166,14 @@ func (r *taskExecutionRepository) FindTimeoutExecutions(ctx context.Context, lim
 	}), nil
 }
 
+func (r *taskExecutionRepository) ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (domain.TaskExecution, error) {
+	daoExec, err := r.dao.ClaimPullTask(ctx, serviceName, executorNodeID)
+	if err != nil {
+		return domain.TaskExecution{}, err
+	}
+	return r.toDomain(daoExec), nil
+}
+
 // toEntity 将领域模型转换为DAO模型
 func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.TaskExecution {
 	var grpcConfig sqlx.JSONColumn[domain.GrpcConfig]
@@ -214,6 +224,7 @@ func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.T
 		NextRetryTime:   execution.NextRetryTime,
 		RunningProgress: execution.RunningProgress,
 		Status:          execution.Status.String(),
+		ExecMode:        execution.Task.ExecMode.String(),
 		Ctime:           execution.CTime,
 		Utime:           execution.UTime,
 	}

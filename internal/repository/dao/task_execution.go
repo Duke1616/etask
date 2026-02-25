@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 const (
+	TaskExecutionStatusWaitingPull       = "WAITING_PULL"
 	TaskExecutionStatusPrepare           = "PREPARE"
 	TaskExecutionStatusRunning           = "RUNNING"
 	TaskExecutionStatusFailedRetryable   = "FAILED_RETRYABLE"
@@ -45,7 +47,8 @@ type TaskExecution struct {
 	RetryCount      int64          `gorm:"type:bigint;not null;default:0;comment:'已重试次数'"`
 	NextRetryTime   int64          `gorm:"type:bigint;comment:'下次重试时间'"`
 	RunningProgress int32          `gorm:"type:int;default:0;comment:'执行进度0-100，RUNNING状态下有效'"`
-	Status          string         `gorm:"type:ENUM('PREPARE', 'RUNNING', 'FAILED_RETRYABLE', 'FAILED_RESCHEDULED', 'FAILED', 'SUCCESS');not null;default:'PREPARE';comment:'执行状态: PREPARE-初始化(没有执行节点在执行）, RUNNING-执行中（有执行节点在执行）, FAILED_RETRYABLE-可重试失败, FAILED_RESCHEDULED-重调度失败， FAILED-失败, SUCCESS-成功'"`
+	Status          string         `gorm:"type:ENUM('WAITING_PULL', 'PREPARE', 'RUNNING', 'FAILED_RETRYABLE', 'FAILED_RESCHEDULED', 'FAILED', 'SUCCESS');not null;default:'PREPARE';comment:'执行状态: PREPARE-初始化(没有执行节点在执行）, RUNNING-执行中（有执行节点在执行）, FAILED_RETRYABLE-可重试失败, FAILED_RESCHEDULED-重调度失败， FAILED-失败, SUCCESS-成功'"`
+	ExecMode        string         `gorm:"type:ENUM('PUSH', 'PULL');not null;default:'PUSH';comment:'本次执行采用的模式（PUSH-中心推送/PULL-边缘拉取）'"`
 	Ctime           int64          `gorm:"comment:'创建时间'"`
 	Utime           int64          `gorm:"comment:'更新时间'"`
 }
@@ -83,6 +86,8 @@ type TaskExecutionDAO interface {
 	FindExecutionByTaskIDAndPlanExecID(ctx context.Context, taskID int64, planExecID int64) (TaskExecution, error)
 	// FindTimeoutExecutions 查找超时的执行记录
 	FindTimeoutExecutions(ctx context.Context, limit int) ([]TaskExecution, error)
+	// ClaimPullTask 原子抢占一个等待拉取的任务
+	ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (TaskExecution, error)
 }
 
 type GORMTaskExecutionDAO struct {
@@ -322,4 +327,55 @@ func (g *GORMTaskExecutionDAO) FindTimeoutExecutions(ctx context.Context, limit 
 		Find(&executions).Error
 
 	return executions, err
+}
+
+func (g *GORMTaskExecutionDAO) ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (TaskExecution, error) {
+	now := time.Now().UnixMilli()
+
+	// 1. 获取一个属于该 serviceName 且尚未被领取的任务
+	var exec TaskExecution
+	// 注意：JSON_EXTRACT 在 MySQL 原生提取出来会带双引号，这里使用 ->> 语法 (与 JSON_UNQUOTE(JSON_EXTRACT(...)) 一致)
+	err := g.db.WithContext(ctx).
+		Where("status = ?", TaskExecutionStatusWaitingPull).
+		Where("task_grpc_config->>'$.serviceName' = ?", serviceName).
+		Order("ctime ASC").
+		First(&exec).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return TaskExecution{}, errs.ErrExecutionNotFound
+		}
+		return TaskExecution{}, err
+	}
+
+	newDeadline := now + exec.TaskMaxExecutionSeconds*milliseconds
+
+	// 2. 尝试使用乐观锁更新 (匹配 id, status, utime)
+	result := g.db.WithContext(ctx).Model(&TaskExecution{}).
+		Where("id = ? AND status = ? AND utime = ?", exec.ID, TaskExecutionStatusWaitingPull, exec.Utime).
+		Updates(map[string]any{
+			"status":           TaskExecutionStatusRunning,
+			"executor_node_id": sql.NullString{String: executorNodeID, Valid: executorNodeID != ""},
+			"stime":            now,
+			"deadline":         newDeadline,
+			"utime":            now,
+		})
+
+	if result.Error != nil {
+		return TaskExecution{}, result.Error
+	}
+
+	// 3. 如果没更新到，说明产生了并发冲突被别的节点抢走了
+	if result.RowsAffected == 0 {
+		return TaskExecution{}, errors.New("concurrent modification: task claimed by another node")
+	}
+
+	// 更新成功，把需要返回的值补齐（因为 Updates 只修改了数据库，内存里的 struct 还需手动同步新状态）
+	exec.Status = TaskExecutionStatusRunning
+	exec.Stime = now
+	exec.Deadline = newDeadline
+	exec.Utime = now
+	exec.ExecutorNodeID = sql.NullString{String: executorNodeID, Valid: executorNodeID != ""}
+
+	return exec, nil
 }

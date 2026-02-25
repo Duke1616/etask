@@ -31,6 +31,8 @@ type TaskRepository interface {
 	FindByPlanID(ctx context.Context, planID int64) ([]domain.Task, error)
 	// UpdateStatus 更新任务状态
 	UpdateStatus(ctx context.Context, id int64, status domain.TaskStatus) (domain.Task, error)
+	// UpdateExecMode 更新任务的执行模式快照
+	UpdateExecMode(ctx context.Context, id int64, mode domain.ExecMode) error
 }
 
 type taskRepository struct {
@@ -122,6 +124,11 @@ func (r *taskRepository) UpdateStatus(ctx context.Context, id int64, status doma
 	return r.toDomain(task), nil
 }
 
+// UpdateExecMode 更新任务的执行模式快照
+func (r *taskRepository) UpdateExecMode(ctx context.Context, id int64, mode domain.ExecMode) error {
+	return r.dao.UpdateExecMode(ctx, id, mode.String())
+}
+
 // toEntity 将领域模型转换为DAO模型
 func (r *taskRepository) toEntity(task domain.Task) dao.Task {
 	var scheduleNodeID sql.NullString
@@ -165,6 +172,7 @@ func (r *taskRepository) toEntity(task domain.Task) dao.Task {
 		Version:             task.Version,
 		Ctime:               task.CTime,
 		Utime:               task.UTime,
+		ExecMode:            task.ExecMode.String(),
 	}
 }
 
@@ -211,5 +219,6 @@ func (r *taskRepository) toDomain(daoTask *dao.Task) domain.Task {
 		Version:             daoTask.Version,
 		UTime:               daoTask.Utime,
 		CTime:               daoTask.Ctime,
+		ExecMode:            domain.ExecMode(daoTask.ExecMode),
 	}
 }

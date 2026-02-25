@@ -1,0 +1,14 @@
+---
+# goose 数据库迁移配置
+# 使用方式：在项目根目录执行 goose 命令，会自动读取此配置
+#
+# 常用命令：
+#   goose status      查看迁移状态
+#   goose up          执行所有待执行迁移
+#   goose up-by-one   执行下一个迁移
+#   goose down        回滚最近一次迁移
+#   goose down-to 0   回滚全部迁移
+#   goose create <name> sql  创建新的 SQL 迁移文件
+
+driver: mysql
+dir: deploy/migrations

@@ -124,6 +124,56 @@ func (TaskStatus) EnumDescriptor() ([]byte, []int) {
 	return file_etask_task_v1_task_proto_rawDescGZIP(), []int{1}
 }
 
+// ExecMode 执行模式
+type ExecMode int32
+
+const (
+	ExecMode_EXEC_MODE_UNSPECIFIED ExecMode = 0 // 默认，推模式
+	ExecMode_PUSH                  ExecMode = 1 // 调度中心主动推给节点
+	ExecMode_PULL                  ExecMode = 2 // 边缘节点主动拉取任务
+)
+
+// Enum value maps for ExecMode.
+var (
+	ExecMode_name = map[int32]string{
+		0: "EXEC_MODE_UNSPECIFIED",
+		1: "PUSH",
+		2: "PULL",
+	}
+	ExecMode_value = map[string]int32{
+		"EXEC_MODE_UNSPECIFIED": 0,
+		"PUSH":                  1,
+		"PULL":                  2,
+	}
+)
+
+func (x ExecMode) Enum() *ExecMode {
+	p := new(ExecMode)
+	*p = x
+	return p
+}
+
+func (x ExecMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ExecMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_etask_task_v1_task_proto_enumTypes[2].Descriptor()
+}
+
+func (ExecMode) Type() protoreflect.EnumType {
+	return &file_etask_task_v1_task_proto_enumTypes[2]
+}
+
+func (x ExecMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ExecMode.Descriptor instead.
+func (ExecMode) EnumDescriptor() ([]byte, []int) {
+	return file_etask_task_v1_task_proto_rawDescGZIP(), []int{2}
+}
+
 // GrpcConfig gRPC配置
 type GrpcConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -325,6 +375,7 @@ type Task struct {
 	Version             int64                  `protobuf:"varint,13,opt,name=version,proto3" json:"version,omitempty"`                                                                                                              // 版本号,用于乐观锁
 	Ctime               int64                  `protobuf:"varint,14,opt,name=ctime,proto3" json:"ctime,omitempty"`                                                                                                                  // 创建时间戳
 	Utime               int64                  `protobuf:"varint,15,opt,name=utime,proto3" json:"utime,omitempty"`                                                                                                                  // 更新时间戳
+	ExecMode            ExecMode               `protobuf:"varint,16,opt,name=exec_mode,json=execMode,proto3,enum=etask.task.v1.ExecMode" json:"exec_mode,omitempty"`                                                                // 执行模式 (PUSH 或 PULL)
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -464,6 +515,13 @@ func (x *Task) GetUtime() int64 {
 	return 0
 }
 
+func (x *Task) GetExecMode() ExecMode {
+	if x != nil {
+		return x.ExecMode
+	}
+	return ExecMode_EXEC_MODE_UNSPECIFIED
+}
+
 // CreateTaskRequest 创建任务请求
 type CreateTaskRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
@@ -475,6 +533,7 @@ type CreateTaskRequest struct {
 	RetryConfig         *RetryConfig           `protobuf:"bytes,6,opt,name=retry_config,json=retryConfig,proto3" json:"retry_config,omitempty"`                                                                                    // 重试配置
 	MaxExecutionSeconds int64                  `protobuf:"varint,7,opt,name=max_execution_seconds,json=maxExecutionSeconds,proto3" json:"max_execution_seconds,omitempty"`                                                         // 最大执行秒数,默认24小时
 	ScheduleParams      map[string]string      `protobuf:"bytes,8,rep,name=schedule_params,json=scheduleParams,proto3" json:"schedule_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // 调度参数(如分页偏移量、处理进度等)
+	ExecMode            ExecMode               `protobuf:"varint,9,opt,name=exec_mode,json=execMode,proto3,enum=etask.task.v1.ExecMode" json:"exec_mode,omitempty"`                                                                // 执行模式
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -563,6 +622,13 @@ func (x *CreateTaskRequest) GetScheduleParams() map[string]string {
 		return x.ScheduleParams
 	}
 	return nil
+}
+
+func (x *CreateTaskRequest) GetExecMode() ExecMode {
+	if x != nil {
+		return x.ExecMode
+	}
+	return ExecMode_EXEC_MODE_UNSPECIFIED
 }
 
 // CreateTaskResponse 创建任务响应
@@ -713,6 +779,7 @@ type UpdateTaskRequest struct {
 	MaxExecutionSeconds int64                  `protobuf:"varint,8,opt,name=max_execution_seconds,json=maxExecutionSeconds,proto3" json:"max_execution_seconds,omitempty"`                                                         // 最大执行秒数
 	ScheduleParams      map[string]string      `protobuf:"bytes,9,rep,name=schedule_params,json=scheduleParams,proto3" json:"schedule_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // 调度参数
 	Status              TaskStatus             `protobuf:"varint,10,opt,name=status,proto3,enum=etask.task.v1.TaskStatus" json:"status,omitempty"`                                                                                 // 任务状态
+	ExecMode            ExecMode               `protobuf:"varint,11,opt,name=exec_mode,json=execMode,proto3,enum=etask.task.v1.ExecMode" json:"exec_mode,omitempty"`                                                               // 执行模式
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -815,6 +882,13 @@ func (x *UpdateTaskRequest) GetStatus() TaskStatus {
 		return x.Status
 	}
 	return TaskStatus_TASK_STATUS_UNSPECIFIED
+}
+
+func (x *UpdateTaskRequest) GetExecMode() ExecMode {
+	if x != nil {
+		return x.ExecMode
+	}
+	return ExecMode_EXEC_MODE_UNSPECIFIED
 }
 
 // UpdateTaskResponse 更新任务响应
@@ -1275,7 +1349,7 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"\vmax_retries\x18\x01 \x01(\x05R\n" +
 	"maxRetries\x12)\n" +
 	"\x10initial_interval\x18\x02 \x01(\x03R\x0finitialInterval\x12!\n" +
-	"\fmax_interval\x18\x03 \x01(\x03R\vmaxInterval\"\xb4\x05\n" +
+	"\fmax_interval\x18\x03 \x01(\x03R\vmaxInterval\"\xea\x05\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
@@ -1294,10 +1368,11 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"\x06status\x18\f \x01(\x0e2\x19.etask.task.v1.TaskStatusR\x06status\x12\x18\n" +
 	"\aversion\x18\r \x01(\x03R\aversion\x12\x14\n" +
 	"\x05ctime\x18\x0e \x01(\x03R\x05ctime\x12\x14\n" +
-	"\x05utime\x18\x0f \x01(\x03R\x05utime\x1aA\n" +
+	"\x05utime\x18\x0f \x01(\x03R\x05utime\x124\n" +
+	"\texec_mode\x18\x10 \x01(\x0e2\x17.etask.task.v1.ExecModeR\bexecMode\x1aA\n" +
 	"\x13ScheduleParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfe\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb4\x04\n" +
 	"\x11CreateTaskRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.etask.task.v1.TaskTypeR\x04type\x12\x1b\n" +
@@ -1308,7 +1383,8 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"httpConfig\x12=\n" +
 	"\fretry_config\x18\x06 \x01(\v2\x1a.etask.task.v1.RetryConfigR\vretryConfig\x122\n" +
 	"\x15max_execution_seconds\x18\a \x01(\x03R\x13maxExecutionSeconds\x12]\n" +
-	"\x0fschedule_params\x18\b \x03(\v24.etask.task.v1.CreateTaskRequest.ScheduleParamsEntryR\x0escheduleParams\x1aA\n" +
+	"\x0fschedule_params\x18\b \x03(\v24.etask.task.v1.CreateTaskRequest.ScheduleParamsEntryR\x0escheduleParams\x124\n" +
+	"\texec_mode\x18\t \x01(\x0e2\x17.etask.task.v1.ExecModeR\bexecMode\x1aA\n" +
 	"\x13ScheduleParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"$\n" +
@@ -1317,7 +1393,7 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"\x0eGetTaskRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\":\n" +
 	"\x0fGetTaskResponse\x12'\n" +
-	"\x04task\x18\x01 \x01(\v2\x13.etask.task.v1.TaskR\x04task\"\xc1\x04\n" +
+	"\x04task\x18\x01 \x01(\v2\x13.etask.task.v1.TaskR\x04task\"\xf7\x04\n" +
 	"\x11UpdateTaskRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
@@ -1331,7 +1407,8 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"\x15max_execution_seconds\x18\b \x01(\x03R\x13maxExecutionSeconds\x12]\n" +
 	"\x0fschedule_params\x18\t \x03(\v24.etask.task.v1.UpdateTaskRequest.ScheduleParamsEntryR\x0escheduleParams\x121\n" +
 	"\x06status\x18\n" +
-	" \x01(\x0e2\x19.etask.task.v1.TaskStatusR\x06status\x1aA\n" +
+	" \x01(\x0e2\x19.etask.task.v1.TaskStatusR\x06status\x124\n" +
+	"\texec_mode\x18\v \x01(\x0e2\x17.etask.task.v1.ExecModeR\bexecMode\x1aA\n" +
 	"\x13ScheduleParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\".\n" +
@@ -1370,7 +1447,11 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\r\n" +
 	"\tPREEMPTED\x10\x02\x12\f\n" +
-	"\bINACTIVE\x10\x032\x85\x04\n" +
+	"\bINACTIVE\x10\x03*9\n" +
+	"\bExecMode\x12\x19\n" +
+	"\x15EXEC_MODE_UNSPECIFIED\x10\x00\x12\b\n" +
+	"\x04PUSH\x10\x01\x12\b\n" +
+	"\x04PULL\x10\x022\x85\x04\n" +
 	"\vTaskService\x12Q\n" +
 	"\n" +
 	"CreateTask\x12 .etask.task.v1.CreateTaskRequest\x1a!.etask.task.v1.CreateTaskResponse\x12H\n" +
@@ -1395,76 +1476,80 @@ func file_etask_task_v1_task_proto_rawDescGZIP() []byte {
 	return file_etask_task_v1_task_proto_rawDescData
 }
 
-var file_etask_task_v1_task_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_etask_task_v1_task_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_etask_task_v1_task_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_etask_task_v1_task_proto_goTypes = []any{
 	(TaskType)(0),                    // 0: etask.task.v1.TaskType
 	(TaskStatus)(0),                  // 1: etask.task.v1.TaskStatus
-	(*GrpcConfig)(nil),               // 2: etask.task.v1.GrpcConfig
-	(*HTTPConfig)(nil),               // 3: etask.task.v1.HTTPConfig
-	(*RetryConfig)(nil),              // 4: etask.task.v1.RetryConfig
-	(*Task)(nil),                     // 5: etask.task.v1.Task
-	(*CreateTaskRequest)(nil),        // 6: etask.task.v1.CreateTaskRequest
-	(*CreateTaskResponse)(nil),       // 7: etask.task.v1.CreateTaskResponse
-	(*GetTaskRequest)(nil),           // 8: etask.task.v1.GetTaskRequest
-	(*GetTaskResponse)(nil),          // 9: etask.task.v1.GetTaskResponse
-	(*UpdateTaskRequest)(nil),        // 10: etask.task.v1.UpdateTaskRequest
-	(*UpdateTaskResponse)(nil),       // 11: etask.task.v1.UpdateTaskResponse
-	(*DeleteTaskRequest)(nil),        // 12: etask.task.v1.DeleteTaskRequest
-	(*DeleteTaskResponse)(nil),       // 13: etask.task.v1.DeleteTaskResponse
-	(*ListTasksRequest)(nil),         // 14: etask.task.v1.ListTasksRequest
-	(*ListTasksResponse)(nil),        // 15: etask.task.v1.ListTasksResponse
-	(*GetExecutionLogsRequest)(nil),  // 16: etask.task.v1.GetExecutionLogsRequest
-	(*ExecutionLog)(nil),             // 17: etask.task.v1.ExecutionLog
-	(*GetExecutionLogsResponse)(nil), // 18: etask.task.v1.GetExecutionLogsResponse
-	nil,                              // 19: etask.task.v1.GrpcConfig.ParamsEntry
-	nil,                              // 20: etask.task.v1.HTTPConfig.ParamsEntry
-	nil,                              // 21: etask.task.v1.Task.ScheduleParamsEntry
-	nil,                              // 22: etask.task.v1.CreateTaskRequest.ScheduleParamsEntry
-	nil,                              // 23: etask.task.v1.UpdateTaskRequest.ScheduleParamsEntry
+	(ExecMode)(0),                    // 2: etask.task.v1.ExecMode
+	(*GrpcConfig)(nil),               // 3: etask.task.v1.GrpcConfig
+	(*HTTPConfig)(nil),               // 4: etask.task.v1.HTTPConfig
+	(*RetryConfig)(nil),              // 5: etask.task.v1.RetryConfig
+	(*Task)(nil),                     // 6: etask.task.v1.Task
+	(*CreateTaskRequest)(nil),        // 7: etask.task.v1.CreateTaskRequest
+	(*CreateTaskResponse)(nil),       // 8: etask.task.v1.CreateTaskResponse
+	(*GetTaskRequest)(nil),           // 9: etask.task.v1.GetTaskRequest
+	(*GetTaskResponse)(nil),          // 10: etask.task.v1.GetTaskResponse
+	(*UpdateTaskRequest)(nil),        // 11: etask.task.v1.UpdateTaskRequest
+	(*UpdateTaskResponse)(nil),       // 12: etask.task.v1.UpdateTaskResponse
+	(*DeleteTaskRequest)(nil),        // 13: etask.task.v1.DeleteTaskRequest
+	(*DeleteTaskResponse)(nil),       // 14: etask.task.v1.DeleteTaskResponse
+	(*ListTasksRequest)(nil),         // 15: etask.task.v1.ListTasksRequest
+	(*ListTasksResponse)(nil),        // 16: etask.task.v1.ListTasksResponse
+	(*GetExecutionLogsRequest)(nil),  // 17: etask.task.v1.GetExecutionLogsRequest
+	(*ExecutionLog)(nil),             // 18: etask.task.v1.ExecutionLog
+	(*GetExecutionLogsResponse)(nil), // 19: etask.task.v1.GetExecutionLogsResponse
+	nil,                              // 20: etask.task.v1.GrpcConfig.ParamsEntry
+	nil,                              // 21: etask.task.v1.HTTPConfig.ParamsEntry
+	nil,                              // 22: etask.task.v1.Task.ScheduleParamsEntry
+	nil,                              // 23: etask.task.v1.CreateTaskRequest.ScheduleParamsEntry
+	nil,                              // 24: etask.task.v1.UpdateTaskRequest.ScheduleParamsEntry
 }
 var file_etask_task_v1_task_proto_depIdxs = []int32{
-	19, // 0: etask.task.v1.GrpcConfig.params:type_name -> etask.task.v1.GrpcConfig.ParamsEntry
-	20, // 1: etask.task.v1.HTTPConfig.params:type_name -> etask.task.v1.HTTPConfig.ParamsEntry
+	20, // 0: etask.task.v1.GrpcConfig.params:type_name -> etask.task.v1.GrpcConfig.ParamsEntry
+	21, // 1: etask.task.v1.HTTPConfig.params:type_name -> etask.task.v1.HTTPConfig.ParamsEntry
 	0,  // 2: etask.task.v1.Task.type:type_name -> etask.task.v1.TaskType
-	2,  // 3: etask.task.v1.Task.grpc_config:type_name -> etask.task.v1.GrpcConfig
-	3,  // 4: etask.task.v1.Task.http_config:type_name -> etask.task.v1.HTTPConfig
-	4,  // 5: etask.task.v1.Task.retry_config:type_name -> etask.task.v1.RetryConfig
-	21, // 6: etask.task.v1.Task.schedule_params:type_name -> etask.task.v1.Task.ScheduleParamsEntry
+	3,  // 3: etask.task.v1.Task.grpc_config:type_name -> etask.task.v1.GrpcConfig
+	4,  // 4: etask.task.v1.Task.http_config:type_name -> etask.task.v1.HTTPConfig
+	5,  // 5: etask.task.v1.Task.retry_config:type_name -> etask.task.v1.RetryConfig
+	22, // 6: etask.task.v1.Task.schedule_params:type_name -> etask.task.v1.Task.ScheduleParamsEntry
 	1,  // 7: etask.task.v1.Task.status:type_name -> etask.task.v1.TaskStatus
-	0,  // 8: etask.task.v1.CreateTaskRequest.type:type_name -> etask.task.v1.TaskType
-	2,  // 9: etask.task.v1.CreateTaskRequest.grpc_config:type_name -> etask.task.v1.GrpcConfig
-	3,  // 10: etask.task.v1.CreateTaskRequest.http_config:type_name -> etask.task.v1.HTTPConfig
-	4,  // 11: etask.task.v1.CreateTaskRequest.retry_config:type_name -> etask.task.v1.RetryConfig
-	22, // 12: etask.task.v1.CreateTaskRequest.schedule_params:type_name -> etask.task.v1.CreateTaskRequest.ScheduleParamsEntry
-	5,  // 13: etask.task.v1.GetTaskResponse.task:type_name -> etask.task.v1.Task
-	0,  // 14: etask.task.v1.UpdateTaskRequest.type:type_name -> etask.task.v1.TaskType
-	2,  // 15: etask.task.v1.UpdateTaskRequest.grpc_config:type_name -> etask.task.v1.GrpcConfig
-	3,  // 16: etask.task.v1.UpdateTaskRequest.http_config:type_name -> etask.task.v1.HTTPConfig
-	4,  // 17: etask.task.v1.UpdateTaskRequest.retry_config:type_name -> etask.task.v1.RetryConfig
-	23, // 18: etask.task.v1.UpdateTaskRequest.schedule_params:type_name -> etask.task.v1.UpdateTaskRequest.ScheduleParamsEntry
-	1,  // 19: etask.task.v1.UpdateTaskRequest.status:type_name -> etask.task.v1.TaskStatus
-	1,  // 20: etask.task.v1.ListTasksRequest.status:type_name -> etask.task.v1.TaskStatus
-	0,  // 21: etask.task.v1.ListTasksRequest.type:type_name -> etask.task.v1.TaskType
-	5,  // 22: etask.task.v1.ListTasksResponse.tasks:type_name -> etask.task.v1.Task
-	17, // 23: etask.task.v1.GetExecutionLogsResponse.logs:type_name -> etask.task.v1.ExecutionLog
-	6,  // 24: etask.task.v1.TaskService.CreateTask:input_type -> etask.task.v1.CreateTaskRequest
-	8,  // 25: etask.task.v1.TaskService.GetTask:input_type -> etask.task.v1.GetTaskRequest
-	10, // 26: etask.task.v1.TaskService.UpdateTask:input_type -> etask.task.v1.UpdateTaskRequest
-	12, // 27: etask.task.v1.TaskService.DeleteTask:input_type -> etask.task.v1.DeleteTaskRequest
-	14, // 28: etask.task.v1.TaskService.ListTasks:input_type -> etask.task.v1.ListTasksRequest
-	16, // 29: etask.task.v1.TaskService.GetExecutionLogs:input_type -> etask.task.v1.GetExecutionLogsRequest
-	7,  // 30: etask.task.v1.TaskService.CreateTask:output_type -> etask.task.v1.CreateTaskResponse
-	9,  // 31: etask.task.v1.TaskService.GetTask:output_type -> etask.task.v1.GetTaskResponse
-	11, // 32: etask.task.v1.TaskService.UpdateTask:output_type -> etask.task.v1.UpdateTaskResponse
-	13, // 33: etask.task.v1.TaskService.DeleteTask:output_type -> etask.task.v1.DeleteTaskResponse
-	15, // 34: etask.task.v1.TaskService.ListTasks:output_type -> etask.task.v1.ListTasksResponse
-	18, // 35: etask.task.v1.TaskService.GetExecutionLogs:output_type -> etask.task.v1.GetExecutionLogsResponse
-	30, // [30:36] is the sub-list for method output_type
-	24, // [24:30] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	2,  // 8: etask.task.v1.Task.exec_mode:type_name -> etask.task.v1.ExecMode
+	0,  // 9: etask.task.v1.CreateTaskRequest.type:type_name -> etask.task.v1.TaskType
+	3,  // 10: etask.task.v1.CreateTaskRequest.grpc_config:type_name -> etask.task.v1.GrpcConfig
+	4,  // 11: etask.task.v1.CreateTaskRequest.http_config:type_name -> etask.task.v1.HTTPConfig
+	5,  // 12: etask.task.v1.CreateTaskRequest.retry_config:type_name -> etask.task.v1.RetryConfig
+	23, // 13: etask.task.v1.CreateTaskRequest.schedule_params:type_name -> etask.task.v1.CreateTaskRequest.ScheduleParamsEntry
+	2,  // 14: etask.task.v1.CreateTaskRequest.exec_mode:type_name -> etask.task.v1.ExecMode
+	6,  // 15: etask.task.v1.GetTaskResponse.task:type_name -> etask.task.v1.Task
+	0,  // 16: etask.task.v1.UpdateTaskRequest.type:type_name -> etask.task.v1.TaskType
+	3,  // 17: etask.task.v1.UpdateTaskRequest.grpc_config:type_name -> etask.task.v1.GrpcConfig
+	4,  // 18: etask.task.v1.UpdateTaskRequest.http_config:type_name -> etask.task.v1.HTTPConfig
+	5,  // 19: etask.task.v1.UpdateTaskRequest.retry_config:type_name -> etask.task.v1.RetryConfig
+	24, // 20: etask.task.v1.UpdateTaskRequest.schedule_params:type_name -> etask.task.v1.UpdateTaskRequest.ScheduleParamsEntry
+	1,  // 21: etask.task.v1.UpdateTaskRequest.status:type_name -> etask.task.v1.TaskStatus
+	2,  // 22: etask.task.v1.UpdateTaskRequest.exec_mode:type_name -> etask.task.v1.ExecMode
+	1,  // 23: etask.task.v1.ListTasksRequest.status:type_name -> etask.task.v1.TaskStatus
+	0,  // 24: etask.task.v1.ListTasksRequest.type:type_name -> etask.task.v1.TaskType
+	6,  // 25: etask.task.v1.ListTasksResponse.tasks:type_name -> etask.task.v1.Task
+	18, // 26: etask.task.v1.GetExecutionLogsResponse.logs:type_name -> etask.task.v1.ExecutionLog
+	7,  // 27: etask.task.v1.TaskService.CreateTask:input_type -> etask.task.v1.CreateTaskRequest
+	9,  // 28: etask.task.v1.TaskService.GetTask:input_type -> etask.task.v1.GetTaskRequest
+	11, // 29: etask.task.v1.TaskService.UpdateTask:input_type -> etask.task.v1.UpdateTaskRequest
+	13, // 30: etask.task.v1.TaskService.DeleteTask:input_type -> etask.task.v1.DeleteTaskRequest
+	15, // 31: etask.task.v1.TaskService.ListTasks:input_type -> etask.task.v1.ListTasksRequest
+	17, // 32: etask.task.v1.TaskService.GetExecutionLogs:input_type -> etask.task.v1.GetExecutionLogsRequest
+	8,  // 33: etask.task.v1.TaskService.CreateTask:output_type -> etask.task.v1.CreateTaskResponse
+	10, // 34: etask.task.v1.TaskService.GetTask:output_type -> etask.task.v1.GetTaskResponse
+	12, // 35: etask.task.v1.TaskService.UpdateTask:output_type -> etask.task.v1.UpdateTaskResponse
+	14, // 36: etask.task.v1.TaskService.DeleteTask:output_type -> etask.task.v1.DeleteTaskResponse
+	16, // 37: etask.task.v1.TaskService.ListTasks:output_type -> etask.task.v1.ListTasksResponse
+	19, // 38: etask.task.v1.TaskService.GetExecutionLogs:output_type -> etask.task.v1.GetExecutionLogsResponse
+	33, // [33:39] is the sub-list for method output_type
+	27, // [27:33] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_etask_task_v1_task_proto_init() }
@@ -1477,7 +1562,7 @@ func file_etask_task_v1_task_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_etask_task_v1_task_proto_rawDesc), len(file_etask_task_v1_task_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,

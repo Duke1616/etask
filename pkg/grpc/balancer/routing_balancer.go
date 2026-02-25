@@ -181,3 +181,12 @@ func (b *routingBalancer) Close() {
 	b.nodeIDMap = nil
 	b.readySCs = nil
 }
+
+// ExitIdle 在 balancer 处于 Idle 状态时被 gRPC 调用，通知其尝试重新连接。
+func (b *routingBalancer) ExitIdle() {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	for sc := range b.readySCs {
+		sc.Connect()
+	}
+}

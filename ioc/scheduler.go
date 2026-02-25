@@ -26,6 +26,7 @@ func InitScheduler(
 	execSvc task.ExecutionService,
 	acquirer acquirer.TaskAcquirer,
 	nodePicker picker.ExecutorNodePicker,
+	modeResolver picker.IExecModeResolver,
 ) *scheduler.Scheduler {
 	var cfg scheduler.Config
 	err := viper.UnmarshalKey("scheduler", &cfg)
@@ -41,5 +42,6 @@ func InitScheduler(
 		acquirer,
 		cfg,
 		nodePicker,
+		modeResolver,
 	)
 }

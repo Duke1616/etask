@@ -27,6 +27,7 @@ type Scheduler struct {
 	acquirer           acquirer.TaskAcquirer     // 任务抢占、续约、释放器
 	config             Config                    // 配置
 	executorNodePicker picker.ExecutorNodePicker // 智能节点选择器
+	modeResolver       picker.IExecModeResolver  // 执行模式感知器
 	ctx                context.Context
 	cancel             context.CancelFunc
 	logger             *elog.Component
@@ -50,6 +51,7 @@ func NewScheduler(
 	acquirer acquirer.TaskAcquirer,
 	config Config,
 	executorNodePicker picker.ExecutorNodePicker,
+	modeResolver picker.IExecModeResolver,
 ) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
@@ -60,6 +62,7 @@ func NewScheduler(
 		acquirer:           acquirer,
 		config:             config,
 		executorNodePicker: executorNodePicker,
+		modeResolver:       modeResolver,
 		ctx:                ctx,
 		cancel:             cancel,
 		logger:             elog.DefaultLogger.With(elog.FieldComponentName("Scheduler")),
@@ -121,12 +124,11 @@ func (s *Scheduler) scheduleLoop() {
 		// 开始调度
 		successCount := 0
 		for i := range tasks {
-			err1 := s.runner.Run(s.newContext(tasks[i]), tasks[i])
-			if err1 != nil {
+			if err = s.scheduleOnce(tasks[i]); err != nil {
 				s.logger.Error("调度任务失败",
 					elog.Int64("taskID", tasks[i].ID),
 					elog.String("taskName", tasks[i].Name),
-					elog.FieldErr(err1))
+					elog.FieldErr(err))
 			} else {
 				successCount++
 			}
@@ -138,20 +140,28 @@ func (s *Scheduler) scheduleLoop() {
 	}
 }
 
-func (s *Scheduler) newContext(task domain.Task) context.Context {
-	// 使用智能调度选择执行节点
-	if nodeID, err := s.executorNodePicker.Pick(s.ctx, task); err == nil && nodeID != "" {
-		s.logger.Info("智能调度选择节点成功",
-			elog.String("selectedNodeID", nodeID),
-			elog.Int64("taskID", task.ID))
-		return balancer.WithSpecificNodeID(s.ctx, nodeID)
-	} else {
+// scheduleOnce 调度单个任务
+func (s *Scheduler) scheduleOnce(task domain.Task) error {
+	nodeID, err := s.executorNodePicker.Pick(s.ctx, task)
+	if err != nil {
 		s.logger.Error("智能调度选择节点失败，使用默认调度",
 			elog.Int64("taskID", task.ID),
 			elog.FieldErr(err))
-		// 如果智能调度失败，继续使用原始 ctx（相当于随机选择)
-		return s.ctx
+	} else {
+		s.logger.Info("智能调度选择节点成功",
+			elog.String("selectedNodeID", nodeID),
+			elog.Int64("taskID", task.ID))
+
+		// NOTE: 通过独立的 modeResolver 感知节点模式并写入 DB，
+		// 调度器不封装任何 registry / DB 细节。
+		task.ExecMode = s.modeResolver.ResolveMode(s.ctx, task, nodeID)
 	}
+
+	ctx := s.ctx
+	if nodeID != "" {
+		ctx = balancer.WithSpecificNodeID(s.ctx, nodeID)
+	}
+	return s.runner.Run(ctx, task)
 }
 
 // renewLoop 续约循环

@@ -18,6 +18,7 @@ import (
 const RoleName = "executor"
 
 type Config struct {
+	Mode   string // 执行模式: "PUSH" (默认) 或 "PULL"
 	Desc   string // 执行器的全局描述
 	Server grpcpkg.ServerConfig
 	Client grpcpkg.ClientConfig
@@ -34,6 +35,7 @@ type Executor struct {
 	// 内部组件
 	server         *grpcpkg.Server
 	reporterClient reporterv1.ReporterServiceClient
+	agentClient    executorv1.AgentServiceClient
 	logger         *elog.Component
 
 	// 状态管理 - 使用 syncx.Map
@@ -92,10 +94,55 @@ func (e *Executor) InitComponents() error {
 		grpcpkg.WithMetadata(e.buildMetadata()),
 	)
 
-	// 3. 注册 Executor 服务
+	// 3. 初始化 Agent 拉取客户端 (复用连接因为它是给同一调度中心汇报)
+	e.agentClient = executorv1.NewAgentServiceClient(reporterConn)
+
+	// 4. 注册 Executor 服务
 	executorv1.RegisterExecutorServiceServer(e.server.Server, e)
 
+	// 5. 判断模式开启拉取节点
+	if e.config.Mode == "PULL" {
+		go e.startPullLoop()
+	}
+
 	return nil
+}
+
+// startPullLoop 开始主动拉取任务长轮询 (Agent模式核心)
+func (e *Executor) startPullLoop() {
+	e.logger.Info("启动在 PULL 模式，开始请求中心调度获取任务...")
+
+	// 这里可以设计成根据空闲线程数决定 ticker
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// 收集目前支持的 handlers
+		var supported []string
+		for name := range e.handlers {
+			supported = append(supported, name)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		resp, err := e.agentClient.PullTask(ctx, &executorv1.PullTaskRequest{
+			ServiceName: e.config.Server.ServiceName, // 分组名（比如 ework-executor-node1）
+			NodeId:      e.config.Server.ServiceId,   // 这台机器确切的主机/实例UUID，防止同一个组别的机器抢占无法溯源
+			Handlers:    supported,                   // 我能处理这些：这层能帮助中心更精确发活
+		})
+		cancel()
+
+		if err != nil {
+			// 可能调度中心挂了或网络抖动
+			e.logger.Warn("拉取任务失败", elog.FieldErr(err))
+			continue
+		}
+
+		if resp != nil && resp.HasTask && resp.TaskReq != nil {
+			e.logger.Info("成功拉取到后台派发的远程指令", elog.Int64("eid", resp.TaskReq.Eid))
+			// 直接模拟收到了一次本地 grpc push 调度请求（将两端逻辑完美融合复用！）
+			_, _ = e.Execute(context.Background(), resp.TaskReq)
+		}
+	}
 }
 
 func (e *Executor) buildMetadata() map[string]any {
@@ -112,13 +159,12 @@ func (e *Executor) buildMetadata() map[string]any {
 		})
 	}
 
-	fmt.Println("hello", e.config.Desc)
-
 	bytes, _ := json.Marshal(metas)
 	return map[string]any{
 		"role":               RoleName,      // 标识此注册节点为调度引擎的执行器
 		"desc":               e.config.Desc, // 执行器集群总体功能描述
 		"supported_handlers": string(bytes), // 支持的任务处理器列表
+		"mode":               e.config.Mode, // 执行模式: PUSH 或 PULL，供调度中心感知
 	}
 }
 
