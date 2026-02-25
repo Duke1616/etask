@@ -1,0 +1,60 @@
+log:
+  debug: true
+
+mysql:
+  dsn: "root:123456@tcp(127.0.0.1:3306)/etask?charset=utf8mb4&collation=utf8mb4_general_ci&parseTime=True&loc=Local&timeout=1s&readTimeout=3s&writeTimeout=3s&multiStatements=true&interpolateParams=true"
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: "1234567890"
+
+session:
+  session_encrypted_key: "1234567890Key"
+  cookie:
+    domain: ".example.com"
+    name: "ecmdb-token-key"
+
+kafka:
+  network: tcp
+  addresses:
+    - 127.0.0.1:9094
+
+etcd:
+  endpoints:
+    - 127.0.0.1:2379
+
+grpc:
+  server:
+    scheduler:
+      name: scheduler # 服务名
+      listen_addr: "0.0.0.0:9002" # 服务监听地址
+      advertise_addr: ""  # 可选：广播地址,留空则自动检测
+      auth_token: "" # 可选：开启认证
+  client:
+    ecmdb:
+      name: "ecmdb"
+      auth_token: "1234567890"
+
+scheduler:
+  batchTimeout: 3000000000
+  batchSize: 100
+  preemptedTimeout: 600000000000 # 10m
+  scheduleInterval: 10000000000
+  renewInterval: 5000000000
+  maxConcurrentTasks: 1000
+  tokenAcquireTimeout: 3000000000
+  pollInterval: 1000000000
+  reportTimeout: 10000000000
+
+compensator:
+  retry:
+    maxRetryCount: 3
+    prepareTimeoutWindowMs: 10000000000
+    batchSize: 100
+    minDuration: 1000000000
+  reschedule:
+    batchSize: 100
+    minDuration: 1000000000
+  interrupt:
+    batchSize: 100
+    minDuration: 1000000000

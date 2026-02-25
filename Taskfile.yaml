@@ -24,12 +24,12 @@ tasks:
   execute:
     desc: 启动执行器
     cmds:
-      - go run cmd/execute/main.go --config ./config/config.yaml
+      - go run cmd/execute/main.go --config ./config/execute.yaml
 
   scheduler:
     desc: 启动调度器
     cmds:
-      - go run cmd/scheduler/main.go --config ./config/config.yaml
+      - go run cmd/scheduler/main.go --config ./config/scheduler.yaml
 
   endpoint:
     desc: 启动调度器

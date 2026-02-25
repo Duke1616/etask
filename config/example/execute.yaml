@@ -1,0 +1,25 @@
+log:
+  debug: true
+
+# 执行节点配置
+executor:
+  # 执行模式: PUSH(默认, 调度中心主动推送) 或 PULL(边缘节点主动拉取)
+  mode: "PUSH"
+  # 执行器集群功能描述
+  desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
+
+etcd:
+  endpoints:
+    - 127.0.0.1:2379
+
+grpc:
+  server:
+    executor:
+      id: node-01
+      name: execute
+      listen_addr: "0.0.0.0:9004" # 服务监听地址
+      advertise_addr: ""  # 广播地址，可选,留空则自动检测
+      auth_token: "" # 可选：开启认证
+  client:
+    scheduler:
+      name: "scheduler"
