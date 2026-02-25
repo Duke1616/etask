@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/executor/v1"
-	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/reporter/v1"
+	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
+	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/reporter/v1"
 	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
 	"github.com/ecodeclub/ekit/syncx"

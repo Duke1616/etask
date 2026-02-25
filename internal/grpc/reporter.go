@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/reporter/v1"
+	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/reporter/v1"
 	"github.com/Duke1616/ework-runner/internal/domain"
 	"github.com/Duke1616/ework-runner/internal/service/task"
 	"github.com/ecodeclub/ekit/slice"

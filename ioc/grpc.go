@@ -3,9 +3,9 @@ package ioc
 import (
 	"time"
 
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/executor/v1"
-	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/reporter/v1"
-	taskv1 "github.com/Duke1616/ework-runner/api/proto/gen/task/v1"
+	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
+	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/reporter/v1"
+	taskv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/task/v1"
 	grpcapi "github.com/Duke1616/ework-runner/internal/grpc"
 	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
 	"github.com/Duke1616/ework-runner/pkg/grpc/pool"

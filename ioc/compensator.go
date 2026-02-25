@@ -1,7 +1,7 @@
 package ioc
 
 import (
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/executor/v1"
+	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
 	"github.com/Duke1616/ework-runner/internal/compensator"
 	"github.com/Duke1616/ework-runner/internal/service/runner"
 	"github.com/Duke1616/ework-runner/internal/service/task"

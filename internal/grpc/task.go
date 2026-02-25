@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 
-	taskv1 "github.com/Duke1616/ework-runner/api/proto/gen/task/v1"
+	taskv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/task/v1"
 	"github.com/Duke1616/ework-runner/internal/domain"
 	"github.com/Duke1616/ework-runner/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"

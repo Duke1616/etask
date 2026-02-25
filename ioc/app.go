@@ -3,6 +3,7 @@ package ioc
 import (
 	"context"
 
+	endpointv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/endpoint/v1"
 	"github.com/Duke1616/ework-runner/internal/execute"
 	"github.com/Duke1616/ework-runner/internal/service/scheduler"
 	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
@@ -23,10 +24,11 @@ type Task interface {
 }
 
 type SchedulerApp struct {
-	Web       *egin.Component
-	Server    *grpcpkg.Server
-	Scheduler *scheduler.Scheduler
-	Tasks     []Task
+	Web         *egin.Component
+	Server      *grpcpkg.Server
+	Scheduler   *scheduler.Scheduler
+	Tasks       []Task
+	EndpointSvc endpointv1.EndpointServiceClient
 }
 
 func (a *SchedulerApp) StartTasks(ctx context.Context) {

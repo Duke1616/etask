@@ -1,7 +1,8 @@
 package ioc
 
 import (
-	policyv1 "github.com/Duke1616/ework-runner/api/proto/gen/policy/v1"
+	endpointv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/endpoint/v1"
+	policyv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/policy/v1"
 	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
 	"github.com/spf13/viper"
@@ -30,4 +31,9 @@ func InitECMDBGrpcClient(reg registry.Registry) grpc.ClientConnInterface {
 // InitPolicyServiceClient 初始化 Policy 服务客户端
 func InitPolicyServiceClient(cc grpc.ClientConnInterface) policyv1.PolicyServiceClient {
 	return policyv1.NewPolicyServiceClient(cc)
+}
+
+// InitEndpointServiceClient 初始化 Endpoint 服务客户端
+func InitEndpointServiceClient(cc grpc.ClientConnInterface) endpointv1.EndpointServiceClient {
+	return endpointv1.NewEndpointServiceClient(cc)
 }

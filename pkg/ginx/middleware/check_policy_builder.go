@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"strconv"
 
-	policyv1 "github.com/Duke1616/ework-runner/api/proto/gen/policy/v1"
+	policyv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/policy/v1"
 	"github.com/ecodeclub/ginx"
 	"github.com/ecodeclub/ginx/session"
 	"github.com/gin-gonic/gin"
 	"github.com/gotomicro/ego/core/elog"
 )
 
-const Resource = "ETASK"
+const Resource = "TASK"
 
 type CheckPolicyMiddlewareBuilder struct {
 	policySvc policyv1.PolicyServiceClient

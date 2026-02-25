@@ -58,11 +58,13 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 	interruptCompensator := ioc.InitInterruptCompensator(clients, executionService)
 	completeConsumer := ioc.InitCompleteEventConsumer(mq, service, executionService, taskAcquirer)
 	v2 := ioc.InitTasks(retryCompensator, rescheduleCompensator, interruptCompensator, completeConsumer)
+	endpointServiceClient := ioc.InitEndpointServiceClient(clientConnInterface)
 	schedulerApp := &ioc.SchedulerApp{
-		Web:       component,
-		Server:    server,
-		Scheduler: scheduler,
-		Tasks:     v2,
+		Web:         component,
+		Server:      server,
+		Scheduler:   scheduler,
+		Tasks:       v2,
+		EndpointSvc: endpointServiceClient,
 	}
 	return schedulerApp
 }
@@ -72,7 +74,7 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 var (
 	BaseSet = wire.NewSet(ioc.InitDB, ioc.InitRedis, ioc.InitDistributedLock, ioc.InitEtcdClient, ioc.InitMQ, ioc.InitRunner, ioc.InitInvoker, ioc.InitRegistry)
 
-	webSetup = wire.NewSet(ioc.InitECMDBGrpcClient, ioc.InitPolicyServiceClient, middleware.NewCheckPolicyMiddlewareBuilder, ioc.InitSession, ioc.InitGinMiddlewares, ioc.InitGinWebServer)
+	webSetup = wire.NewSet(ioc.InitECMDBGrpcClient, ioc.InitPolicyServiceClient, ioc.InitEndpointServiceClient, middleware.NewCheckPolicyMiddlewareBuilder, ioc.InitSession, ioc.InitGinMiddlewares, ioc.InitGinWebServer)
 
 	taskSet = wire.NewSet(dao.NewGORMTaskDAO, repository.NewTaskRepository, task.NewService, task.NewLogService, task2.NewHandler)
 

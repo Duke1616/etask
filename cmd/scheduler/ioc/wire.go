@@ -29,6 +29,7 @@ var (
 	webSetup = wire.NewSet(
 		ioc.InitECMDBGrpcClient,
 		ioc.InitPolicyServiceClient,
+		ioc.InitEndpointServiceClient,
 		middleware.NewCheckPolicyMiddlewareBuilder,
 		ioc.InitSession,
 		ioc.InitGinMiddlewares,
