@@ -1,6 +1,7 @@
 package ioc
 
 import (
+	"github.com/Duke1616/ework-runner/internal/web/executor"
 	"github.com/Duke1616/ework-runner/internal/web/task"
 	"github.com/Duke1616/ework-runner/pkg/ginx/middleware"
 	"github.com/ecodeclub/ginx/session"
@@ -9,7 +10,7 @@ import (
 )
 
 func InitGinWebServer(mdls []gin.HandlerFunc, checkPolicyMiddleware *middleware.CheckPolicyMiddlewareBuilder,
-	sp session.Provider, taskHdl *task.Handler) *egin.Component {
+	sp session.Provider, taskHdl *task.Handler, executorHdl *executor.Handler) *egin.Component {
 	session.SetDefaultProvider(sp)
 
 	server := egin.DefaultContainer().Build(egin.WithPort(8765))
@@ -17,6 +18,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, checkPolicyMiddleware *middleware.
 
 	// 注册公开路由
 	taskHdl.PublicRoutes(server.Engine)
+	executorHdl.PublicRoutes(server.Engine)
 
 	// 验证是否登录
 	server.Use(session.CheckLoginMiddleware())
@@ -26,6 +28,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, checkPolicyMiddleware *middleware.
 
 	// 注册私有路由
 	taskHdl.PrivateRoutes(server.Engine)
+	executorHdl.PrivateRoutes(server.Engine)
 
 	return server
 }

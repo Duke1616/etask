@@ -16,7 +16,11 @@ type Variable struct {
 
 // TaskHandler 任务处理函数接口
 type TaskHandler interface {
+	// Name 处理器名称
 	Name() string
+	// Desc 处理器功能详情信息
+	Desc() string
+	// Run 处理器具体执行
 	Run(*Context) error
 }
 

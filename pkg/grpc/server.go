@@ -54,6 +54,7 @@ type Server struct {
 	registeredAddr string // 注册到注册中心的地址
 	cancel         func()
 	logger         *elog.Component
+	metadata       map[string]any // 附加元数据
 }
 
 // ServerOption Server 配置选项
@@ -70,6 +71,13 @@ func WithJWTAuth(authToken string) ServerOption {
 				grpc.UnaryInterceptor(jwtAuth.JwtAuthInterceptor()),
 			)
 		}
+	}
+}
+
+// WithMetadata 设置服务注册元数据
+func WithMetadata(metadata map[string]any) ServerOption {
+	return func(s *Server) {
+		s.metadata = metadata
 	}
 }
 
@@ -188,9 +196,10 @@ func (s *Server) register(addr string) error {
 
 	// NOTE: 使用 registry.Registry 接口注册服务,租约管理由 Registry 内部处理
 	return s.registry.Register(context.Background(), registry.ServiceInstance{
-		ID:      s.serviceID,
-		Name:    s.ServiceName,
-		Address: addr,
+		ID:       s.serviceID,
+		Name:     s.ServiceName,
+		Address:  addr,
+		Metadata: s.metadata,
 	})
 }
 

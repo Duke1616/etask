@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -14,7 +15,10 @@ import (
 	"github.com/gotomicro/ego/core/elog"
 )
 
+const RoleName = "executor"
+
 type Config struct {
+	Desc   string // 执行器的全局描述
 	Server grpcpkg.ServerConfig
 	Client grpcpkg.ClientConfig
 }
@@ -81,12 +85,41 @@ func (e *Executor) InitComponents() error {
 	e.reporterClient = reporterv1.NewReporterServiceClient(reporterConn)
 
 	// 2. 创建 gRPC Server
-	e.server = grpcpkg.NewServer(e.config.Server, e.registry, grpcpkg.WithJWTAuth(e.config.Server.AuthToken))
+	e.server = grpcpkg.NewServer(
+		e.config.Server,
+		e.registry,
+		grpcpkg.WithJWTAuth(e.config.Server.AuthToken),
+		grpcpkg.WithMetadata(e.buildMetadata()),
+	)
 
 	// 3. 注册 Executor 服务
 	executorv1.RegisterExecutorServiceServer(e.server.Server, e)
 
 	return nil
+}
+
+func (e *Executor) buildMetadata() map[string]any {
+	type handlerMeta struct {
+		Name string `json:"name"`
+		Desc string `json:"desc"`
+	}
+
+	var metas []handlerMeta
+	for _, handler := range e.handlers {
+		metas = append(metas, handlerMeta{
+			Name: handler.Name(),
+			Desc: handler.Desc(),
+		})
+	}
+
+	fmt.Println("hello", e.config.Desc)
+
+	bytes, _ := json.Marshal(metas)
+	return map[string]any{
+		"role":               RoleName,      // 标识此注册节点为调度引擎的执行器
+		"desc":               e.config.Desc, // 执行器集群总体功能描述
+		"supported_handlers": string(bytes), // 支持的任务处理器列表
+	}
 }
 
 // Server 获取内部 gRPC Server (用于 ego 启动)

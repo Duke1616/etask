@@ -7,6 +7,7 @@ import (
 	"github.com/Duke1616/ework-runner/internal/repository"
 	"github.com/Duke1616/ework-runner/internal/repository/dao"
 	taskSvc "github.com/Duke1616/ework-runner/internal/service/task"
+	"github.com/Duke1616/ework-runner/internal/web/executor"
 	"github.com/Duke1616/ework-runner/internal/web/task"
 	"github.com/Duke1616/ework-runner/ioc"
 	"github.com/Duke1616/ework-runner/pkg/ginx/middleware"
@@ -40,6 +41,10 @@ var (
 		taskSvc.NewService,
 		taskSvc.NewLogService,
 		task.NewHandler,
+	)
+
+	executorSet = wire.NewSet(
+		executor.NewHandler,
 	)
 
 	taskExecutionSet = wire.NewSet(
@@ -81,6 +86,7 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 		BaseSet,
 
 		taskSet,
+		executorSet,
 		taskExecutionSet,
 		schedulerSet,
 		compensatorSet,

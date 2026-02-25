@@ -28,6 +28,10 @@ func (h *ShellTaskHandler) Name() string {
 	return "shell"
 }
 
+func (h *ShellTaskHandler) Desc() string {
+	return "执行 Shell 脚本命令的基础处理器"
+}
+
 func (h *ShellTaskHandler) Run(ctx *executor.Context) error {
 	return h.executor.Run(ctx)
 }

@@ -105,7 +105,7 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 	// Shell: 依靠 ls --color=always 等，或者 TERM=xterm-256color
 	cmd.Env = append(os.Environ(), "FORCE_COLOR=1", "TERM=xterm-256color", "PYTHONUNBUFFERED=1")
 
-	if err := cmd.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		return fmt.Errorf("start cmd failed: %w", err)
 	}
 
@@ -113,7 +113,7 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 	go streamOutput(ctx, stdoutPipe)
 	go streamOutput(ctx, stderrPipe)
 
-	if err := cmd.Wait(); err != nil {
+	if err = cmd.Wait(); err != nil {
 		return fmt.Errorf("execution failed: %w", err)
 	}
 	return nil

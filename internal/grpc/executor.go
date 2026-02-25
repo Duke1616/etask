@@ -15,6 +15,10 @@ func (h *DemoTaskHandler) Name() string {
 	return "demo"
 }
 
+func (h *DemoTaskHandler) Desc() string {
+	return "一个演示如何编写和执行任务的示例处理器"
+}
+
 func (h *DemoTaskHandler) Run(ctx *executor.Context) error {
 	logger := ctx.Logger()
 

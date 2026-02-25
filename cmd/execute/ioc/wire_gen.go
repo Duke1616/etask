@@ -68,6 +68,7 @@ func InitConfig() executor.Config {
 	}
 
 	return executor.Config{
+		Desc:   "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群",
 		Server: server,
 		Client: client,
 	}

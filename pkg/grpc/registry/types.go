@@ -24,6 +24,7 @@ type ServiceInstance struct {
 	MaxCapacity  int64
 	IncreaseStep int64
 	GrowthRate   float64
+	Metadata     map[string]any // 存储附加的元数据信息
 }
 
 type EventType int

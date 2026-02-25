@@ -26,6 +26,10 @@ func (h *PythonTaskHandler) Name() string {
 	return "python"
 }
 
+func (h *PythonTaskHandler) Desc() string {
+	return "执行 Python 脚本代码的基础处理器"
+}
+
 func (h *PythonTaskHandler) Run(ctx *executor.Context) error {
 	return h.executor.Run(ctx)
 }
