@@ -11,7 +11,8 @@ services:
       - TZ=Asia/Shanghai
     volumes:
       - ./prod.yaml:/app/config/prod.yaml
+
 networks:
   default:
-    external:
-      name: sre
+    name: ecmdb
+    external: true
