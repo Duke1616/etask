@@ -108,25 +108,21 @@ func (e *Executor) InitComponents() error {
 	return nil
 }
 
-// startPullLoop 开始主动拉取任务长轮询 (Agent模式核心)
 func (e *Executor) startPullLoop() {
 	e.logger.Info("启动在 PULL 模式，开始请求中心调度获取任务...")
 
-	// 这里可以设计成根据空闲线程数决定 ticker
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
+	for {
 		// 收集目前支持的 handlers
 		var supported []string
 		for name := range e.handlers {
 			supported = append(supported, name)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		// 增加客户端长轮询的超时控制（设置稍微长于服务端的 25 秒）
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		resp, err := e.agentClient.PullTask(ctx, &executorv1.PullTaskRequest{
 			ServiceName: e.config.Server.ServiceName, // 分组名（比如 ework-executor-node1）
-			NodeId:      e.config.Server.ServiceId,   // 这台机器确切的主机/实例UUID，防止同一个组别的机器抢占无法溯源
+			NodeId:      e.config.Server.ServiceId,   // 这台机器确切的主机/实例UUID
 			Handlers:    supported,                   // 我能处理这些：这层能帮助中心更精确发活
 		})
 		cancel()
@@ -134,6 +130,7 @@ func (e *Executor) startPullLoop() {
 		if err != nil {
 			// 可能调度中心挂了或网络抖动
 			e.logger.Warn("拉取任务失败", elog.FieldErr(err))
+			time.Sleep(time.Second)
 			continue
 		}
 

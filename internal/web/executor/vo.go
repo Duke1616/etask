@@ -3,6 +3,7 @@ package executor
 type Executor struct {
 	Name     string          `json:"name"`     // 分组的执行器服务名
 	Desc     string          `json:"desc"`     // 执行器的总体功能描述
+	Mode     string          `json:"mode"`     // 执行器模式
 	Handlers []HandlerDetail `json:"handlers"` // 该分组下所有节点共同支持的处理方法
 	Nodes    []NodeDetail    `json:"nodes"`    // 该服务名下的所有在线节点
 }

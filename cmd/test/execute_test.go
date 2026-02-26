@@ -191,7 +191,7 @@ func initViper() {
 	if err != nil {
 		panic(err)
 	}
-	f, err := os.Open(dir + "/../../config/config.yaml")
+	f, err := os.Open(dir + "/../../config/scheduler.yaml")
 	if err != nil {
 		panic(err)
 	}

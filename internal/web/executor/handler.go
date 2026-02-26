@@ -46,6 +46,7 @@ func (h *Handler) groupExecutors(instances []registry.ServiceInstance) []Executo
 	groupedNodes := make(map[string][]NodeDetail)
 	groupedHandlers := make(map[string][]HandlerDetail)
 	groupedDesc := make(map[string]string)
+	groupedMode := make(map[string]string)
 
 	for _, inst := range instances {
 		if inst.Metadata == nil {
@@ -55,6 +56,13 @@ func (h *Handler) groupExecutors(instances []registry.ServiceInstance) []Executo
 		// 过滤掉非 executor 节点
 		if role, ok := inst.Metadata["role"]; !ok || role != executor.RoleName {
 			continue
+		}
+
+		// 提取节点运行模式
+		if modeRaw, ok := inst.Metadata["mode"]; ok {
+			if modeStr, ok := modeRaw.(string); ok {
+				groupedMode[inst.Name] = modeStr
+			}
 		}
 
 		// 提取节点全局描述
@@ -80,6 +88,7 @@ func (h *Handler) groupExecutors(instances []registry.ServiceInstance) []Executo
 		executors = append(executors, Executor{
 			Name:     name,
 			Desc:     groupedDesc[name],
+			Mode:     groupedMode[name],
 			Handlers: groupedHandlers[name],
 			Nodes:    nodes,
 		})

@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
 	"github.com/Duke1616/ework-runner/internal/repository"
@@ -30,28 +31,43 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 		nodeId = serviceName // 向后兼容
 	}
 
-	// 1. 在数据库中寻找并乐观抢占一条状态为 WAITING_PULL 且 Service(Group) 匹配的执行记录
-	// 这里将 nodeId 真实落库记录为 executor_node_id
-	exec, err := s.execRepo.ClaimPullTask(ctx, serviceName, nodeId)
-	if err != nil {
-		// 没有活儿，或者没抢到
-		return &executorv1.PullTaskResponse{HasTask: false}, nil
-	}
+	// 1. 设置最大长轮询时间
+	timeoutCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	defer cancel()
 
-	handlerName := ""
-	if exec.Task.GrpcConfig != nil {
-		handlerName = exec.Task.GrpcConfig.HandlerName
-	}
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
 
-	// 2. 抢占成功，直接将执行指令下发
-	return &executorv1.PullTaskResponse{
-		HasTask: true,
-		TaskReq: &executorv1.ExecuteRequest{
-			Eid:             exec.ID,
-			TaskId:          exec.Task.ID,
-			TaskName:        exec.Task.Name,
-			TaskHandlerName: handlerName,
-			Params:          exec.GRPCParams(),
-		},
-	}, nil
+	for {
+		// 在数据库中寻找并乐观抢占一条状态为 WAITING_PULL 且 Service(Group) 匹配的执行记录
+		// 这里将 nodeId 真实落库记录为 executor_node_id
+		exec, err := s.execRepo.ClaimPullTask(timeoutCtx, serviceName, nodeId)
+		if err == nil {
+			handlerName := ""
+			if exec.Task.GrpcConfig != nil {
+				handlerName = exec.Task.GrpcConfig.HandlerName
+			}
+
+			// 2. 抢占成功，直接将执行指令下发
+			return &executorv1.PullTaskResponse{
+				HasTask: true,
+				TaskReq: &executorv1.ExecuteRequest{
+					Eid:             exec.ID,
+					TaskId:          exec.Task.ID,
+					TaskName:        exec.Task.Name,
+					TaskHandlerName: handlerName,
+					Params:          exec.GRPCParams(),
+				},
+			}, nil
+		}
+
+		select {
+		case <-timeoutCtx.Done():
+			// 憋了 25 秒还是没有活，正常返回让客户端进入下一轮拉取
+			return &executorv1.PullTaskResponse{HasTask: false}, nil
+		case <-ticker.C:
+			// 没有活儿，稍微等 2 秒继续尝试抢占
+			continue
+		}
+	}
 }
