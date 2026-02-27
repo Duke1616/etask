@@ -168,9 +168,29 @@ func (r *Registry) Subscribe(name string) <-chan registry.Event {
 	res := make(chan registry.Event)
 	go func() {
 		defer close(res)
+		var revision int64
+
+		// 第一次获取全量数据
+		for {
+			ctxGet, getCancel := context.WithTimeout(ctx, 3*time.Second)
+			resp, err := r.client.Get(ctxGet, r.serviceKey(name), clientv3.WithPrefix())
+			getCancel()
+			if err == nil {
+				revision = resp.Header.GetRevision()
+				// 防止断线期间变更没拿到，通知外层 resolver 去全量拉取数据进行比对
+				select {
+				case res <- registry.Event{Type: registry.EventTypeAdd}:
+				case <-ctx.Done():
+					return
+				}
+				break
+			}
+			time.Sleep(time.Second)
+		}
+
 		backoff := time.Second
 		for {
-			ch := r.client.Watch(ctx, r.serviceKey(name), clientv3.WithPrefix())
+			ch := r.client.Watch(ctx, r.serviceKey(name), clientv3.WithPrefix(), clientv3.WithRev(revision+1))
 		WatchLoop:
 			for {
 				select {
@@ -180,20 +200,43 @@ func (r *Registry) Subscribe(name string) <-chan registry.Event {
 					if !ok || resp.Canceled {
 						break WatchLoop
 					}
+
 					if resp.Err() != nil {
-						continue
+						// 只要出错(如 Compacted)，退出当前 Watch 循环，走外层退避再重连 + 重新 Get
+						break WatchLoop
 					}
+
 					backoff = time.Second // 收到正常响应，重置退避时间
 					for _, event := range resp.Events {
 						res <- registry.Event{
 							Type: typesMap[event.Type],
 						}
+						if event.Kv.ModRevision > revision {
+							revision = event.Kv.ModRevision
+						}
 					}
 				}
 			}
-			// 断线重连前的退避
+
 			time.Sleep(backoff)
 			backoff = min(backoff*2, 30*time.Second)
+
+			// 重新获取 Revision 状态，防止断线期间漏过了事件
+			for {
+				ctxGet, getCancel := context.WithTimeout(ctx, 3*time.Second)
+				resp, err := r.client.Get(ctxGet, r.serviceKey(name), clientv3.WithPrefix())
+				getCancel()
+				if err == nil {
+					revision = resp.Header.GetRevision()
+					select {
+					case res <- registry.Event{Type: registry.EventTypeAdd}:
+					case <-ctx.Done():
+						return
+					}
+					break
+				}
+				time.Sleep(time.Second)
+			}
 		}
 	}()
 	return res

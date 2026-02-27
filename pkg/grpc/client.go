@@ -99,6 +99,9 @@ func NewClientConn(reg registry.Registry, opts ...ClientOption) (*grpc.ClientCon
 	dialOpts := []grpc.DialOption{
 		grpc.WithResolvers(rs),
 		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"loadBalancingPolicy":%q}`, balancer.RoutingRoundRobinName)),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			MinConnectTimeout: 5 * time.Second,
+		}),
 	}
 	dialOpts = append(dialOpts, buildDialOptions(options)...)
 
