@@ -26,6 +26,7 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 	reporterv1.RegisterReporterServiceServer(server.Server, reporter)
 	taskv1.RegisterTaskServiceServer(server.Server, task)
 	executorv1.RegisterAgentServiceServer(server.Server, agent)
+	executorv1.RegisterTaskExecutionServiceServer(server.Server, agent)
 
 	return server
 }

@@ -139,26 +139,6 @@ message ListTasksResponse {
   int64 total = 2; // 总数
 }
 
-// GetExecutionLogsRequest 获取执行日志请求
-message GetExecutionLogsRequest {
-  int64 execution_id = 1; // 执行ID
-  int64 min_id = 2; // 最小ID(增量查询,首次传0)
-  int32 limit = 3; // 限制条数(默认50)
-}
-
-// ExecutionLog 执行日志
-message ExecutionLog {
-  int64 id = 1; // 日志ID
-  int64 time = 2; // 日志时间
-  string content = 3; // 日志内容
-}
-
-// GetExecutionLogsResponse 获取执行日志响应
-message GetExecutionLogsResponse {
-  repeated ExecutionLog logs = 1; // 日志列表
-  int64 max_id = 2; // 当前返回的最大ID
-}
-
 // TaskService 任务管理服务
 service TaskService {
   // 创建任务
@@ -171,6 +151,4 @@ service TaskService {
   rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse);
   // 列出任务
   rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
-  // 获取执行日志
-  rpc GetExecutionLogs(GetExecutionLogsRequest) returns (GetExecutionLogsResponse);
 }

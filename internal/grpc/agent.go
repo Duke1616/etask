@@ -6,17 +6,24 @@ import (
 
 	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
 	"github.com/Duke1616/ework-runner/internal/repository"
+	"github.com/Duke1616/ework-runner/internal/service/task"
+	"github.com/gotomicro/ego/core/elog"
 )
 
 // AgentServer 实现调度中心的 Agent 拉取服务
 type AgentServer struct {
 	executorv1.UnimplementedAgentServiceServer
+	executorv1.UnimplementedTaskExecutionServiceServer
 	execRepo repository.TaskExecutionRepository
+	logSvc   task.LogService
+	logger   *elog.Component
 }
 
-func NewAgentServer(execRepo repository.TaskExecutionRepository) *AgentServer {
+func NewAgentServer(execRepo repository.TaskExecutionRepository, logSvc task.LogService) *AgentServer {
 	return &AgentServer{
 		execRepo: execRepo,
+		logSvc:   logSvc,
+		logger:   elog.DefaultLogger.With(elog.FieldComponentName("grpc.AgentServer")),
 	}
 }
 
@@ -70,4 +77,58 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 			continue
 		}
 	}
+}
+
+// ListTaskExecutions 列出任务执行记录
+func (s *AgentServer) ListTaskExecutions(ctx context.Context, req *executorv1.ListTaskExecutionsRequest) (*executorv1.ListTaskExecutionsResponse, error) {
+	executions, err := s.execRepo.FindByTaskID(ctx, req.GetTaskId())
+	if err != nil {
+		s.logger.Error("获取执行记录失败", elog.Int64("taskID", req.GetTaskId()), elog.FieldErr(err))
+		return nil, err
+	}
+
+	pbExecutions := make([]*executorv1.TaskExecution, len(executions))
+	for i, e := range executions {
+		pbExecutions[i] = &executorv1.TaskExecution{
+			Id:              e.ID,
+			TaskId:          e.Task.ID,
+			TaskName:        e.Task.Name,
+			StartTime:       e.StartTime,
+			EndTime:         e.EndTime,
+			Status:          executorv1.ExecutionStatus(executorv1.ExecutionStatus_value[e.Status.String()]),
+			RunningProgress: e.RunningProgress,
+			ExecutorNodeId:  e.ExecutorNodeID,
+		}
+	}
+
+	return &executorv1.ListTaskExecutionsResponse{
+		Executions: pbExecutions,
+	}, nil
+}
+
+// GetExecutionLogs 获取执行日志
+func (s *AgentServer) GetExecutionLogs(ctx context.Context, req *executorv1.GetExecutionLogsRequest) (*executorv1.GetExecutionLogsResponse, error) {
+	logs, err := s.logSvc.GetLogs(ctx, req.GetExecutionId(), req.GetMinId(), int(req.GetLimit()))
+	if err != nil {
+		s.logger.Error("获取日志失败", elog.Int64("executionID", req.GetExecutionId()), elog.FieldErr(err))
+		return nil, err
+	}
+
+	pbLogs := make([]*executorv1.ExecutionLog, len(logs))
+	var maxID int64
+	for i, l := range logs {
+		pbLogs[i] = &executorv1.ExecutionLog{
+			Id:      l.ID,
+			Time:    l.CTime,
+			Content: l.Content,
+		}
+		if l.ID > maxID {
+			maxID = l.ID
+		}
+	}
+
+	return &executorv1.GetExecutionLogsResponse{
+		Logs:  pbLogs,
+		MaxId: maxID,
+	}, nil
 }

@@ -115,3 +115,48 @@ message PullTaskResponse {
 service AgentService {
   rpc PullTask(PullTaskRequest) returns (PullTaskResponse);
 }
+
+// ==================== 任务执行管理 (Management) ====================
+
+service TaskExecutionService {
+  // 列出任务执行记录
+  rpc ListTaskExecutions(ListTaskExecutionsRequest) returns (ListTaskExecutionsResponse);
+  // 获取执行日志
+  rpc GetExecutionLogs(GetExecutionLogsRequest) returns (GetExecutionLogsResponse);
+}
+
+message ListTaskExecutionsRequest {
+  int64 task_id = 1;
+}
+
+message TaskExecution {
+  int64 id = 1;
+  int64 task_id = 2;
+  string task_name = 3;
+  int64 start_time = 4;
+  int64 end_time = 5;
+  ExecutionStatus status = 6;
+  int32 running_progress = 7;
+  string executor_node_id = 8;
+}
+
+message ListTaskExecutionsResponse {
+  repeated TaskExecution executions = 1;
+}
+
+message GetExecutionLogsRequest {
+  int64 execution_id = 1;
+  int64 min_id = 2;
+  int32 limit = 3;
+}
+
+message ExecutionLog {
+  int64 id = 1;
+  int64 time = 2;
+  string content = 3;
+}
+
+message GetExecutionLogsResponse {
+  repeated ExecutionLog logs = 1;
+  int64 max_id = 2;
+}

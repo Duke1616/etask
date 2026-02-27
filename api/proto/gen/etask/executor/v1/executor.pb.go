@@ -729,6 +729,366 @@ func (x *PullTaskResponse) GetTaskReq() *ExecuteRequest {
 	return nil
 }
 
+type ListTaskExecutionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        int64                  `protobuf:"varint,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTaskExecutionsRequest) Reset() {
+	*x = ListTaskExecutionsRequest{}
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTaskExecutionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTaskExecutionsRequest) ProtoMessage() {}
+
+func (x *ListTaskExecutionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTaskExecutionsRequest.ProtoReflect.Descriptor instead.
+func (*ListTaskExecutionsRequest) Descriptor() ([]byte, []int) {
+	return file_etask_executor_v1_executor_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListTaskExecutionsRequest) GetTaskId() int64 {
+	if x != nil {
+		return x.TaskId
+	}
+	return 0
+}
+
+type TaskExecution struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	TaskId          int64                  `protobuf:"varint,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	TaskName        string                 `protobuf:"bytes,3,opt,name=task_name,json=taskName,proto3" json:"task_name,omitempty"`
+	StartTime       int64                  `protobuf:"varint,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime         int64                  `protobuf:"varint,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	Status          ExecutionStatus        `protobuf:"varint,6,opt,name=status,proto3,enum=etask.executor.v1.ExecutionStatus" json:"status,omitempty"`
+	RunningProgress int32                  `protobuf:"varint,7,opt,name=running_progress,json=runningProgress,proto3" json:"running_progress,omitempty"`
+	ExecutorNodeId  string                 `protobuf:"bytes,8,opt,name=executor_node_id,json=executorNodeId,proto3" json:"executor_node_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TaskExecution) Reset() {
+	*x = TaskExecution{}
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskExecution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskExecution) ProtoMessage() {}
+
+func (x *TaskExecution) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskExecution.ProtoReflect.Descriptor instead.
+func (*TaskExecution) Descriptor() ([]byte, []int) {
+	return file_etask_executor_v1_executor_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *TaskExecution) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *TaskExecution) GetTaskId() int64 {
+	if x != nil {
+		return x.TaskId
+	}
+	return 0
+}
+
+func (x *TaskExecution) GetTaskName() string {
+	if x != nil {
+		return x.TaskName
+	}
+	return ""
+}
+
+func (x *TaskExecution) GetStartTime() int64 {
+	if x != nil {
+		return x.StartTime
+	}
+	return 0
+}
+
+func (x *TaskExecution) GetEndTime() int64 {
+	if x != nil {
+		return x.EndTime
+	}
+	return 0
+}
+
+func (x *TaskExecution) GetStatus() ExecutionStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ExecutionStatus_UNKNOWN
+}
+
+func (x *TaskExecution) GetRunningProgress() int32 {
+	if x != nil {
+		return x.RunningProgress
+	}
+	return 0
+}
+
+func (x *TaskExecution) GetExecutorNodeId() string {
+	if x != nil {
+		return x.ExecutorNodeId
+	}
+	return ""
+}
+
+type ListTaskExecutionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Executions    []*TaskExecution       `protobuf:"bytes,1,rep,name=executions,proto3" json:"executions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTaskExecutionsResponse) Reset() {
+	*x = ListTaskExecutionsResponse{}
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTaskExecutionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTaskExecutionsResponse) ProtoMessage() {}
+
+func (x *ListTaskExecutionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTaskExecutionsResponse.ProtoReflect.Descriptor instead.
+func (*ListTaskExecutionsResponse) Descriptor() ([]byte, []int) {
+	return file_etask_executor_v1_executor_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListTaskExecutionsResponse) GetExecutions() []*TaskExecution {
+	if x != nil {
+		return x.Executions
+	}
+	return nil
+}
+
+type GetExecutionLogsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   int64                  `protobuf:"varint,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	MinId         int64                  `protobuf:"varint,2,opt,name=min_id,json=minId,proto3" json:"min_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExecutionLogsRequest) Reset() {
+	*x = GetExecutionLogsRequest{}
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExecutionLogsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExecutionLogsRequest) ProtoMessage() {}
+
+func (x *GetExecutionLogsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExecutionLogsRequest.ProtoReflect.Descriptor instead.
+func (*GetExecutionLogsRequest) Descriptor() ([]byte, []int) {
+	return file_etask_executor_v1_executor_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetExecutionLogsRequest) GetExecutionId() int64 {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return 0
+}
+
+func (x *GetExecutionLogsRequest) GetMinId() int64 {
+	if x != nil {
+		return x.MinId
+	}
+	return 0
+}
+
+func (x *GetExecutionLogsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ExecutionLog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Time          int64                  `protobuf:"varint,2,opt,name=time,proto3" json:"time,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecutionLog) Reset() {
+	*x = ExecutionLog{}
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionLog) ProtoMessage() {}
+
+func (x *ExecutionLog) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionLog.ProtoReflect.Descriptor instead.
+func (*ExecutionLog) Descriptor() ([]byte, []int) {
+	return file_etask_executor_v1_executor_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ExecutionLog) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ExecutionLog) GetTime() int64 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
+func (x *ExecutionLog) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+type GetExecutionLogsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Logs          []*ExecutionLog        `protobuf:"bytes,1,rep,name=logs,proto3" json:"logs,omitempty"`
+	MaxId         int64                  `protobuf:"varint,2,opt,name=max_id,json=maxId,proto3" json:"max_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExecutionLogsResponse) Reset() {
+	*x = GetExecutionLogsResponse{}
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExecutionLogsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExecutionLogsResponse) ProtoMessage() {}
+
+func (x *GetExecutionLogsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_executor_v1_executor_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExecutionLogsResponse.ProtoReflect.Descriptor instead.
+func (*GetExecutionLogsResponse) Descriptor() ([]byte, []int) {
+	return file_etask_executor_v1_executor_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetExecutionLogsResponse) GetLogs() []*ExecutionLog {
+	if x != nil {
+		return x.Logs
+	}
+	return nil
+}
+
+func (x *GetExecutionLogsResponse) GetMaxId() int64 {
+	if x != nil {
+		return x.MaxId
+	}
+	return 0
+}
+
 var File_etask_executor_v1_executor_proto protoreflect.FileDescriptor
 
 const file_etask_executor_v1_executor_proto_rawDesc = "" +
@@ -785,7 +1145,34 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"\anode_id\x18\x03 \x01(\tR\x06nodeId\"k\n" +
 	"\x10PullTaskResponse\x12\x19\n" +
 	"\bhas_task\x18\x01 \x01(\bR\ahasTask\x12<\n" +
-	"\btask_req\x18\x02 \x01(\v2!.etask.executor.v1.ExecuteRequestR\ataskReq*t\n" +
+	"\btask_req\x18\x02 \x01(\v2!.etask.executor.v1.ExecuteRequestR\ataskReq\"4\n" +
+	"\x19ListTaskExecutionsRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\x03R\x06taskId\"\xa0\x02\n" +
+	"\rTaskExecution\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x1b\n" +
+	"\ttask_name\x18\x03 \x01(\tR\btaskName\x12\x1d\n" +
+	"\n" +
+	"start_time\x18\x04 \x01(\x03R\tstartTime\x12\x19\n" +
+	"\bend_time\x18\x05 \x01(\x03R\aendTime\x12:\n" +
+	"\x06status\x18\x06 \x01(\x0e2\".etask.executor.v1.ExecutionStatusR\x06status\x12)\n" +
+	"\x10running_progress\x18\a \x01(\x05R\x0frunningProgress\x12(\n" +
+	"\x10executor_node_id\x18\b \x01(\tR\x0eexecutorNodeId\"^\n" +
+	"\x1aListTaskExecutionsResponse\x12@\n" +
+	"\n" +
+	"executions\x18\x01 \x03(\v2 .etask.executor.v1.TaskExecutionR\n" +
+	"executions\"i\n" +
+	"\x17GetExecutionLogsRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\x03R\vexecutionId\x12\x15\n" +
+	"\x06min_id\x18\x02 \x01(\x03R\x05minId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"L\n" +
+	"\fExecutionLog\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04time\x18\x02 \x01(\x03R\x04time\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\"f\n" +
+	"\x18GetExecutionLogsResponse\x123\n" +
+	"\x04logs\x18\x01 \x03(\v2\x1f.etask.executor.v1.ExecutionLogR\x04logs\x12\x15\n" +
+	"\x06max_id\x18\x02 \x01(\x03R\x05maxId*t\n" +
 	"\x0fExecutionStatus\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\v\n" +
 	"\aRUNNING\x10\x01\x12\x14\n" +
@@ -800,7 +1187,10 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"\x05Query\x12\x1f.etask.executor.v1.QueryRequest\x1a .etask.executor.v1.QueryResponse\x12P\n" +
 	"\aPrepare\x12!.etask.executor.v1.PrepareRequest\x1a\".etask.executor.v1.PrepareResponse2c\n" +
 	"\fAgentService\x12S\n" +
-	"\bPullTask\x12\".etask.executor.v1.PullTaskRequest\x1a#.etask.executor.v1.PullTaskResponseB\xd9\x01\n" +
+	"\bPullTask\x12\".etask.executor.v1.PullTaskRequest\x1a#.etask.executor.v1.PullTaskResponse2\xf6\x01\n" +
+	"\x14TaskExecutionService\x12q\n" +
+	"\x12ListTaskExecutions\x12,.etask.executor.v1.ListTaskExecutionsRequest\x1a-.etask.executor.v1.ListTaskExecutionsResponse\x12k\n" +
+	"\x10GetExecutionLogs\x12*.etask.executor.v1.GetExecutionLogsRequest\x1a+.etask.executor.v1.GetExecutionLogsResponseB\xd9\x01\n" +
 	"\x15com.etask.executor.v1B\rExecutorProtoP\x01ZKgithub.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1;executorv1\xa2\x02\x03EEX\xaa\x02\x11Etask.Executor.V1\xca\x02\x11Etask\\Executor\\V1\xe2\x02\x1dEtask\\Executor\\V1\\GPBMetadata\xea\x02\x13Etask::Executor::V1b\x06proto3"
 
 var (
@@ -816,50 +1206,63 @@ func file_etask_executor_v1_executor_proto_rawDescGZIP() []byte {
 }
 
 var file_etask_executor_v1_executor_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_etask_executor_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_etask_executor_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_etask_executor_v1_executor_proto_goTypes = []any{
-	(ExecutionStatus)(0),      // 0: etask.executor.v1.ExecutionStatus
-	(*ExecutionState)(nil),    // 1: etask.executor.v1.ExecutionState
-	(*ExecuteRequest)(nil),    // 2: etask.executor.v1.ExecuteRequest
-	(*ExecuteResponse)(nil),   // 3: etask.executor.v1.ExecuteResponse
-	(*InterruptRequest)(nil),  // 4: etask.executor.v1.InterruptRequest
-	(*InterruptResponse)(nil), // 5: etask.executor.v1.InterruptResponse
-	(*QueryRequest)(nil),      // 6: etask.executor.v1.QueryRequest
-	(*QueryResponse)(nil),     // 7: etask.executor.v1.QueryResponse
-	(*PrepareRequest)(nil),    // 8: etask.executor.v1.PrepareRequest
-	(*PrepareResponse)(nil),   // 9: etask.executor.v1.PrepareResponse
-	(*PullTaskRequest)(nil),   // 10: etask.executor.v1.PullTaskRequest
-	(*PullTaskResponse)(nil),  // 11: etask.executor.v1.PullTaskResponse
-	nil,                       // 12: etask.executor.v1.ExecutionState.RescheduledParamsEntry
-	nil,                       // 13: etask.executor.v1.ExecuteRequest.ParamsEntry
-	nil,                       // 14: etask.executor.v1.PrepareRequest.ParamsEntry
-	nil,                       // 15: etask.executor.v1.PrepareResponse.ParamsEntry
+	(ExecutionStatus)(0),               // 0: etask.executor.v1.ExecutionStatus
+	(*ExecutionState)(nil),             // 1: etask.executor.v1.ExecutionState
+	(*ExecuteRequest)(nil),             // 2: etask.executor.v1.ExecuteRequest
+	(*ExecuteResponse)(nil),            // 3: etask.executor.v1.ExecuteResponse
+	(*InterruptRequest)(nil),           // 4: etask.executor.v1.InterruptRequest
+	(*InterruptResponse)(nil),          // 5: etask.executor.v1.InterruptResponse
+	(*QueryRequest)(nil),               // 6: etask.executor.v1.QueryRequest
+	(*QueryResponse)(nil),              // 7: etask.executor.v1.QueryResponse
+	(*PrepareRequest)(nil),             // 8: etask.executor.v1.PrepareRequest
+	(*PrepareResponse)(nil),            // 9: etask.executor.v1.PrepareResponse
+	(*PullTaskRequest)(nil),            // 10: etask.executor.v1.PullTaskRequest
+	(*PullTaskResponse)(nil),           // 11: etask.executor.v1.PullTaskResponse
+	(*ListTaskExecutionsRequest)(nil),  // 12: etask.executor.v1.ListTaskExecutionsRequest
+	(*TaskExecution)(nil),              // 13: etask.executor.v1.TaskExecution
+	(*ListTaskExecutionsResponse)(nil), // 14: etask.executor.v1.ListTaskExecutionsResponse
+	(*GetExecutionLogsRequest)(nil),    // 15: etask.executor.v1.GetExecutionLogsRequest
+	(*ExecutionLog)(nil),               // 16: etask.executor.v1.ExecutionLog
+	(*GetExecutionLogsResponse)(nil),   // 17: etask.executor.v1.GetExecutionLogsResponse
+	nil,                                // 18: etask.executor.v1.ExecutionState.RescheduledParamsEntry
+	nil,                                // 19: etask.executor.v1.ExecuteRequest.ParamsEntry
+	nil,                                // 20: etask.executor.v1.PrepareRequest.ParamsEntry
+	nil,                                // 21: etask.executor.v1.PrepareResponse.ParamsEntry
 }
 var file_etask_executor_v1_executor_proto_depIdxs = []int32{
 	0,  // 0: etask.executor.v1.ExecutionState.status:type_name -> etask.executor.v1.ExecutionStatus
-	12, // 1: etask.executor.v1.ExecutionState.rescheduled_params:type_name -> etask.executor.v1.ExecutionState.RescheduledParamsEntry
-	13, // 2: etask.executor.v1.ExecuteRequest.params:type_name -> etask.executor.v1.ExecuteRequest.ParamsEntry
+	18, // 1: etask.executor.v1.ExecutionState.rescheduled_params:type_name -> etask.executor.v1.ExecutionState.RescheduledParamsEntry
+	19, // 2: etask.executor.v1.ExecuteRequest.params:type_name -> etask.executor.v1.ExecuteRequest.ParamsEntry
 	1,  // 3: etask.executor.v1.ExecuteResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
 	1,  // 4: etask.executor.v1.InterruptResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
 	1,  // 5: etask.executor.v1.QueryResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
-	14, // 6: etask.executor.v1.PrepareRequest.params:type_name -> etask.executor.v1.PrepareRequest.ParamsEntry
-	15, // 7: etask.executor.v1.PrepareResponse.params:type_name -> etask.executor.v1.PrepareResponse.ParamsEntry
+	20, // 6: etask.executor.v1.PrepareRequest.params:type_name -> etask.executor.v1.PrepareRequest.ParamsEntry
+	21, // 7: etask.executor.v1.PrepareResponse.params:type_name -> etask.executor.v1.PrepareResponse.ParamsEntry
 	2,  // 8: etask.executor.v1.PullTaskResponse.task_req:type_name -> etask.executor.v1.ExecuteRequest
-	2,  // 9: etask.executor.v1.ExecutorService.Execute:input_type -> etask.executor.v1.ExecuteRequest
-	4,  // 10: etask.executor.v1.ExecutorService.Interrupt:input_type -> etask.executor.v1.InterruptRequest
-	6,  // 11: etask.executor.v1.ExecutorService.Query:input_type -> etask.executor.v1.QueryRequest
-	8,  // 12: etask.executor.v1.ExecutorService.Prepare:input_type -> etask.executor.v1.PrepareRequest
-	10, // 13: etask.executor.v1.AgentService.PullTask:input_type -> etask.executor.v1.PullTaskRequest
-	3,  // 14: etask.executor.v1.ExecutorService.Execute:output_type -> etask.executor.v1.ExecuteResponse
-	5,  // 15: etask.executor.v1.ExecutorService.Interrupt:output_type -> etask.executor.v1.InterruptResponse
-	7,  // 16: etask.executor.v1.ExecutorService.Query:output_type -> etask.executor.v1.QueryResponse
-	9,  // 17: etask.executor.v1.ExecutorService.Prepare:output_type -> etask.executor.v1.PrepareResponse
-	11, // 18: etask.executor.v1.AgentService.PullTask:output_type -> etask.executor.v1.PullTaskResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	0,  // 9: etask.executor.v1.TaskExecution.status:type_name -> etask.executor.v1.ExecutionStatus
+	13, // 10: etask.executor.v1.ListTaskExecutionsResponse.executions:type_name -> etask.executor.v1.TaskExecution
+	16, // 11: etask.executor.v1.GetExecutionLogsResponse.logs:type_name -> etask.executor.v1.ExecutionLog
+	2,  // 12: etask.executor.v1.ExecutorService.Execute:input_type -> etask.executor.v1.ExecuteRequest
+	4,  // 13: etask.executor.v1.ExecutorService.Interrupt:input_type -> etask.executor.v1.InterruptRequest
+	6,  // 14: etask.executor.v1.ExecutorService.Query:input_type -> etask.executor.v1.QueryRequest
+	8,  // 15: etask.executor.v1.ExecutorService.Prepare:input_type -> etask.executor.v1.PrepareRequest
+	10, // 16: etask.executor.v1.AgentService.PullTask:input_type -> etask.executor.v1.PullTaskRequest
+	12, // 17: etask.executor.v1.TaskExecutionService.ListTaskExecutions:input_type -> etask.executor.v1.ListTaskExecutionsRequest
+	15, // 18: etask.executor.v1.TaskExecutionService.GetExecutionLogs:input_type -> etask.executor.v1.GetExecutionLogsRequest
+	3,  // 19: etask.executor.v1.ExecutorService.Execute:output_type -> etask.executor.v1.ExecuteResponse
+	5,  // 20: etask.executor.v1.ExecutorService.Interrupt:output_type -> etask.executor.v1.InterruptResponse
+	7,  // 21: etask.executor.v1.ExecutorService.Query:output_type -> etask.executor.v1.QueryResponse
+	9,  // 22: etask.executor.v1.ExecutorService.Prepare:output_type -> etask.executor.v1.PrepareResponse
+	11, // 23: etask.executor.v1.AgentService.PullTask:output_type -> etask.executor.v1.PullTaskResponse
+	14, // 24: etask.executor.v1.TaskExecutionService.ListTaskExecutions:output_type -> etask.executor.v1.ListTaskExecutionsResponse
+	17, // 25: etask.executor.v1.TaskExecutionService.GetExecutionLogs:output_type -> etask.executor.v1.GetExecutionLogsResponse
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_etask_executor_v1_executor_proto_init() }
@@ -873,9 +1276,9 @@ func file_etask_executor_v1_executor_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_etask_executor_v1_executor_proto_rawDesc), len(file_etask_executor_v1_executor_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   21,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   3,
 		},
 		GoTypes:           file_etask_executor_v1_executor_proto_goTypes,
 		DependencyIndexes: file_etask_executor_v1_executor_proto_depIdxs,
