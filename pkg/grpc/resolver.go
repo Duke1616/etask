@@ -1,10 +1,10 @@
 package grpc
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	"github.com/gotomicro/ego/core/elog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/attributes"
 	"google.golang.org/grpc/resolver"
@@ -38,6 +38,7 @@ func (r *resolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, 
 		close:        make(chan struct{}),
 		updateNotify: make(chan struct{}, 1),
 		timeout:      r.timeout,
+		logger:       elog.DefaultLogger.With(elog.FieldComponentName("grpc.resolver")),
 	}
 	go res.reconcileLoop()
 	go res.watch()
@@ -57,6 +58,7 @@ type executorResolver struct {
 	updateNotify  chan struct{}
 	timeout       time.Duration
 	lastAddresses []resolver.Address
+	logger        *elog.Component
 }
 
 func (g *executorResolver) ResolveNow(_ resolver.ResolveNowOptions) {
@@ -105,7 +107,7 @@ func (g *executorResolver) reconcile() {
 	}
 
 	if len(instances) == 0 {
-		g.cc.ReportError(fmt.Errorf("no endpoints found for service %s", serviceName))
+		g.logger.Warn("服务发现结果为空", elog.String("service", serviceName))
 		return
 	}
 
@@ -122,31 +124,16 @@ func (g *executorResolver) reconcile() {
 		})
 	}
 
-	if isAddressesEqual(g.lastAddresses, address) {
-		return
-	}
+	// 总是更新状态，让 Balancer 有机会重置或唤醒 SubConn
 	g.lastAddresses = address
 
 	err = g.cc.UpdateState(resolver.State{
 		Addresses: address,
 	})
 	if err != nil {
+		g.logger.Error("更新 gRPC 状态失败", elog.FieldErr(err))
 		g.cc.ReportError(err)
+	} else {
+		g.logger.Info("更新 gRPC 状态成功", elog.Any("addresses", address))
 	}
-}
-
-func isAddressesEqual(a, b []resolver.Address) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	aMap := make(map[string]resolver.Address)
-	for _, addr := range a {
-		aMap[addr.Addr] = addr
-	}
-	for _, addr := range b {
-		if _, ok := aMap[addr.Addr]; !ok {
-			return false
-		}
-	}
-	return true
 }

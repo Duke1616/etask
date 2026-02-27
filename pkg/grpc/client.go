@@ -8,6 +8,7 @@ import (
 	jwtinterceptor "github.com/Duke1616/ework-runner/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -100,6 +101,12 @@ func NewClientConn(reg registry.Registry, opts ...ClientOption) (*grpc.ClientCon
 		grpc.WithResolvers(rs),
 		grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"loadBalancingPolicy":%q}`, balancer.RoutingRoundRobinName)),
 		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: backoff.Config{
+				BaseDelay:  1 * time.Second,
+				Multiplier: 1.6,
+				Jitter:     0.2,
+				MaxDelay:   3 * time.Second,
+			},
 			MinConnectTimeout: 5 * time.Second,
 		}),
 	}

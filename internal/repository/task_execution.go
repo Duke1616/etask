@@ -34,7 +34,11 @@ type TaskExecutionRepository interface {
 	FindReschedulableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
 
 	FindExecutionsByPlanExecID(ctx context.Context, planExecID int64) (map[int64]domain.TaskExecution, error)
+	// FindByTaskID 根据任务ID查找所有执行记录
 	FindByTaskID(ctx context.Context, taskID int64) ([]domain.TaskExecution, error)
+	// FindByTaskIDs 批量根据一批任务ID查找它们对应的所有执行记录
+	FindByTaskIDs(ctx context.Context, taskIDs []int64) ([]domain.TaskExecution, error)
+	// FindExecutionByTaskIDAndPlanExecID 根据任务ID和执行计划ID查找执行记录
 	FindExecutionByTaskIDAndPlanExecID(ctx context.Context, taskID int64, planExecID int64) (domain.TaskExecution, error)
 	// FindTimeoutExecutions 查找超时的执行记录
 	FindTimeoutExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
@@ -64,6 +68,16 @@ func (r *taskExecutionRepository) FindExecutionByTaskIDAndPlanExecID(ctx context
 
 func (r *taskExecutionRepository) FindByTaskID(ctx context.Context, taskID int64) ([]domain.TaskExecution, error) {
 	daoExecutions, err := r.dao.FindByTaskID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	return slice.Map(daoExecutions, func(_ int, src dao.TaskExecution) domain.TaskExecution {
+		return r.toDomain(src)
+	}), nil
+}
+
+func (r *taskExecutionRepository) FindByTaskIDs(ctx context.Context, taskIDs []int64) ([]domain.TaskExecution, error) {
+	daoExecutions, err := r.dao.FindByTaskIDs(ctx, taskIDs)
 	if err != nil {
 		return nil, err
 	}

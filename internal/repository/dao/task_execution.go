@@ -82,7 +82,11 @@ type TaskExecutionDAO interface {
 	FindReschedulableExecutions(ctx context.Context, limit int) ([]TaskExecution, error)
 	// FindExecutionByPlanID 查找对应planExecID下的所有执行计划
 	FindExecutionByPlanID(ctx context.Context, planExecID int64) (map[int64]TaskExecution, error)
+	// FindByTaskID 根据任务ID查找执行记录
 	FindByTaskID(ctx context.Context, taskID int64) ([]TaskExecution, error)
+	// FindByTaskIDs 批量根据任务ID查找执行记录
+	FindByTaskIDs(ctx context.Context, taskIDs []int64) ([]TaskExecution, error)
+	// FindExecutionByTaskIDAndPlanExecID 根据任务ID和执行计划ID查找执行记录
 	FindExecutionByTaskIDAndPlanExecID(ctx context.Context, taskID int64, planExecID int64) (TaskExecution, error)
 	// FindTimeoutExecutions 查找超时的执行记录
 	FindTimeoutExecutions(ctx context.Context, limit int) ([]TaskExecution, error)
@@ -108,6 +112,15 @@ func (g *GORMTaskExecutionDAO) FindByTaskID(ctx context.Context, taskID int64) (
 	err := g.db.WithContext(ctx).Where("task_id = ?", taskID).Order("ctime DESC").Find(&executions).Error
 	if err != nil {
 		return nil, fmt.Errorf("查询任务 %d 的执行记录失败: %w", taskID, err)
+	}
+	return executions, nil
+}
+
+func (g *GORMTaskExecutionDAO) FindByTaskIDs(ctx context.Context, taskIDs []int64) ([]TaskExecution, error) {
+	var executions []TaskExecution
+	err := g.db.WithContext(ctx).Where("task_id IN ?", taskIDs).Order("ctime DESC").Find(&executions).Error
+	if err != nil {
+		return nil, fmt.Errorf("批量查询任务执行记录失败: %w", err)
 	}
 	return executions, nil
 }

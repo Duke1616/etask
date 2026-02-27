@@ -15,13 +15,11 @@ type routingBalancer struct {
 	cc balancer.ClientConn
 	mu sync.RWMutex
 
-	// subConnMap 维护从解析器地址到gRPC子连接的映射
-	subConnMap map[resolver.Address]balancer.SubConn
+	subConnMap map[string]balancer.SubConn
 	// scToAddrMap 维护从gRPC子连接到解析器地址的反向映射
-	// 用于在 UpdateSubConnState 中快速查找地址，避免遍历 subConnMap
-	scToAddrMap map[balancer.SubConn]resolver.Address
+	scToAddrMap map[balancer.SubConn]string
 	// nodeIDMap 维护从解析器地址到业务节点ID的映射
-	nodeIDMap map[resolver.Address]string
+	nodeIDMap map[string]string
 	// readySCs 维护了所有处于 READY 状态的子连接及其节点ID
 	// 这是构建 Picker 的唯一数据源，确保了只有健康的连接会被选中
 	readySCs map[balancer.SubConn]string
@@ -31,9 +29,9 @@ type routingBalancer struct {
 func newRoutingBalancer(cc balancer.ClientConn) *routingBalancer {
 	return &routingBalancer{
 		cc:          cc,
-		subConnMap:  make(map[resolver.Address]balancer.SubConn),
-		scToAddrMap: make(map[balancer.SubConn]resolver.Address),
-		nodeIDMap:   make(map[resolver.Address]string),
+		subConnMap:  make(map[string]balancer.SubConn),
+		scToAddrMap: make(map[balancer.SubConn]string),
+		nodeIDMap:   make(map[string]string),
 		readySCs:    make(map[balancer.SubConn]string),
 	}
 }
@@ -44,27 +42,29 @@ func (b *routingBalancer) UpdateClientConnState(state balancer.ClientConnState) 
 	defer b.mu.Unlock()
 
 	// 将新的地址列表转换成 map，方便快速查找
-	newAddrs := make(map[resolver.Address]struct{})
+	newAddrs := make(map[string]resolver.Address)
 	for _, addr := range state.ResolverState.Addresses {
-		newAddrs[addr] = struct{}{}
+		newAddrs[addr.Addr] = addr
 	}
 
 	// 移除不再存在的连接
-	for addr, sc := range b.subConnMap {
-		if _, ok := newAddrs[addr]; !ok {
+	for addrStr, sc := range b.subConnMap {
+		if _, ok := newAddrs[addrStr]; !ok {
 			// 地址被移除，关闭对应的子连接并清理所有相关映射
 			sc.Shutdown()
-			delete(b.subConnMap, addr)
+			delete(b.subConnMap, addrStr)
 			delete(b.scToAddrMap, sc) // 清理反向映射
-			delete(b.nodeIDMap, addr)
+			delete(b.nodeIDMap, addrStr)
 			// readySCs 会在 UpdateSubConnState 中被处理
 		}
 	}
 
 	// 添加新的连接
-	for addr := range newAddrs {
-		if _, ok := b.subConnMap[addr]; ok {
-			// 地址已存在，跳过
+	for addrStr, addr := range newAddrs {
+		if sc, ok := b.subConnMap[addrStr]; ok {
+			// 地址已存在，尝试唤醒或重连（针对 Idle 或 TransientFailure 的子连接）
+			// 这能保证在断网恢复且地址没变的情况下，不会干等原本的长 backoff！
+			sc.Connect()
 			continue
 		}
 
@@ -75,10 +75,10 @@ func (b *routingBalancer) UpdateClientConnState(state balancer.ClientConnState) 
 			continue
 		}
 		// 维护正向和反向映射
-		b.subConnMap[addr] = sc
-		b.scToAddrMap[sc] = addr // 添加反向映射
-		b.nodeIDMap[addr] = b.extractNodeID(addr)
-		// 开始连接，这会异步触发 UpdateSubConnState 的调用
+		b.subConnMap[addrStr] = sc
+		b.scToAddrMap[sc] = addrStr // 添加反向映射
+		b.nodeIDMap[addrStr] = b.extractNodeID(addr)
+		// 开始连接，这会异步触发 UpdateSubConnState 的调
 		sc.Connect()
 	}
 
@@ -93,7 +93,7 @@ func (b *routingBalancer) UpdateSubConnState(sc balancer.SubConn, state balancer
 	defer b.mu.Unlock()
 
 	// 使用反向映射快速查找子连接对应的地址
-	addr, ok := b.scToAddrMap[sc]
+	addrStr, ok := b.scToAddrMap[sc]
 	if !ok {
 		// 如果反向映射中没有找到，说明该连接可能已被移除，直接忽略
 		return
@@ -102,15 +102,15 @@ func (b *routingBalancer) UpdateSubConnState(sc balancer.SubConn, state balancer
 	switch state.ConnectivityState {
 	case connectivity.Ready:
 		// 连接就绪，将其添加到可用连接列表
-		b.readySCs[sc] = b.nodeIDMap[addr]
+		b.readySCs[sc] = b.nodeIDMap[addrStr]
 	case connectivity.Idle, connectivity.Connecting, connectivity.TransientFailure:
 		// 连接不可用，从可用连接列表中移除
 		delete(b.readySCs, sc)
 	case connectivity.Shutdown:
 		// 连接已关闭，从所有记录中彻底移除
-		delete(b.subConnMap, addr)
+		delete(b.subConnMap, addrStr)
 		delete(b.scToAddrMap, sc) // 清理反向映射
-		delete(b.nodeIDMap, addr)
+		delete(b.nodeIDMap, addrStr)
 		delete(b.readySCs, sc)
 	}
 
@@ -122,11 +122,10 @@ func (b *routingBalancer) UpdateSubConnState(sc balancer.SubConn, state balancer
 // 这个函数必须在持有锁的情况下被调用
 func (b *routingBalancer) updatePicker() {
 	if len(b.readySCs) == 0 {
-		// 没有可用的连接，通知客户端连接暂时失败
+		// 没有可用的连接，通知客户端连接正在处理中（让外部阻塞等待，而不是立刻失败报错）
 		b.cc.UpdateState(balancer.State{
-			ConnectivityState: connectivity.TransientFailure,
-			// NewErrPicker 是一个标准的 Picker，它会返回固定的错误
-			Picker: base.NewErrPicker(balancer.ErrNoSubConnAvailable),
+			ConnectivityState: connectivity.Connecting,
+			Picker:            base.NewErrPicker(balancer.ErrNoSubConnAvailable),
 		})
 		return
 	}
@@ -186,7 +185,8 @@ func (b *routingBalancer) Close() {
 func (b *routingBalancer) ExitIdle() {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	for sc := range b.readySCs {
+	// NOTE: 这里是修复唤醒死锁的核心：要唤醒的是所有的 SubConn，而不是 readySCs 里的！
+	for _, sc := range b.subConnMap {
 		sc.Connect()
 	}
 }

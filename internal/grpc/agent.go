@@ -132,3 +132,45 @@ func (s *AgentServer) GetExecutionLogs(ctx context.Context, req *executorv1.GetE
 		MaxId: maxID,
 	}, nil
 }
+
+// BatchListTaskExecutions 批量列出任务执行记录
+func (s *AgentServer) BatchListTaskExecutions(ctx context.Context, req *executorv1.BatchListTaskExecutionsRequest) (*executorv1.BatchListTaskExecutionsResponse, error) {
+	taskIDs := req.GetTaskIds()
+	if len(taskIDs) == 0 {
+		return &executorv1.BatchListTaskExecutionsResponse{
+			Results: make(map[int64]*executorv1.TaskExecutionList),
+		}, nil
+	}
+
+	executions, err := s.execRepo.FindByTaskIDs(ctx, taskIDs)
+	if err != nil {
+		s.logger.Error("批量获取执行记录失败", elog.Any("taskIDs", taskIDs), elog.FieldErr(err))
+		return nil, err
+	}
+
+	results := make(map[int64]*executorv1.TaskExecutionList)
+	for _, e := range executions {
+		pbExec := &executorv1.TaskExecution{
+			Id:              e.ID,
+			TaskId:          e.Task.ID,
+			TaskName:        e.Task.Name,
+			StartTime:       e.StartTime,
+			EndTime:         e.EndTime,
+			Status:          executorv1.ExecutionStatus(executorv1.ExecutionStatus_value[e.Status.String()]),
+			RunningProgress: e.RunningProgress,
+			ExecutorNodeId:  e.ExecutorNodeID,
+		}
+
+		if list, ok := results[e.Task.ID]; ok {
+			list.Executions = append(list.Executions, pbExec)
+		} else {
+			results[e.Task.ID] = &executorv1.TaskExecutionList{
+				Executions: []*executorv1.TaskExecution{pbExec},
+			}
+		}
+	}
+
+	return &executorv1.BatchListTaskExecutionsResponse{
+		Results: results,
+	}, nil
+}

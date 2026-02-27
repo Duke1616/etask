@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	"github.com/gotomicro/ego/core/elog"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
@@ -30,6 +31,7 @@ type Registry struct {
 	mutex       sync.RWMutex
 	watchCancel []func()
 	leases      map[string]func() // 控制生命周期
+	logger      *elog.Component
 }
 
 // NewRegistry 创建 Registry,使用默认前缀
@@ -43,6 +45,7 @@ func NewRegistryWithPrefix(c *clientv3.Client, prefix string) (*Registry, error)
 		client: c,
 		prefix: prefix,
 		leases: make(map[string]func()),
+		logger: elog.DefaultLogger.With(elog.FieldComponentName("grpc.registry.etcd")),
 	}, nil
 }
 
@@ -52,12 +55,14 @@ func (r *Registry) Register(ctx context.Context, si registry.ServiceInstance) er
 		return err
 	}
 
-	sess, err := concurrency.NewSession(r.client, concurrency.WithTTL(10))
+	// NOTE: 工业级标准建议 TTL >= 30s 以防御瞬时网络波动
+	sess, err := concurrency.NewSession(r.client, concurrency.WithTTL(30))
 	if err != nil {
 		return err
 	}
 
-	_, err = r.client.Put(ctx, r.instanceKey(si), string(val), clientv3.WithLease(sess.Lease()))
+	key := r.instanceKey(si)
+	_, err = r.client.Put(ctx, key, string(val), clientv3.WithLease(sess.Lease()))
 	if err != nil {
 		_ = sess.Close()
 		return err
@@ -68,7 +73,6 @@ func (r *Registry) Register(ctx context.Context, si registry.ServiceInstance) er
 	if r.leases == nil {
 		r.leases = make(map[string]func())
 	}
-	key := r.instanceKey(si)
 	if oldCancel, ok := r.leases[key]; ok {
 		oldCancel()
 	}
@@ -86,7 +90,7 @@ func (r *Registry) maintainLoop(ctx context.Context, si registry.ServiceInstance
 			_ = sess.Close()
 			return
 		case <-sess.Done():
-			// session 失效（如网络断开），需要重新建立并注册
+			r.logger.Warn("Session 失效，准备重新注册", elog.String("instance", si.Address))
 		}
 
 		backoff := time.Second
@@ -97,8 +101,10 @@ func (r *Registry) maintainLoop(ctx context.Context, si registry.ServiceInstance
 			default:
 			}
 
-			newSess, err := concurrency.NewSession(r.client, concurrency.WithTTL(10))
+			// 重新建立 Session 和 Lease
+			newSess, err := concurrency.NewSession(r.client, concurrency.WithTTL(30))
 			if err != nil {
+				r.logger.Error("创建 Session 失败", elog.FieldErr(err), elog.String("backoff", backoff.String()))
 				time.Sleep(backoff)
 				backoff = min(backoff*2, 30*time.Second)
 				continue
@@ -109,13 +115,14 @@ func (r *Registry) maintainLoop(ctx context.Context, si registry.ServiceInstance
 			putCancel()
 
 			if err != nil {
+				r.logger.Error("重新注册实例失败", elog.FieldErr(err), elog.String("backoff", backoff.String()))
 				_ = newSess.Close()
 				time.Sleep(backoff)
 				backoff = min(backoff*2, 30*time.Second)
 				continue
 			}
 
-			// 重连并重新注册成功
+			r.logger.Info("重新注册实例成功", elog.String("instance", si.Address))
 			sess = newSess
 			break
 		}
@@ -139,16 +146,19 @@ func (r *Registry) UnRegister(ctx context.Context, si registry.ServiceInstance) 
 }
 
 func (r *Registry) ListServices(ctx context.Context, name string) ([]registry.ServiceInstance, error) {
-	resp, err := r.client.Get(ctx, r.serviceKey(name), clientv3.WithPrefix())
+	key := r.serviceKey(name)
+	resp, err := r.client.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
+	r.logger.Info("ListServices查询结果", elog.String("service", name), elog.Int("count", len(resp.Kvs)))
 	res := make([]registry.ServiceInstance, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
 		var si registry.ServiceInstance
 		err = json.Unmarshal(kv.Value, &si)
 		if err != nil {
-			return nil, err
+			r.logger.Warn("解析实例数据失败", elog.String("key", string(kv.Key)), elog.FieldErr(err))
+			continue
 		}
 		res = append(res, si)
 	}
@@ -161,81 +171,50 @@ func (r *Registry) serviceKey(name string) string {
 
 func (r *Registry) Subscribe(name string) <-chan registry.Event {
 	ctx, cancel := context.WithCancel(context.Background())
-	ctx = clientv3.WithRequireLeader(ctx)
 	r.mutex.Lock()
 	r.watchCancel = append(r.watchCancel, cancel)
 	r.mutex.Unlock()
-	res := make(chan registry.Event)
+
+	res := make(chan registry.Event, 16)
 	go func() {
 		defer close(res)
-		var revision int64
 
-		// 第一次获取全量数据
 		for {
-			ctxGet, getCancel := context.WithTimeout(ctx, 3*time.Second)
-			resp, err := r.client.Get(ctxGet, r.serviceKey(name), clientv3.WithPrefix())
-			getCancel()
-			if err == nil {
-				revision = resp.Header.GetRevision()
-				// 防止断线期间变更没拿到，通知外层 resolver 去全量拉取数据进行比对
-				select {
-				case res <- registry.Event{Type: registry.EventTypeAdd}:
-				case <-ctx.Done():
-					return
-				}
-				break
+			select {
+			case <-ctx.Done():
+				return
+			default:
 			}
-			time.Sleep(time.Second)
-		}
 
-		backoff := time.Second
-		for {
-			ch := r.client.Watch(ctx, r.serviceKey(name), clientv3.WithPrefix(), clientv3.WithRev(revision+1))
+			// 每次重启 Watch，为了防止漏事件，强行发一次 EventTypeAdd 触发全量同步
+			select {
+			case res <- registry.Event{Type: registry.EventTypeAdd}:
+			case <-ctx.Done():
+				return
+			}
+
+			// 监听目标服务的前缀，不需要预先获取 revision，由 etcd 客户端内部接管
+			ch := r.client.Watch(ctx, r.serviceKey(name), clientv3.WithPrefix())
 		WatchLoop:
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case resp, ok := <-ch:
-					if !ok || resp.Canceled {
+					if !ok || resp.Canceled || resp.Err() != nil {
+						// 只要断联/出错（如 Compacted），直接退出当前 Watch 循环，延时后重新发起全新的 Watch
+						time.Sleep(time.Second)
 						break WatchLoop
 					}
 
-					if resp.Err() != nil {
-						// 只要出错(如 Compacted)，退出当前 Watch 循环，走外层退避再重连 + 重新 Get
-						break WatchLoop
-					}
-
-					backoff = time.Second // 收到正常响应，重置退避时间
 					for _, event := range resp.Events {
-						res <- registry.Event{
-							Type: typesMap[event.Type],
-						}
-						if event.Kv.ModRevision > revision {
-							revision = event.Kv.ModRevision
+						select {
+						case res <- registry.Event{Type: typesMap[event.Type]}:
+						case <-ctx.Done():
+							return
 						}
 					}
 				}
-			}
-
-			time.Sleep(backoff)
-			backoff = min(backoff*2, 30*time.Second)
-
-			// 重新获取 Revision 状态，防止断线期间漏过了事件
-			for {
-				ctxGet, getCancel := context.WithTimeout(ctx, 3*time.Second)
-				resp, err := r.client.Get(ctxGet, r.serviceKey(name), clientv3.WithPrefix())
-				getCancel()
-				if err == nil {
-					revision = resp.Header.GetRevision()
-					select {
-					case res <- registry.Event{Type: registry.EventTypeAdd}:
-					case <-ctx.Done():
-						return
-					}
-					break
-				}
-				time.Sleep(time.Second)
 			}
 		}
 	}()
