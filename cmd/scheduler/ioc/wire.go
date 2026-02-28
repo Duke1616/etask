@@ -3,6 +3,7 @@
 package ioc
 
 import (
+	"github.com/Duke1616/ework-runner/internal/agent"
 	"github.com/Duke1616/ework-runner/internal/grpc"
 	"github.com/Duke1616/ework-runner/internal/repository"
 	"github.com/Duke1616/ework-runner/internal/repository/dao"
@@ -82,7 +83,7 @@ var (
 	)
 )
 
-func InitSchedulerApp() *ioc.SchedulerApp {
+func InitSchedulerApp() *ioc.App {
 	wire.Build(
 		// 基础设施
 		BaseSet,
@@ -99,14 +100,17 @@ func InitSchedulerApp() *ioc.SchedulerApp {
 		// WEB 服务
 		webSetup,
 
+		// AGENT 执行 (融入对称节点)
+		agent.InitModule,
+
 		// GRPC服务器
 		grpc.NewReporterServer,
 		grpc.NewTaskServer,
 		grpc.NewAgentServer,
 		ioc.InitSchedulerNodeGRPCServer,
 		ioc.InitTasks,
-		wire.Struct(new(ioc.SchedulerApp), "*"),
+		wire.Struct(new(ioc.App), "*"),
 	)
 
-	return new(ioc.SchedulerApp)
+	return new(ioc.App)
 }

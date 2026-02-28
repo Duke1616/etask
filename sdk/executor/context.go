@@ -41,8 +41,8 @@ type Context struct {
 	taskLogger TaskLogger
 }
 
-// newContext 创建上下文(内部使用)
-func newContext(eid, taskID int64, taskName, handlerName string, params map[string]string,
+// NewContext 创建上下文 (供 gRPC 模式使用)
+func NewContext(eid, taskID int64, taskName, handlerName string, params map[string]string,
 	reporter reporterv1.ReporterServiceClient, logger *elog.Component) *Context {
 
 	var masks []string
@@ -57,7 +57,7 @@ func newContext(eid, taskID int64, taskName, handlerName string, params map[stri
 		}
 	}
 
-	ctx := &Context{
+	return &Context{
 		ExecutionID: eid,
 		TaskID:      taskID,
 		TaskName:    taskName,
@@ -67,8 +67,20 @@ func newContext(eid, taskID int64, taskName, handlerName string, params map[stri
 		logger:      logger,
 		taskLogger:  newTaskLogger(eid, reporter, logger, masks),
 	}
+}
 
-	return ctx
+// NewContextWithLogger 创建带有指定 Logger 的上下文 (供 Kafka 等非 gRPC 模式使用)
+func NewContextWithLogger(eid, taskID int64, taskName, handlerName string, params map[string]string,
+	logger *elog.Component, taskLogger TaskLogger) *Context {
+	return &Context{
+		ExecutionID: eid,
+		TaskID:      taskID,
+		TaskName:    taskName,
+		HandlerName: handlerName,
+		Params:      params,
+		logger:      logger,
+		taskLogger:  taskLogger,
+	}
 }
 
 // Log 记录日志 (代理给 taskLogger)

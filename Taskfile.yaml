@@ -12,9 +12,9 @@ tasks:
     cmds:
       - task --list-all
   run:
-    desc: 启动服务
+    desc: 启动服务 (根据 config.yaml 中的 app.mode 运行)
     cmds:
-      - go run main.go
+      - go run main.go --config ./config/scheduler.yaml
 
   gen:
     desc: 代码生成

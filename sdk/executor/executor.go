@@ -97,7 +97,7 @@ func (e *Executor) InitComponents() error {
 	// 3. 初始化 Agent 拉取客户端 (复用连接因为它是给同一调度中心汇报)
 	e.agentClient = executorv1.NewAgentServiceClient(reporterConn)
 
-	// 4. 注册 Executor 服务
+	// 4. 注册 Agent 服务
 	executorv1.RegisterExecutorServiceServer(e.server.Server, e)
 
 	// 5. 判断模式开启拉取节点
@@ -192,7 +192,7 @@ func (e *Executor) Execute(ctx context.Context, req *executorv1.ExecuteRequest) 
 	e.states.Store(eid, state)
 
 	// 创建任务上下文
-	taskCtx := newContext(eid, req.GetTaskId(), req.GetTaskName(), req.GetTaskHandlerName(),
+	taskCtx := NewContext(eid, req.GetTaskId(), req.GetTaskName(), req.GetTaskHandlerName(),
 		req.GetParams(), e.reporterClient, e.logger)
 
 	//创建可取消上下文

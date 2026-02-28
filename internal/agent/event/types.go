@@ -26,6 +26,7 @@ type ExecuteResultEvent struct {
 type ExecuteReceive struct {
 	TaskId    int64                  `json:"task_id"`
 	Language  string                 `json:"language"`
+	Handler   string                 `json:"handler"`
 	Code      string                 `json:"code"`
 	Args      map[string]interface{} `json:"args"`
 	Variables string                 `json:"variables"`

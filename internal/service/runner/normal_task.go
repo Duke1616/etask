@@ -99,7 +99,7 @@ func (s *NormalTaskRunner) handleNormalTask(ctx context.Context, task domain.Tas
 
 	// 如果是 PULL 模式，直接返回，不必做主动推送
 	if isPullMode {
-		s.logger.Info("任务已进入拉取队列，等待 Executor 主动拉取",
+		s.logger.Info("任务已进入拉取队列，等待 Agent 主动拉取",
 			elog.Int64("task_id", execution.Task.ID),
 			elog.Int64("execution_id", execution.ID))
 		return nil

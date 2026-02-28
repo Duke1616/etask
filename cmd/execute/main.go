@@ -17,7 +17,7 @@ func main() {
 	// 创建 ego 应用实例
 	egoApp := ego.New()
 
-	// 初始化 Executor 应用
+	// 初始化 Agent 应用
 	app := ioc.InitExecuteApp()
 
 	// 启动服务

@@ -10,11 +10,10 @@ const (
 	// SUCCESS 成功
 	SUCCESS Status = 1
 	// FAILED 失败
-	failed
 	FAILED Status = 2
 )
 
-type Worker struct {
+type Agent struct {
 	Name   string
 	Desc   string
 	Topic  string
@@ -22,11 +21,12 @@ type Worker struct {
 }
 
 type ExecuteReceive struct {
-	TaskId    int64
-	Language  string
-	Code      string
-	Args      string
-	Variables string
+	TaskId    int64  // 任务ID
+	Language  string // 使用语言
+	Handler   string // 调用方法
+	Code      string // 代码
+	Args      string // 参数
+	Variables string // 变量
 }
 
 type Variable struct {

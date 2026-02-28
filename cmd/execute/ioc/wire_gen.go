@@ -81,7 +81,7 @@ func InitConfig() executor.Config {
 	}
 }
 
-// InitExecutor 初始化 SDK Executor 实例
+// InitExecutor 初始化 SDK Agent 实例
 func InitExecutor(cfg executor.Config, reg registry.Registry) *executor.Executor {
 	exec, err := executor.NewExecutor(cfg, reg)
 	if err != nil {
@@ -99,7 +99,7 @@ func InitExecutor(cfg executor.Config, reg registry.Registry) *executor.Executor
 	return exec
 }
 
-// InitExecutorServer 从 Executor 中提取 ego Server
+// InitExecutorServer 从 Agent 中提取 ego Server
 func InitExecutorServer(exec *executor.Executor) *grpc.Server {
 	return exec.Server()
 }

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Duke1616/ework-runner/internal/execute/internal/domain"
-	"github.com/Duke1616/ework-runner/internal/execute/internal/service"
+	"github.com/Duke1616/ework-runner/internal/agent/domain"
+	"github.com/Duke1616/ework-runner/internal/agent/service"
 	"github.com/ecodeclub/mq-api"
 	"github.com/gotomicro/ego/core/elog"
 )
@@ -104,6 +104,7 @@ func (c *ExecuteConsumer) Consume(ctx context.Context) error {
 	output, status, err := c.svc.Receive(ctx, domain.ExecuteReceive{
 		TaskId:    evt.TaskId,
 		Language:  evt.Language,
+		Handler:   evt.Handler,
 		Code:      evt.Code,
 		Args:      string(args),
 		Variables: evt.Variables,
