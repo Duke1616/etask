@@ -12,12 +12,17 @@ import (
 	"github.com/gotomicro/ego/core/elog"
 )
 
+type HandlerDetail struct {
+	Name string `json:"name"`
+	Desc string `json:"desc"`
+}
+
 type Service interface {
 	// Receive 接收任务并执行
 	Receive(ctx context.Context, req domain.ExecuteReceive) (string, domain.Status, error)
 
-	// ListHandlers 列出支持的任务处理器
-	ListHandlers() []string
+	// ListHandlers 列出支持的任务处理器详情
+	ListHandlers() []HandlerDetail
 }
 
 type service struct {
@@ -26,12 +31,15 @@ type service struct {
 	logger   *elog.Component
 }
 
-func (s *service) ListHandlers() []string {
-	names := make([]string, 0, len(s.handlers))
-	for name := range s.handlers {
-		names = append(names, name)
+func (s *service) ListHandlers() []HandlerDetail {
+	metas := make([]HandlerDetail, 0, len(s.handlers))
+	for _, h := range s.handlers {
+		metas = append(metas, HandlerDetail{
+			Name: h.Name(),
+			Desc: h.Desc(),
+		})
 	}
-	return names
+	return metas
 }
 
 func NewService(mq mq.MQ) Service {

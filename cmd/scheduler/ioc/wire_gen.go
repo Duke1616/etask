@@ -7,11 +7,12 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ework-runner/internal/agent"
+	agent2 "github.com/Duke1616/ework-runner/internal/agent"
 	"github.com/Duke1616/ework-runner/internal/grpc"
 	"github.com/Duke1616/ework-runner/internal/repository"
 	"github.com/Duke1616/ework-runner/internal/repository/dao"
 	"github.com/Duke1616/ework-runner/internal/service/task"
+	"github.com/Duke1616/ework-runner/internal/web/agent"
 	"github.com/Duke1616/ework-runner/internal/web/executor"
 	task2 "github.com/Duke1616/ework-runner/internal/web/task"
 	"github.com/Duke1616/ework-runner/ioc"
@@ -38,7 +39,8 @@ func InitSchedulerApp() *ioc.App {
 	logService := task.NewLogService(taskExecutionLogDAO)
 	handler := task2.NewHandler(service, logService)
 	executorHandler := executor.NewHandler(registry)
-	component := ioc.InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler)
+	agentHandler := agent.NewHandler(registry)
+	component := ioc.InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, agentHandler)
 	string2 := ioc.InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
@@ -56,7 +58,7 @@ func InitSchedulerApp() *ioc.App {
 	executorNodePicker := ioc.InitExecutorNodePicker(registry)
 	iExecModeResolver := ioc.InitExecModeResolver(registry, taskRepository)
 	scheduler := ioc.InitScheduler(string2, runner, service, executionService, taskAcquirer, executorNodePicker, iExecModeResolver)
-	module := agent.InitModule(mq, registry)
+	module := agent2.InitModule(mq, registry)
 	retryCompensator := ioc.InitRetryCompensator(runner, executionService)
 	rescheduleCompensator := ioc.InitRescheduleCompensator(runner, executionService)
 	interruptCompensator := ioc.InitInterruptCompensator(clients, executionService)
@@ -88,6 +90,8 @@ var (
 	taskExecutionSet = wire.NewSet(dao.NewGORMTaskExecutionDAO, dao.NewGORMTaskExecutionLogDAO, repository.NewTaskExecutionRepository, task.NewExecutionService)
 
 	schedulerSet = wire.NewSet(ioc.InitNodeID, ioc.InitScheduler, ioc.InitMySQLTaskAcquirer, ioc.InitExecutorNodePicker, ioc.InitExecModeResolver)
+
+	agentSet = wire.NewSet(agent.NewHandler, agent2.InitModule)
 
 	compensatorSet = wire.NewSet(ioc.InitRetryCompensator, ioc.InitRescheduleCompensator, ioc.InitInterruptCompensator)
 

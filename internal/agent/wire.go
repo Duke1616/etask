@@ -4,12 +4,14 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	event2 "github.com/Duke1616/ework-runner/internal/agent/event"
 	"github.com/Duke1616/ework-runner/internal/agent/service"
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
 	"github.com/ecodeclub/mq-api"
+	"github.com/google/uuid"
 	"github.com/google/wire"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/spf13/viper"
@@ -53,13 +55,16 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event2.TaskExecu
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
+	// NOTE: 转换为 JSON 字符串以适配前端 Handler.parseHandlers 的解析逻辑
+	handlerMetas, _ := json.Marshal(svc.ListHandlers())
 	err := reg.Register(ctx, registry.ServiceInstance{
-		ID:   cfg.Name,
-		Name: "agent", // 统一的服务分组名称
+		Name:    ServiceName, // 统一的服务分组名称
+		Address: uuid.New().String(),
 		Metadata: map[string]any{
+			"name":               cfg.Name,
 			"desc":               cfg.Desc,
 			"topic":              cfg.Topic,
-			"supported_handlers": svc.ListHandlers(),
+			"supported_handlers": string(handlerMetas),
 		},
 	})
 	if err != nil {

@@ -8,15 +8,16 @@ package agent
 
 import (
 	"context"
-	"time"
-
-	event2 "github.com/Duke1616/ework-runner/internal/agent/event"
+	"encoding/json"
+	"github.com/Duke1616/ework-runner/internal/agent/event"
 	"github.com/Duke1616/ework-runner/internal/agent/service"
 	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
 	"github.com/ecodeclub/mq-api"
+	"github.com/google/uuid"
 	"github.com/google/wire"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/spf13/viper"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -42,15 +43,15 @@ type Instance struct {
 
 var ProviderSet = wire.NewSet(service.NewService)
 
-func initExecuteProducer(q mq.MQ) event2.TaskExecuteResultProducer {
-	producer, err := event2.NewExecuteResultEventProducer(q)
+func initExecuteProducer(q mq.MQ) event.TaskExecuteResultProducer {
+	producer, err := event.NewExecuteResultEventProducer(q)
 	if err != nil {
 		panic(err)
 	}
 	return producer
 }
 
-func initExecuteConsumer(q mq.MQ, svc service.Service, producer event2.TaskExecuteResultProducer, reg registry.Registry) *event2.ExecuteConsumer {
+func initExecuteConsumer(q mq.MQ, svc service.Service, producer event.TaskExecuteResultProducer, reg registry.Registry) *event.ExecuteConsumer {
 	var cfg Instance
 	if err := viper.UnmarshalKey("agent", &cfg); err != nil {
 		panic(err)
@@ -59,20 +60,23 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event2.TaskExecu
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
+	handlerMetas, _ := json.Marshal(svc.ListHandlers())
+
 	err := reg.Register(ctx, registry.ServiceInstance{
-		ID:   cfg.Name,
-		Name: "agent",
+		Name:    ServiceName,
+		Address: uuid.New().String(),
 		Metadata: map[string]any{
+			"name":               cfg.Name,
 			"desc":               cfg.Desc,
 			"topic":              cfg.Topic,
-			"supported_handlers": svc.ListHandlers(),
+			"supported_handlers": string(handlerMetas),
 		},
 	})
 	if err != nil {
 		elog.Error("agent_register_failed", elog.FieldErr(err))
 	}
 
-	consumer, err := event2.NewExecuteConsumer(q, svc, cfg.Topic, producer)
+	consumer, err := event.NewExecuteConsumer(q, svc, cfg.Topic, producer)
 	if err != nil {
 		panic(err)
 	}

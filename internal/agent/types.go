@@ -5,3 +5,5 @@ import (
 )
 
 type Service = service.Service
+
+const ServiceName = "agent"

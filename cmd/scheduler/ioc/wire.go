@@ -3,11 +3,12 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ework-runner/internal/agent"
+	agentSvc "github.com/Duke1616/ework-runner/internal/agent"
 	"github.com/Duke1616/ework-runner/internal/grpc"
 	"github.com/Duke1616/ework-runner/internal/repository"
 	"github.com/Duke1616/ework-runner/internal/repository/dao"
 	taskSvc "github.com/Duke1616/ework-runner/internal/service/task"
+	"github.com/Duke1616/ework-runner/internal/web/agent"
 	"github.com/Duke1616/ework-runner/internal/web/executor"
 	"github.com/Duke1616/ework-runner/internal/web/task"
 	"github.com/Duke1616/ework-runner/ioc"
@@ -64,6 +65,11 @@ var (
 		ioc.InitExecModeResolver,
 	)
 
+	agentSet = wire.NewSet(
+		agent.NewHandler,
+		agentSvc.InitModule,
+	)
+
 	compensatorSet = wire.NewSet(
 		ioc.InitRetryCompensator,
 		ioc.InitRescheduleCompensator,
@@ -100,8 +106,7 @@ func InitSchedulerApp() *ioc.App {
 		// WEB 服务
 		webSetup,
 
-		// AGENT 执行 (融入对称节点)
-		agent.InitModule,
+		agentSet,
 
 		// GRPC服务器
 		grpc.NewReporterServer,

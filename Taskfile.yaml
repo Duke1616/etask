@@ -34,7 +34,7 @@ tasks:
   endpoint:
     desc: 启动调度器
     cmds:
-      - go run cmd/scheduler/main.go endpoint --config ./config/config.yaml
+      - go run cmd/scheduler/main.go endpoint --config ./config/scheduler.yaml
 
   migrate:up:
     desc: 执行所有待执行的数据库迁移（DSN 从 .env 读取）
