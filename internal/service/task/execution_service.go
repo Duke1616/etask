@@ -40,7 +40,7 @@ type ExecutionService interface {
 	// UpdateRetryResult 更新重试结果
 	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
 	// UpdateScheduleResult 更新调度结果
-	UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
+	UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error
 
 	// HandleReports 处理执行节点上报的执行状态
 	HandleReports(ctx context.Context, reports []*domain.Report) error
@@ -115,8 +115,8 @@ func (s *executionService) UpdateRetryResult(ctx context.Context, id, retryCount
 	return s.repo.UpdateRetryResult(ctx, id, retryCount, nextRetryTime, status, progress, endTime, scheduleParams, executorNodeID)
 }
 
-func (s *executionService) UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {
-	return s.repo.UpdateScheduleResult(ctx, id, status, progress, endTime, scheduleParams, executorNodeID)
+func (s *executionService) UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error {
+	return s.repo.UpdateScheduleResult(ctx, id, status, progress, endTime, scheduleParams, executorNodeID, taskResult)
 }
 
 func (s *executionService) HandleReports(ctx context.Context, reports []*domain.Report) error {
@@ -314,7 +314,8 @@ func (s *executionService) updateState(ctx context.Context, execution domain.Tas
 		state.RunningProgress,
 		time.Now().UnixMilli(),
 		execution.Task.ScheduleParams,
-		state.ExecutorNodeID)
+		state.ExecutorNodeID,
+		state.TaskResult)
 	if err != nil {
 		s.logger.Error("更新调度结果失败",
 			elog.Int64("taskID", execution.Task.ID),

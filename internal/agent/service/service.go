@@ -14,7 +14,8 @@ import (
 
 type Service interface {
 	// Receive 接收任务并执行
-	Receive(ctx context.Context, req domain.ExecuteReceive) (string, domain.Status, error)
+	// 返回值: (结构化结果, 原始日志, 状态, 错误)
+	Receive(ctx context.Context, req domain.ExecuteReceive) (string, string, domain.Status, error)
 
 	// ListHandlers 列出支持的任务处理器详情
 	ListHandlers() []executor.HandlerMeta
@@ -45,7 +46,7 @@ func (s *service) registerHandler(handlers ...executor.TaskHandler) {
 	s.registry.Register(handlers...)
 }
 
-func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (string, domain.Status, error) {
+func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (string, string, domain.Status, error) {
 	// 1. 查找处理器 (优先使用 Handler，如果没有则退化到使用 Language)
 	handlerName := req.Handler
 	if handlerName == "" {
@@ -54,7 +55,7 @@ func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (strin
 
 	h, ok := s.registry.Get(handlerName)
 	if !ok {
-		return "", domain.FAILED, fmt.Errorf("未找到对应的任务处理器: %s", handlerName)
+		return "", "", domain.FAILED, fmt.Errorf("未找到对应的任务处理器: %s", handlerName)
 	}
 
 	// 2. 准备输出捕获器
@@ -83,12 +84,14 @@ func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (strin
 	err := h.Run(taskCtx)
 
 	// 6. 整理汇总结果
-	output := capLogger.GetContent()
+	result := taskCtx.GetResultJson() // 这是来自 FD 3 的纯净数据
+	output := capLogger.GetContent()  // 这是来自 Stdout 的执行日志
+
 	if err != nil {
-		return output, domain.FAILED, err
+		return result, output, domain.FAILED, err
 	}
 
-	return output, domain.SUCCESS, nil
+	return result, output, domain.SUCCESS, nil
 }
 
 // captureLogger 内部实现，用于捕获来自 Handler 的 Log 调用并存入 string 汇总

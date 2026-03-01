@@ -228,18 +228,23 @@ func (e *Executor) executeTask(runCtx context.Context, taskCtx *Context, eid int
 		logger.Info("任务执行成功")
 	}
 
+	// 获取任务结果
+	taskResult := taskCtx.GetResultJson()
+
 	// 更新并上报最终状态
-	e.reportFinalResult(eid, finalStatus)
+	e.reportFinalResult(eid, finalStatus, taskResult)
 }
 
 // reportFinalResult 上报最终结果
-func (e *Executor) reportFinalResult(eid int64, status executorv1.ExecutionStatus) {
+func (e *Executor) reportFinalResult(eid int64, status executorv1.ExecutionStatus, taskResult string) {
 	state, exists := e.states.Load(eid)
 	if exists {
 		state.Status = status
 		if status == executorv1.ExecutionStatus_SUCCESS {
 			state.RunningProgress = 100
 		}
+		// 设置任务结果
+		state.TaskResult = taskResult
 		e.states.Store(eid, state)
 
 		// 上报给 Reporter

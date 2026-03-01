@@ -19,6 +19,8 @@ type ExecutionState struct {
 	RescheduleParams  map[string]string `json:"rescheduleParams"`
 	// 执行节点的 nodeID，用于记录是哪个节点处理了任务
 	ExecutorNodeID string `json:"executorNodeId"`
+	// 任务执行的结构化结果（JSON 格式字符串）
+	TaskResult string `json:"taskResult"`
 }
 
 type BatchReport struct {

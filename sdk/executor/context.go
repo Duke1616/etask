@@ -3,6 +3,7 @@ package executor
 import (
 	"encoding/json"
 	"strconv"
+	"sync"
 
 	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/reporter/v1"
 	"github.com/gotomicro/ego/core/elog"
@@ -31,13 +32,16 @@ type HandlerMeta struct {
 }
 
 // Context 任务执行上下文
-// Context 任务执行上下文
 type Context struct {
 	ExecutionID int64
 	TaskID      int64
 	TaskName    string
 	HandlerName string
 	Params      map[string]string
+
+	// 结果流处理模块
+	results map[string]any
+	resLock sync.RWMutex
 
 	// 内部字段
 	reporter reporterv1.ReporterServiceClient
@@ -69,6 +73,7 @@ func NewContext(eid, taskID int64, taskName, handlerName string, params map[stri
 		TaskName:    taskName,
 		HandlerName: handlerName,
 		Params:      params,
+		results:     make(map[string]any),
 		reporter:    reporter,
 		logger:      logger,
 		taskLogger:  newTaskLogger(eid, reporter, logger, masks),
@@ -84,9 +89,51 @@ func NewContextWithLogger(eid, taskID int64, taskName, handlerName string, param
 		TaskName:    taskName,
 		HandlerName: handlerName,
 		Params:      params,
+		results:     make(map[string]any),
 		logger:      logger,
 		taskLogger:  taskLogger,
 	}
+}
+
+// AddResult 合并部分结果数据
+func (c *Context) AddResult(data map[string]any) {
+	c.resLock.Lock()
+	defer c.resLock.Unlock()
+
+	for k, v := range data {
+		c.results[k] = v
+	}
+}
+
+// SetResult 设置单个结果键值对
+func (c *Context) SetResult(key string, value any) {
+	c.resLock.Lock()
+	defer c.resLock.Unlock()
+	c.results[key] = value
+}
+
+// SetResults 批量设置结果（替换现有结果）
+func (c *Context) SetResults(data map[string]any) {
+	c.resLock.Lock()
+	defer c.resLock.Unlock()
+	c.results = data
+}
+
+// GetResultJson 获取最终合并后的结果 JSON 字符串
+func (c *Context) GetResultJson() string {
+	c.resLock.RLock()
+	defer c.resLock.RUnlock()
+
+	if len(c.results) == 0 {
+		return ""
+	}
+
+	bytes, err := json.Marshal(c.results)
+	if err != nil {
+		c.logger.Error("序列化任务结果失败", elog.FieldErr(err))
+		return ""
+	}
+	return string(bytes)
 }
 
 // Log 记录日志 (代理给 taskLogger)
@@ -112,7 +159,11 @@ func (c *Context) ParamInt(key string) int {
 	if val == "" {
 		return 0
 	}
-	i, _ := strconv.Atoi(val)
+	i, err := strconv.Atoi(val)
+	if err != nil {
+		c.logger.Warn("参数解析为整数失败", elog.String("key", key), elog.String("value", val), elog.FieldErr(err))
+		return 0
+	}
 	return i
 }
 
@@ -122,7 +173,11 @@ func (c *Context) ParamInt64(key string) int64 {
 	if val == "" {
 		return 0
 	}
-	i, _ := strconv.ParseInt(val, 10, 64)
+	i, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		c.logger.Warn("参数解析为 int64 失败", elog.String("key", key), elog.String("value", val), elog.FieldErr(err))
+		return 0
+	}
 	return i
 }
 
@@ -132,12 +187,15 @@ func (c *Context) ParamBool(key string) bool {
 	if val == "" {
 		return false
 	}
-	b, _ := strconv.ParseBool(val)
+	b, err := strconv.ParseBool(val)
+	if err != nil {
+		c.logger.Warn("参数解析为布尔值失败", elog.String("key", key), elog.String("value", val), elog.FieldErr(err))
+		return false
+	}
 	return b
 }
 
 // ReportProgress 上报进度 (可选)
-// NOTE: 对于没有进度的任务,不调用此方法也完全OK
 func (c *Context) ReportProgress(progress int) error {
 	if progress < 0 {
 		progress = 0
@@ -146,8 +204,6 @@ func (c *Context) ReportProgress(progress int) error {
 		progress = 100
 	}
 
-	// TODO: 实现进度上报
-	// 当前简化版本,可以后续增强
 	c.logger.Debug("进度上报", elog.Int("progress", progress))
 	return nil
 }

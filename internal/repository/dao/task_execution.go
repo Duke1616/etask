@@ -49,6 +49,7 @@ type TaskExecution struct {
 	RunningProgress int32          `gorm:"type:int;default:0;comment:'执行进度0-100，RUNNING状态下有效'"`
 	Status          string         `gorm:"type:ENUM('WAITING_PULL', 'PREPARE', 'RUNNING', 'FAILED_RETRYABLE', 'FAILED_RESCHEDULED', 'FAILED', 'SUCCESS');not null;default:'PREPARE';comment:'执行状态: PREPARE-初始化(没有执行节点在执行）, RUNNING-执行中（有执行节点在执行）, FAILED_RETRYABLE-可重试失败, FAILED_RESCHEDULED-重调度失败， FAILED-失败, SUCCESS-成功'"`
 	ExecMode        string         `gorm:"type:ENUM('PUSH', 'PULL');not null;default:'PUSH';comment:'本次执行采用的模式（PUSH-中心推送/PULL-边缘拉取）'"`
+	TaskResult      string         `gorm:"type:text;comment:'任务执行的结构化结果（JSON格式）'"`
 	Ctime           int64          `gorm:"comment:'创建时间'"`
 	Utime           int64          `gorm:"comment:'更新时间'"`
 }
@@ -77,7 +78,7 @@ type TaskExecutionDAO interface {
 	// UpdateProgress 更新任务执行进度、开始时间（仅在RUNNING状态下有效）
 	UpdateProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateScheduleResult 更新调度结果
-	UpdateScheduleResult(ctx context.Context, id int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
+	UpdateScheduleResult(ctx context.Context, id int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error
 	// FindReschedulableExecutions 查找所有可以重调度的执行记录
 	FindReschedulableExecutions(ctx context.Context, limit int) ([]TaskExecution, error)
 	// FindExecutionByPlanID 查找对应planExecID下的所有执行计划
@@ -297,7 +298,7 @@ func (g *GORMTaskExecutionDAO) UpdateProgress(ctx context.Context, id int64, pro
 	return nil
 }
 
-func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {
+func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error {
 	result := g.db.WithContext(ctx).
 		Model(&TaskExecution{}).
 		Where("id = ?", id).
@@ -307,6 +308,7 @@ func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int6
 			"etime":                endTime,
 			"task_schedule_params": sqlx.JSONColumn[map[string]string]{Val: scheduleParams, Valid: scheduleParams != nil},
 			"executor_node_id":     sql.NullString{String: executorNodeID, Valid: executorNodeID != ""},
+			"task_result":          taskResult,
 			"utime":                time.Now().UnixMilli(),
 		})
 	if result.Error != nil {

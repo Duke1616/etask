@@ -88,7 +88,8 @@ func (c *ExecuteConsumer) Consume(ctx context.Context) error {
 
 	c.logger.Info("开始执行任务", elog.Int64("任务ID", evt.TaskId))
 
-	output, status, err := c.svc.Receive(ctx, domain.ExecuteReceive{
+	// 执行任务，返回 (结构化结果, 原始日志, 状态, 错误)
+	structResult, output, status, err := c.svc.Receive(ctx, domain.ExecuteReceive{
 		TaskId:    evt.TaskId,
 		Language:  evt.Language,
 		Handler:   evt.Handler,
@@ -103,9 +104,16 @@ func (c *ExecuteConsumer) Consume(ctx context.Context) error {
 		c.logger.Info("执行任务完成", elog.Int64("任务ID", evt.TaskId))
 	}
 
+	// 最终结果提取策略：
+	finalResult := structResult
+	if finalResult == "" {
+		// 降级：如果 FD 3 通道没传数据，则回退到扫描 Stdout 最后一行
+		finalResult = c.wantResult(output)
+	}
+
 	err = c.producer.Produce(ctx, ExecuteResultEvent{
 		TaskId:     evt.TaskId,
-		WantResult: c.wantResult(output),
+		WantResult: finalResult,
 		Result:     output,
 		Status:     Status(status),
 	})
@@ -117,33 +125,30 @@ func (c *ExecuteConsumer) Consume(ctx context.Context) error {
 	return err
 }
 
-func (c *ExecuteConsumer) wantResult(output string) string {
-	outputStr := strings.TrimSpace(output)
-	// 检查输出是否为空
-	if outputStr == "" {
-		c.logger.Error("No output from command.", elog.String("output", output))
-		return `{"status": "Error"}`
+func (c *ExecuteConsumer) wantResult(input string) string {
+	input = strings.TrimSpace(input)
+
+	// 1. 彻底为空的兜底
+	if input == "" {
+		return `{"status": "no_result_detected"}`
 	}
 
-	// 分割输出为多行并过滤掉空行
-	lines := strings.Split(outputStr, "\n")
-	var validLines []string
-	for _, line := range lines {
-		if strings.TrimSpace(line) != "" {
-			validLines = append(validLines, line)
-		}
+	// 2. 尝试判定是否已经是合法的 JSON
+	var js json.RawMessage
+	if err := json.Unmarshal([]byte(input), &js); err == nil {
+		// 已经是合法 JSON，直接返回
+		return input
 	}
 
-	// 检查 validLines 是否为空
-	if len(validLines) == 0 {
-		c.logger.Error("No valid output lines.", elog.Any("lines", validLines))
-		return `{"status": "Error"}`
+	// 3. 如果是普通文本，则进行强约束封装
+	// 这样可以确保调度端在解析结果时，永远不会因为格式问题报错
+	res := map[string]any{
+		"status":  "unstructured_fallback",
+		"content": input,
 	}
 
-	// 获取最后一行
-	lastLine := validLines[len(validLines)-1]
-
-	return lastLine
+	bytes, _ := json.Marshal(res)
+	return string(bytes)
 }
 
 func (c *ExecuteConsumer) Stop(ctx context.Context) error {

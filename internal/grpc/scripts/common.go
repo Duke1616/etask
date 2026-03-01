@@ -2,6 +2,7 @@ package scripts
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -98,6 +99,12 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 	// 4. 执行命令
 	logger.Info("开始执行脚本", elog.String("language", e.language))
 
+	// 创建结果通道 (专用 Pipe，物理隔离日志)
+	resultReader, resultWriter, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("create result pipe failed: %w", err)
+	}
+
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("get stdout pipe failed: %w", err)
@@ -107,23 +114,31 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 		return fmt.Errorf("get stderr pipe failed: %w", err)
 	}
 
-	// 强制开启 ANSI 颜色
-	// 不同的语言/工具有不同的开启方式
-	// Python: FORCE_COLOR=1, PRE_COMMIT_COLOR=always, etc.
-	// Shell: 依靠 ls --color=always 等，或者 TERM=xterm-256color
-	cmd.Env = append(os.Environ(), "FORCE_COLOR=1", "TERM=xterm-256color", "PYTHONUNBUFFERED=1")
+	// 注入环境变量，告知脚本结果上报 FD 为 3 (ExtraFiles 的索引偏移)
+	cmd.ExtraFiles = []*os.File{resultWriter}
+	cmd.Env = append(os.Environ(),
+		"FORCE_COLOR=1",
+		"TERM=xterm-256color",
+		"PYTHONUNBUFFERED=1",
+		"EWORK_RESULT_FD=3",
+	)
 
 	if err = cmd.Start(); err != nil {
 		return fmt.Errorf("start cmd failed: %w", err)
 	}
 
-	// 异步读取输出
+	// 必须在 Start 后关闭父进程中的写口，否则 resultReader 永远不会结束读取
+	resultWriter.Close()
+
+	// 启动三个流式监听器：stdout 日志、stderr 日志、FD 3 结果数据
 	go streamOutput(ctx, stdoutPipe)
 	go streamOutput(ctx, stderrPipe)
+	go streamResult(ctx, resultReader)
 
 	if err = cmd.Wait(); err != nil {
 		return fmt.Errorf("execution failed: %w", err)
 	}
+
 	return nil
 }
 
@@ -131,6 +146,20 @@ func streamOutput(ctx *executor.Context, reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		ctx.Log(scanner.Text())
+	}
+}
+
+// streamResult 核心方法：使用 json.Decoder 流式捕获并合并 NDJSON 结果
+func streamResult(ctx *executor.Context, reader io.Reader) {
+	decoder := json.NewDecoder(reader)
+	for decoder.More() {
+		var partial map[string]any
+		if err := decoder.Decode(&partial); err != nil {
+			ctx.Logger().Error("解析流式结果碎片失败", elog.FieldErr(err))
+			continue
+		}
+		// 实时合并结果碎片
+		ctx.AddResult(partial)
 	}
 }
 

@@ -101,8 +101,11 @@ type ExecutionState struct {
 	RescheduledParams map[string]string `protobuf:"bytes,7,rep,name=rescheduled_params,json=rescheduledParams,proto3" json:"rescheduled_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// 执行节点的 nodeID，用于记录是哪个节点处理了任务
 	ExecutorNodeId string `protobuf:"bytes,8,opt,name=executor_node_id,json=executorNodeId,proto3" json:"executor_node_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// 任务执行的结构化结果（JSON 格式字符串）
+	// 通过 FD3 或 want_result 函数返回的结构化数据
+	TaskResult    string `protobuf:"bytes,9,opt,name=task_result,json=taskResult,proto3" json:"task_result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecutionState) Reset() {
@@ -187,6 +190,13 @@ func (x *ExecutionState) GetRescheduledParams() map[string]string {
 func (x *ExecutionState) GetExecutorNodeId() string {
 	if x != nil {
 		return x.ExecutorNodeId
+	}
+	return ""
+}
+
+func (x *ExecutionState) GetTaskResult() string {
+	if x != nil {
+		return x.TaskResult
 	}
 	return ""
 }
@@ -1225,7 +1235,7 @@ var File_etask_executor_v1_executor_proto protoreflect.FileDescriptor
 
 const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"\n" +
-	" etask/executor/v1/executor.proto\x12\x11etask.executor.v1\"\xc5\x03\n" +
+	" etask/executor/v1/executor.proto\x12\x11etask.executor.v1\"\xe6\x03\n" +
 	"\x0eExecutionState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x1b\n" +
@@ -1234,7 +1244,9 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"\x10running_progress\x18\x05 \x01(\x05R\x0frunningProgress\x12-\n" +
 	"\x12request_reschedule\x18\x06 \x01(\bR\x11requestReschedule\x12g\n" +
 	"\x12rescheduled_params\x18\a \x03(\v28.etask.executor.v1.ExecutionState.RescheduledParamsEntryR\x11rescheduledParams\x12(\n" +
-	"\x10executor_node_id\x18\b \x01(\tR\x0eexecutorNodeId\x1aD\n" +
+	"\x10executor_node_id\x18\b \x01(\tR\x0eexecutorNodeId\x12\x1f\n" +
+	"\vtask_result\x18\t \x01(\tR\n" +
+	"taskResult\x1aD\n" +
 	"\x16RescheduledParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x02\n" +
