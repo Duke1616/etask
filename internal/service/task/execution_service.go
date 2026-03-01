@@ -343,6 +343,7 @@ func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.
 		ExecStatus:     state.Status,
 		TaskID:         execution.Task.ID,
 		Name:           execution.Task.Name,
+		TaskResult:     state.TaskResult,
 	})
 	if err != nil {
 		s.logger.Error("发送完成事件失败", elog.Int64("taskID", execution.Task.ID), elog.FieldErr(err))

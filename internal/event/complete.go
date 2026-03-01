@@ -10,4 +10,5 @@ type Event struct {
 	ExecNodeId     string                     `json:"execNodeId"`
 	ExecStatus     domain.TaskExecutionStatus `json:"execStatus"`
 	Name           string                     `json:"name"`
+	TaskResult     string                     `json:"taskResult"`
 }
