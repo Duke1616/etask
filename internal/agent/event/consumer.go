@@ -6,81 +6,68 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/Duke1616/ework-runner/internal/agent/domain"
 	"github.com/Duke1616/ework-runner/internal/agent/service"
+	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
 	"github.com/ecodeclub/mq-api"
 	"github.com/gotomicro/ego/core/elog"
 )
 
 type ExecuteConsumer struct {
-	consumer mq.Consumer
-	producer TaskExecuteResultProducer
-	svc      service.Service
-	logger   *elog.Component
+	consumer    mq.Consumer
+	producer    TaskExecuteResultProducer
+	svc         service.Service
+	reg         registry.Registry
+	instance    registry.ServiceInstance
+	workerCount int
+	logger      *elog.Component
 }
 
-func NewExecuteConsumer(q mq.MQ, svc service.Service, topic string, producer TaskExecuteResultProducer) (
-	*ExecuteConsumer, error) {
+func NewExecuteConsumer(q mq.MQ, svc service.Service, topic string, producer TaskExecuteResultProducer,
+	reg registry.Registry, instance registry.ServiceInstance, workerCount int) (*ExecuteConsumer, error) {
 	groupID := "task_receive_execute"
 	consumer, err := q.Consumer(topic, groupID)
 	if err != nil {
 		return nil, err
 	}
+
+	if workerCount <= 0 {
+		workerCount = 1
+	}
+
 	return &ExecuteConsumer{
-		consumer: consumer,
-		producer: producer,
-		svc:      svc,
-		logger:   elog.DefaultLogger,
+		consumer:    consumer,
+		producer:    producer,
+		svc:         svc,
+		reg:         reg,
+		instance:    instance,
+		workerCount: workerCount,
+		logger:      elog.DefaultLogger.With(elog.FieldComponentName("agent.consumer")),
 	}, nil
 }
 
-func (c *ExecuteConsumer) Start(ctx context.Context) <-chan error {
-	errChan := make(chan error, 1) // 用于返回启动错误或运行期错误
+func (c *ExecuteConsumer) Start(ctx context.Context) {
+	// 启动 worker 协程
+	for i := 0; i < c.workerCount; i++ {
+		go func(workerID int) {
+			c.logger.Info("启动任务工作协程", elog.Int("worker", workerID))
 
-	go func() {
-		defer close(errChan)
-
-		workerCount := 5
-		var wg sync.WaitGroup
-
-		// 启动worker协程
-		for i := 0; i < workerCount; i++ {
-			wg.Add(1)
-			go func(workerID int) {
-				defer wg.Done()
-				c.logger.Info("启动任务工作协程", elog.Int("worker", workerID))
-
-				for {
-					select {
-					case <-ctx.Done():
+			for {
+				if err := c.Consume(ctx); err != nil {
+					// 核心退出判断：如果是 Context 取消，优雅退出循环
+					if errors.Is(err, context.Canceled) || ctx.Err() != nil {
 						c.logger.Info("工作协程退出", elog.Int("worker", workerID))
 						return
-					default:
-						if err := c.Consume(ctx); err != nil {
-							if errors.Is(err, context.Canceled) {
-								return // 正常关闭，不记录错误
-							}
-							c.logger.Error("处理失败",
-								elog.Int("worker", workerID),
-								elog.FieldErr(err))
-							// 可选：将非context错误报告到errChan
-							select {
-							case errChan <- fmt.Errorf("worker %d 处理失败: %w", workerID, err):
-							default: // 避免阻塞，只报告第一个错误
-							}
-						}
 					}
+
+					c.logger.Error("处理失败",
+						elog.Int("worker", workerID),
+						elog.FieldErr(err))
 				}
-			}(i)
-		}
-
-		wg.Wait()
-		c.logger.Info("所有工作协程已退出")
-	}()
-
-	return errChan
+			}
+		}(i)
+	}
 }
 
 func (c *ExecuteConsumer) Consume(ctx context.Context) error {
@@ -159,6 +146,12 @@ func (c *ExecuteConsumer) wantResult(output string) string {
 	return lastLine
 }
 
-func (c *ExecuteConsumer) Stop(_ context.Context) error {
+func (c *ExecuteConsumer) Stop(ctx context.Context) error {
+	// 1. 服务注销
+	if err := c.reg.UnRegister(ctx, c.instance); err != nil {
+		c.logger.Error("agent_unregister_failed", elog.FieldErr(err))
+	}
+
+	// 2. 关闭消费者
 	return c.consumer.Close()
 }

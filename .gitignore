@@ -2,6 +2,7 @@ config/prod.yaml
 config/scheduler.yaml
 config/execute.yaml
 config/config.yaml
+config/all.yaml
 
 third_party/base/main.py
 third_party/base/test.json

@@ -7,25 +7,18 @@
 package ioc
 
 import (
-	grpc2 "github.com/Duke1616/ework-runner/internal/grpc"
-	"github.com/Duke1616/ework-runner/internal/grpc/scripts"
 	"github.com/Duke1616/ework-runner/ioc"
 	"github.com/Duke1616/ework-runner/pkg/grpc"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry/etcd"
 	"github.com/Duke1616/ework-runner/sdk/executor"
-	"github.com/google/wire"
-	"github.com/spf13/viper"
-	"go.etcd.io/etcd/client/v3"
 )
 
 // Injectors from wire.go:
 
+// InitExecuteApp 该注入器支持原有的 executor 二进制启动，但代码逻辑复用根目录的公共 ioc
 func InitExecuteApp() *ExecuteApp {
-	config := InitConfig()
 	client := ioc.InitEtcdClient()
-	registry := InitRegistry(client)
-	executor := InitExecutor(config, registry)
+	registry := ioc.InitRegistry(client)
+	executor := ioc.InitExecutor(registry)
 	server := InitExecutorServer(executor)
 	executeApp := &ExecuteApp{
 		Server: server,
@@ -35,75 +28,12 @@ func InitExecuteApp() *ExecuteApp {
 
 // wire.go:
 
-var (
-	BaseSet = wire.NewSet(ioc.InitEtcdClient, InitRegistry)
-
-	ExecutorSet = wire.NewSet(
-		InitConfig,
-		InitExecutor,
-		InitExecutorServer,
-	)
-)
-
-// InitRegistry 初始化注册中心
-func InitRegistry(client *clientv3.Client) registry.Registry {
-
-	reg, err := etcd.NewRegistry(client)
-	if err != nil {
-		panic(err)
-	}
-	return reg
-}
-
-// InitConfig 初始化配置
-func InitConfig() executor.Config {
-	var server grpc.ServerConfig
-	if err := viper.UnmarshalKey("grpc.server.executor", &server); err != nil {
-		panic(err)
-	}
-
-	var client grpc.ClientConfig
-	if err := viper.UnmarshalKey("grpc.client.scheduler", &client); err != nil {
-		panic(err)
-	}
-
-	mode := viper.GetString("executor.mode")
-	if mode == "" {
-		mode = "PUSH"
-	}
-	desc := viper.GetString("executor.desc")
-
-	return executor.Config{
-		Mode:   mode,
-		Desc:   desc,
-		Server: server,
-		Client: client,
-	}
-}
-
-// InitExecutor 初始化 SDK Agent 实例
-func InitExecutor(cfg executor.Config, reg registry.Registry) *executor.Executor {
-	exec, err := executor.NewExecutor(cfg, reg)
-	if err != nil {
-		panic(err)
-	}
-
-	exec.RegisterHandler(&grpc2.DemoTaskHandler{})
-	exec.RegisterHandler(scripts.NewShellTaskHandler())
-	exec.RegisterHandler(scripts.NewPythonTaskHandler())
-
-	if err = exec.InitComponents(); err != nil {
-		panic(err)
-	}
-
-	return exec
-}
-
-// InitExecutorServer 从 Agent 中提取 ego Server
-func InitExecutorServer(exec *executor.Executor) *grpc.Server {
-	return exec.Server()
-}
-
+// ExecuteApp 仅包含 Executor 的服务器实例
 type ExecuteApp struct {
 	Server *grpc.Server
+}
+
+// InitExecutorServer 是一个小适配器，将公共的 executor 对象转换为二进制需要的 server
+func InitExecutorServer(exec *executor.Executor) *grpc.Server {
+	return exec.Server()
 }

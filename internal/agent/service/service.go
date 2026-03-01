@@ -12,52 +12,37 @@ import (
 	"github.com/gotomicro/ego/core/elog"
 )
 
-type HandlerDetail struct {
-	Name string `json:"name"`
-	Desc string `json:"desc"`
-}
-
 type Service interface {
 	// Receive 接收任务并执行
 	Receive(ctx context.Context, req domain.ExecuteReceive) (string, domain.Status, error)
 
 	// ListHandlers 列出支持的任务处理器详情
-	ListHandlers() []HandlerDetail
+	ListHandlers() []executor.HandlerMeta
 }
 
 type service struct {
 	mq       mq.MQ
-	handlers map[string]executor.TaskHandler
+	registry *executor.HandlerRegistry
 	logger   *elog.Component
 }
 
-func (s *service) ListHandlers() []HandlerDetail {
-	metas := make([]HandlerDetail, 0, len(s.handlers))
-	for _, h := range s.handlers {
-		metas = append(metas, HandlerDetail{
-			Name: h.Name(),
-			Desc: h.Desc(),
-		})
-	}
-	return metas
+func (s *service) ListHandlers() []executor.HandlerMeta {
+	return s.registry.ListMetas()
 }
 
 func NewService(mq mq.MQ) Service {
 	s := &service{
 		mq:       mq,
-		handlers: make(map[string]executor.TaskHandler),
+		registry: executor.NewHandlerRegistry(),
 		logger:   elog.DefaultLogger.With(elog.FieldComponentName("execute.service")),
 	}
 
-	// 统一复用 gRPC 脚本处理器
-	s.registerHandler(scripts.NewShellTaskHandler())
-	s.registerHandler(scripts.NewPythonTaskHandler())
-
+	s.registerHandler(scripts.GetDefaultHandlers()...)
 	return s
 }
 
-func (s *service) registerHandler(h executor.TaskHandler) {
-	s.handlers[h.Name()] = h
+func (s *service) registerHandler(handlers ...executor.TaskHandler) {
+	s.registry.Register(handlers...)
 }
 
 func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (string, domain.Status, error) {
@@ -67,7 +52,7 @@ func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (strin
 		handlerName = req.Language
 	}
 
-	h, ok := s.handlers[handlerName]
+	h, ok := s.registry.Get(handlerName)
 	if !ok {
 		return "", domain.FAILED, fmt.Errorf("未找到对应的任务处理器: %s", handlerName)
 	}

@@ -25,6 +25,14 @@ func getTempDir() string {
 // 通用抽象定义
 // ---------------------------
 
+// GetDefaultHandlers 获取系统内置的默认处理器列表
+func GetDefaultHandlers() []executor.TaskHandler {
+	return []executor.TaskHandler{
+		NewShellTaskHandler(),
+		NewPythonTaskHandler(),
+	}
+}
+
 // CmdBuilder 构建命令行的函数签名
 type CmdBuilder func(codeFile string, args string, varsResource string) (*exec.Cmd, error)
 

@@ -5,76 +5,89 @@ import (
 	"fmt"
 	"os"
 
-	scheduler_ioc "github.com/Duke1616/ework-runner/cmd/scheduler/ioc"
+	"github.com/Duke1616/ework-runner/cmd/endpoint"
+	"github.com/Duke1616/ework-runner/ioc"
 	"github.com/gotomicro/ego"
 	"github.com/gotomicro/ego/core/elog"
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+var (
+	modes   []string
+	cfgFile string
+)
+
 func main() {
-	// 1. 初始化 Viper 配置
-	initViper()
-
-	// 2. 创建 Ego 应用实例
-	egoApp := ego.New()
-
-	// 3. 初始化全量应用（对等拓扑，虽然有多种角色，但二进制文件是统一的）
-	app := scheduler_ioc.InitSchedulerApp()
-
-	// 4. 根据 app.mode 控制组件开启与关闭 (all | scheduler | agent)
-	mode := viper.GetString("app.mode")
-	if mode == "" {
-		mode = "scheduler" // 默认调度模式
+	rootCmd := &cobra.Command{
+		Use:   "ework-runner",
+		Short: "ework-runner 统一入口",
 	}
 
-	elog.Info("app_start",
-		elog.String("mode", mode),
-		elog.String("info", "starting ework-runner node"))
+	dir, _ := os.Getwd()
+	defaultCfg := dir + "/config/scheduler.yaml"
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfg, "配置文件路径")
 
-	ctx := context.Background()
+	cobra.OnInitialize(initViper)
 
-	// 5. 分模式逻辑分发
-	switch mode {
-	case "scheduler":
-		// 仅作为调度中心启动后台任务和补偿逻辑
-		app.StartSchedulerTasks(ctx)
-		// 注册对外暴露的 Web/gRPC 服务
-		egoApp.Serve(
-			app.Web,
-			app.Server,
-			app.Scheduler,
-		)
-	case "agent":
-		// 仅作为执行代理启动 Kafka 任务监听
-		app.StartAgent(ctx)
-		egoApp.Serve(
-			app.Web,
-		)
-	default: // all: 全能对等节点
-		app.StartTasks(ctx)
-		egoApp.Serve(
-			app.Web,
-			app.Server,
-			app.Scheduler,
-		)
+	serverCmd := &cobra.Command{
+		Use:   "server",
+		Short: "启动服务节点",
+		Run: func(cmd *cobra.Command, args []string) {
+			startServer()
+		},
 	}
 
-	// 6. 运行 Ego 管理的所有服务的生命周期
-	if err := egoApp.Run(); err != nil {
+	serverCmd.Flags().StringSliceVar(&modes, "mode", []string{"all"}, "启动模式 (all | scheduler | agent | executor)")
+
+	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(endpoint.Cmd)
+
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func startServer() {
+	var app *ioc.App
+
+	// 核心：基于模式选择【专门】的注入器
+	// scheduler 模式下不创建 Executor，executor 模式下不创建 DB/Redis
+	if len(modes) == 1 {
+		switch modes[0] {
+		case ioc.ModeScheduler:
+			app = ioc.InitSchedulerApp()
+		case ioc.ModeExecutor:
+			app = ioc.InitExecutorApp()
+		case ioc.ModeAgent:
+			app = ioc.InitAgentApp()
+		default:
+			app = ioc.InitApp()
+		}
+	} else {
+		// 组合模式使用全量注入
+		app = ioc.InitApp()
+	}
+
+	// 此时 app 中的某些字段（如 app.Server 或 app.Executor）可能为 nil
+	// GetServers 已经做了 nil 检查，不会导致 panic
+	servers := app.GetServers(modes)
+	app.StartBackgroundTasks(context.Background(), modes)
+
+	if err := ego.New().Serve(servers...).Run(); err != nil {
 		elog.Panic("app_run_error", elog.FieldErr(err))
 	}
 }
 
 func initViper() {
-	dir, _ := os.Getwd()
-	// 支持通过命令行参数 --config 指定路径，默认为 config/prod.yaml
-	file := pflag.String("config", dir+"/config/scheduler.yaml", "配置文件路径")
-	pflag.Parse()
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	}
 
-	viper.SetConfigFile(*file)
 	viper.WatchConfig()
 	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("fatal_error_config_file: %w", err))
+		fmt.Printf("Warning: 配置文件读取失败: %v\n", err)
+	} else {
+		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
 	}
 }

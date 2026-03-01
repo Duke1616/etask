@@ -24,6 +24,12 @@ type TaskHandler interface {
 	Run(*Context) error
 }
 
+// HandlerMeta 处理器元数据 (用于序列化和展示)
+type HandlerMeta struct {
+	Name string `json:"name"`
+	Desc string `json:"desc"`
+}
+
 // Context 任务执行上下文
 // Context 任务执行上下文
 type Context struct {

@@ -8,50 +8,68 @@ env:
 
 tasks:
   default:
-    desc: 命令提示
+    desc: "命令提示"
     cmds:
       - task --list-all
+
+  # --- 运行模式命令 ---
+
   run:
-    desc: 启动服务 (根据 config.yaml 中的 app.mode 运行)
+    desc: "启动服务 (默认全量模式: Scheduler + Agent + Executor)"
     cmds:
-      - go run main.go --config ./config/scheduler.yaml
+      - go run main.go server --mode all --config ./config/all.yaml
+
+  scheduler:
+    desc: "启动调度器 (仅包含 Scheduler 逻辑)"
+    cmds:
+      - go run main.go server --mode scheduler --config ./config/all.yaml
+
+  agent:
+    desc: "启动异步执行代理 (仅基于 Kafka 的 Agent)"
+    cmds:
+      - go run main.go server --mode agent --config ./config/all.yaml
+
+  executor:
+    desc: "启动原生执行器 (仅基于 gRPC 的 Executor)"
+    cmds:
+      - go run main.go server --mode executor --config ./config/all.yaml
+
+  endpoint:
+    desc: "批量注册/同步系统端点信息"
+    cmds:
+      - go run main.go endpoint --config ./config/all.yaml
+
+  # --- 代码与生成 ---
 
   gen:
-    desc: 代码生成
+    desc: "代码生成 (Protobuf)"
     cmds:
       - buf generate api/proto
 
-  execute:
-    desc: 启动执行器
+  wire:
+    desc: "依赖注入代码生成"
     cmds:
-      - go run cmd/execute/main.go --config ./config/execute.yaml
+      - cd internal/agent && wire
+      - cd cmd/scheduler/ioc && wire
 
-  scheduler:
-    desc: 启动调度器
-    cmds:
-      - go run cmd/scheduler/main.go --config ./config/scheduler.yaml
-
-  endpoint:
-    desc: 启动调度器
-    cmds:
-      - go run cmd/scheduler/main.go endpoint --config ./config/scheduler.yaml
+  # --- 数据库迁移 ---
 
   migrate:up:
-    desc: 执行所有待执行的数据库迁移（DSN 从 .env 读取）
+    desc: "执行所有待执行的数据库迁移（DSN 从 .env 读取）"
     cmds:
       - goose -dir deploy/migrations up
 
   migrate:status:
-    desc: 查看数据库迁移状态
+    desc: "查看数据库迁移状态"
     cmds:
       - goose -dir deploy/migrations status
 
   migrate:down:
-    desc: 回滚最近一次数据库迁移
+    desc: "回滚最近一次数据库迁移"
     cmds:
       - goose -dir deploy/migrations down
 
   migrate:create:
-    desc: 创建新的迁移文件（用法：task migrate:create NAME=add_new_table）
+    desc: "创建新的迁移文件（用法：task migrate:create NAME=add_new_table）"
     cmds:
       - goose -dir deploy/migrations -s create {{.NAME}} sql

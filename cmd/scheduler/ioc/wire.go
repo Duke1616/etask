@@ -1,121 +1,51 @@
 //go:build wireinject
+// +build wireinject
 
 package ioc
 
 import (
-	agentSvc "github.com/Duke1616/ework-runner/internal/agent"
-	"github.com/Duke1616/ework-runner/internal/grpc"
-	"github.com/Duke1616/ework-runner/internal/repository"
-	"github.com/Duke1616/ework-runner/internal/repository/dao"
-	taskSvc "github.com/Duke1616/ework-runner/internal/service/task"
-	"github.com/Duke1616/ework-runner/internal/web/agent"
-	"github.com/Duke1616/ework-runner/internal/web/executor"
-	"github.com/Duke1616/ework-runner/internal/web/task"
+	"context"
+
+	endpointv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/endpoint/v1"
+	"github.com/Duke1616/ework-runner/internal/service/scheduler"
 	"github.com/Duke1616/ework-runner/ioc"
-	"github.com/Duke1616/ework-runner/pkg/ginx/middleware"
+	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
 	"github.com/google/wire"
+	"github.com/gotomicro/ego/server/egin"
 )
 
-var (
-	BaseSet = wire.NewSet(
-		ioc.InitDB,
-		ioc.InitRedis,
-		ioc.InitDistributedLock,
-		ioc.InitEtcdClient,
-		ioc.InitMQ,
-		ioc.InitRunner,
-		ioc.InitInvoker,
-		ioc.InitRegistry,
-	)
+type SchedulerApp struct {
+	Web         *egin.Component
+	Server      *grpcpkg.Server
+	Scheduler   *scheduler.Scheduler
+	Tasks       []ioc.Task
+	EndpointSvc endpointv1.EndpointServiceClient
+}
 
-	webSetup = wire.NewSet(
-		ioc.InitECMDBGrpcClient,
-		ioc.InitPolicyServiceClient,
-		ioc.InitEndpointServiceClient,
-		middleware.NewCheckPolicyMiddlewareBuilder,
-		ioc.InitSession,
-		ioc.InitGinMiddlewares,
-		ioc.InitGinWebServer,
-	)
+func (s *SchedulerApp) StartTasks(ctx context.Context) {
+	for _, t := range s.Tasks {
+		go func(t ioc.Task) {
+			t.Start(ctx)
+		}(t)
+	}
+}
 
-	taskSet = wire.NewSet(
-		dao.NewGORMTaskDAO,
-		repository.NewTaskRepository,
-		taskSvc.NewService,
-		taskSvc.NewLogService,
-		task.NewHandler,
-	)
-
-	executorSet = wire.NewSet(
-		executor.NewHandler,
-	)
-
-	taskExecutionSet = wire.NewSet(
-		dao.NewGORMTaskExecutionDAO,
-		dao.NewGORMTaskExecutionLogDAO,
-		repository.NewTaskExecutionRepository,
-		taskSvc.NewExecutionService,
-	)
-
-	schedulerSet = wire.NewSet(
-		ioc.InitNodeID,
-		ioc.InitScheduler,
-		ioc.InitMySQLTaskAcquirer,
-		ioc.InitExecutorNodePicker,
-		ioc.InitExecModeResolver,
-	)
-
-	agentSet = wire.NewSet(
-		agent.NewHandler,
-		agentSvc.InitModule,
-	)
-
-	compensatorSet = wire.NewSet(
-		ioc.InitRetryCompensator,
-		ioc.InitRescheduleCompensator,
-		ioc.InitInterruptCompensator,
-	)
-
-	producerSet = wire.NewSet(
-		ioc.InitCompleteProducer,
-	)
-
-	grpcSet = wire.NewSet(
-		ioc.InitExecutorServiceGRPCClients,
-	)
-
-	consumerSet = wire.NewSet(
-		ioc.InitCompleteEventConsumer,
-	)
-)
-
-func InitSchedulerApp() *ioc.App {
+func InitSchedulerApp() *SchedulerApp {
 	wire.Build(
-		// 基础设施
-		BaseSet,
-
-		taskSet,
-		executorSet,
-		taskExecutionSet,
-		schedulerSet,
-		compensatorSet,
-		consumerSet,
-		producerSet,
-		grpcSet,
-
-		// WEB 服务
-		webSetup,
-
-		agentSet,
-
-		// GRPC服务器
-		grpc.NewReporterServer,
-		grpc.NewTaskServer,
-		grpc.NewAgentServer,
-		ioc.InitSchedulerNodeGRPCServer,
-		ioc.InitTasks,
-		wire.Struct(new(ioc.App), "*"),
+		ioc.BaseSet,
+		ioc.TaskSet,
+		ioc.ExecutorSet,
+		ioc.TaskExecutionSet,
+		ioc.SchedulerSet,
+		ioc.CompensatorSet,
+		ioc.ConsumerSet,
+		ioc.ProducerSet,
+		ioc.GrpcSet,
+		ioc.WebSetup,
+		ioc.AgentSet,
+		ioc.AppSet,
+		wire.Struct(new(SchedulerApp), "Web", "Server", "Scheduler", "Tasks", "EndpointSvc"),
 	)
 
-	return new(ioc.App)
+	return new(SchedulerApp)
 }

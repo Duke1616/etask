@@ -8,7 +8,6 @@ import (
 	"github.com/Duke1616/ework-runner/cmd/scheduler/ioc"
 	"github.com/gotomicro/ego"
 	"github.com/gotomicro/ego/core/elog"
-	"github.com/gotomicro/ego/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -52,18 +51,9 @@ func startServer() {
 	app := ioc.InitSchedulerApp()
 	app.StartTasks(ctx)
 
-	// 启动服务
-	if err := egoApp.Serve(
-		func() server.Server {
-			return app.Web
-		}(),
-		func() server.Server {
-			return app.Server
-		}(),
-		func() server.Server {
-			return app.Scheduler
-		}(),
-	).Cron().
+	// 启动服务 (显式注册调度中心需要的组件)
+	if err := egoApp.Serve(app.Web, app.Server, app.Scheduler).
+		Cron().
 		Run(); err != nil {
 		elog.Panic("startup", elog.FieldErr(err))
 	}

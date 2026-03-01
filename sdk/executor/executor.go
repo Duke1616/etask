@@ -30,7 +30,7 @@ type Executor struct {
 
 	config   Config
 	registry registry.Registry
-	handlers map[string]TaskHandler
+	hr       *HandlerRegistry
 
 	// 内部组件
 	server         *grpcpkg.Server
@@ -56,7 +56,7 @@ func NewExecutor(cfg Config, reg registry.Registry) (*Executor, error) {
 	return &Executor{
 		config:   cfg,
 		registry: reg,
-		handlers: make(map[string]TaskHandler),
+		hr:       NewHandlerRegistry(),
 		logger:   elog.DefaultLogger.With(elog.FieldComponentName("executor")),
 		states:   &syncx.Map[int64, *executorv1.ExecutionState]{},
 		cancels:  &syncx.Map[int64, context.CancelFunc]{},
@@ -66,8 +66,8 @@ func NewExecutor(cfg Config, reg registry.Registry) (*Executor, error) {
 // RegisterHandler 注册任务处理函数
 // name: 任务名称,需要与调度中心下发的 taskName 匹配
 // RegisterHandler 注册任务处理函数
-func (e *Executor) RegisterHandler(handler TaskHandler) *Executor {
-	e.handlers[handler.Name()] = handler
+func (e *Executor) RegisterHandler(handlers ...TaskHandler) *Executor {
+	e.hr.Register(handlers...)
 	return e
 }
 
@@ -114,7 +114,7 @@ func (e *Executor) startPullLoop() {
 	for {
 		// 收集目前支持的 handlers
 		var supported []string
-		for name := range e.handlers {
+		for name := range e.hr.Handlers() {
 			supported = append(supported, name)
 		}
 
@@ -143,19 +143,7 @@ func (e *Executor) startPullLoop() {
 }
 
 func (e *Executor) buildMetadata() map[string]any {
-	type handlerMeta struct {
-		Name string `json:"name"`
-		Desc string `json:"desc"`
-	}
-
-	var metas []handlerMeta
-	for _, handler := range e.handlers {
-		metas = append(metas, handlerMeta{
-			Name: handler.Name(),
-			Desc: handler.Desc(),
-		})
-	}
-
+	metas := e.hr.ListMetas()
 	bytes, _ := json.Marshal(metas)
 	return map[string]any{
 		"role":               RoleName,      // 标识此注册节点为调度引擎的执行器
@@ -217,7 +205,7 @@ func (e *Executor) executeTask(runCtx context.Context, taskCtx *Context, eid int
 	// 查找处理函数
 	defer taskCtx.Close() // 确保日志被发送
 
-	handler, exists := e.handlers[taskCtx.HandlerName]
+	handler, exists := e.hr.Get(taskCtx.HandlerName)
 
 	var err error
 	if !exists {
