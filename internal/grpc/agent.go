@@ -98,6 +98,7 @@ func (s *AgentServer) ListTaskExecutions(ctx context.Context, req *executorv1.Li
 			Status:          executorv1.ExecutionStatus(executorv1.ExecutionStatus_value[e.Status.String()]),
 			RunningProgress: e.RunningProgress,
 			ExecutorNodeId:  e.ExecutorNodeID,
+			TaskResult:      e.TaskResult,
 		}
 	}
 
@@ -159,6 +160,7 @@ func (s *AgentServer) BatchListTaskExecutions(ctx context.Context, req *executor
 			Status:          executorv1.ExecutionStatus(executorv1.ExecutionStatus_value[e.Status.String()]),
 			RunningProgress: e.RunningProgress,
 			ExecutorNodeId:  e.ExecutorNodeID,
+			TaskResult:      e.TaskResult,
 		}
 
 		if list, ok := results[e.Task.ID]; ok {

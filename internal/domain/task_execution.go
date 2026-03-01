@@ -94,6 +94,7 @@ type TaskExecution struct {
 	NextRetryTime   int64               // 下次重试时间
 	RunningProgress int32               // 进度 0-100，RUNNING 状态才有意义
 	Status          TaskExecutionStatus // 执行状态
+	TaskResult      string              // 任务执行的结构化结果（JSON格式）
 	CTime           int64               // 创建时间
 	UTime           int64               // 更新时间
 	Task            Task                // 创建时刻从Task冗余的信息
@@ -151,5 +152,6 @@ func ExecutionStateFromProto(protoState *executorv1.ExecutionState) ExecutionSta
 		RequestReschedule: protoState.GetRequestReschedule(),
 		RescheduleParams:  protoState.GetRescheduledParams(),
 		ExecutorNodeID:    protoState.GetExecutorNodeId(),
+		TaskResult:        protoState.GetTaskResult(),
 	}
 }

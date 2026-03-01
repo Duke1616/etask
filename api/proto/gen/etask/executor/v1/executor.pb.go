@@ -837,6 +837,7 @@ type TaskExecution struct {
 	Status          ExecutionStatus        `protobuf:"varint,6,opt,name=status,proto3,enum=etask.executor.v1.ExecutionStatus" json:"status,omitempty"`
 	RunningProgress int32                  `protobuf:"varint,7,opt,name=running_progress,json=runningProgress,proto3" json:"running_progress,omitempty"`
 	ExecutorNodeId  string                 `protobuf:"bytes,8,opt,name=executor_node_id,json=executorNodeId,proto3" json:"executor_node_id,omitempty"`
+	TaskResult      string                 `protobuf:"bytes,9,opt,name=task_result,json=taskResult,proto3" json:"task_result,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -923,6 +924,13 @@ func (x *TaskExecution) GetRunningProgress() int32 {
 func (x *TaskExecution) GetExecutorNodeId() string {
 	if x != nil {
 		return x.ExecutorNodeId
+	}
+	return ""
+}
+
+func (x *TaskExecution) GetTaskResult() string {
+	if x != nil {
+		return x.TaskResult
 	}
 	return ""
 }
@@ -1293,7 +1301,7 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"\x19ListTaskExecutionsRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\x03R\x06taskId\";\n" +
 	"\x1eBatchListTaskExecutionsRequest\x12\x19\n" +
-	"\btask_ids\x18\x01 \x03(\x03R\ataskIds\"\xa0\x02\n" +
+	"\btask_ids\x18\x01 \x03(\x03R\ataskIds\"\xc1\x02\n" +
 	"\rTaskExecution\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x1b\n" +
@@ -1303,7 +1311,9 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"\bend_time\x18\x05 \x01(\x03R\aendTime\x12:\n" +
 	"\x06status\x18\x06 \x01(\x0e2\".etask.executor.v1.ExecutionStatusR\x06status\x12)\n" +
 	"\x10running_progress\x18\a \x01(\x05R\x0frunningProgress\x12(\n" +
-	"\x10executor_node_id\x18\b \x01(\tR\x0eexecutorNodeId\"^\n" +
+	"\x10executor_node_id\x18\b \x01(\tR\x0eexecutorNodeId\x12\x1f\n" +
+	"\vtask_result\x18\t \x01(\tR\n" +
+	"taskResult\"^\n" +
 	"\x1aListTaskExecutionsResponse\x12@\n" +
 	"\n" +
 	"executions\x18\x01 \x03(\v2 .etask.executor.v1.TaskExecutionR\n" +

@@ -295,6 +295,7 @@ func (r *taskExecutionRepository) toDomain(daoExecution dao.TaskExecution) domai
 		NextRetryTime:   daoExecution.NextRetryTime,
 		RunningProgress: daoExecution.RunningProgress,
 		Status:          domain.TaskExecutionStatus(daoExecution.Status),
+		TaskResult:      daoExecution.TaskResult,
 		CTime:           daoExecution.Ctime,
 		UTime:           daoExecution.Utime,
 	}

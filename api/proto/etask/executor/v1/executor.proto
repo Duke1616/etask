@@ -147,6 +147,7 @@ message TaskExecution {
   ExecutionStatus status = 6;
   int32 running_progress = 7;
   string executor_node_id = 8;
+  string task_result = 9;
 }
 
 message ListTaskExecutionsResponse {
