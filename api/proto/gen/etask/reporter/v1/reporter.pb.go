@@ -217,8 +217,8 @@ const file_etask_reporter_v1_reporter_proto_rawDesc = "" +
 	"\x13BatchReportResponse2\xbe\x01\n" +
 	"\x0fReporterService\x12M\n" +
 	"\x06Report\x12 .etask.reporter.v1.ReportRequest\x1a!.etask.reporter.v1.ReportResponse\x12\\\n" +
-	"\vBatchReport\x12%.etask.reporter.v1.BatchReportRequest\x1a&.etask.reporter.v1.BatchReportResponseB\xd9\x01\n" +
-	"\x15com.etask.reporter.v1B\rReporterProtoP\x01ZKgithub.com/Duke1616/ework-runner/api/proto/gen/etask/reporter/v1;reporterv1\xa2\x02\x03ERX\xaa\x02\x11Etask.Reporter.V1\xca\x02\x11Etask\\Reporter\\V1\xe2\x02\x1dEtask\\Reporter\\V1\\GPBMetadata\xea\x02\x13Etask::Reporter::V1b\x06proto3"
+	"\vBatchReport\x12%.etask.reporter.v1.BatchReportRequest\x1a&.etask.reporter.v1.BatchReportResponseB\xd2\x01\n" +
+	"\x15com.etask.reporter.v1B\rReporterProtoP\x01ZDgithub.com/Duke1616/etask/api/proto/gen/etask/reporter/v1;reporterv1\xa2\x02\x03ERX\xaa\x02\x11Etask.Reporter.V1\xca\x02\x11Etask\\Reporter\\V1\xe2\x02\x1dEtask\\Reporter\\V1\\GPBMetadata\xea\x02\x13Etask::Reporter::V1b\x06proto3"
 
 var (
 	file_etask_reporter_v1_reporter_proto_rawDescOnce sync.Once

@@ -54,8 +54,18 @@ func (c *CheckPolicyMiddlewareBuilder) Build() gin.HandlerFunc {
 
 		if !resp.Allowed {
 			gCtx.AbortWithStatus(http.StatusForbidden)
-			c.logger.Warn("用户无权限", elog.Any("权限状态", resp.Allowed))
+			c.logger.Warn("用户无权限",
+				elog.Int64("uid", uid),
+				elog.String("path", ctx.Request.URL.Path),
+				elog.String("method", ctx.Request.Method),
+				elog.String("reason", resp.Reason),
+				elog.Any("roles", resp.Roles),
+				elog.Any("matched_policies", resp.MatchedPolicies))
 			return
 		}
+
+		c.logger.Debug("鉴权通过",
+			elog.Int64("uid", uid),
+			elog.Any("roles", resp.Roles))
 	}
 }

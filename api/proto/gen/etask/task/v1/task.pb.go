@@ -1274,8 +1274,8 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"UpdateTask\x12 .etask.task.v1.UpdateTaskRequest\x1a!.etask.task.v1.UpdateTaskResponse\x12Q\n" +
 	"\n" +
 	"DeleteTask\x12 .etask.task.v1.DeleteTaskRequest\x1a!.etask.task.v1.DeleteTaskResponse\x12N\n" +
-	"\tListTasks\x12\x1f.etask.task.v1.ListTasksRequest\x1a .etask.task.v1.ListTasksResponseB\xb9\x01\n" +
-	"\x11com.etask.task.v1B\tTaskProtoP\x01ZCgithub.com/Duke1616/ework-runner/api/proto/gen/etask/task/v1;taskv1\xa2\x02\x03ETX\xaa\x02\rEtask.Task.V1\xca\x02\rEtask\\Task\\V1\xe2\x02\x19Etask\\Task\\V1\\GPBMetadata\xea\x02\x0fEtask::Task::V1b\x06proto3"
+	"\tListTasks\x12\x1f.etask.task.v1.ListTasksRequest\x1a .etask.task.v1.ListTasksResponseB\xb2\x01\n" +
+	"\x11com.etask.task.v1B\tTaskProtoP\x01Z<github.com/Duke1616/etask/api/proto/gen/etask/task/v1;taskv1\xa2\x02\x03ETX\xaa\x02\rEtask.Task.V1\xca\x02\rEtask\\Task\\V1\xe2\x02\x19Etask\\Task\\V1\\GPBMetadata\xea\x02\x0fEtask::Task::V1b\x06proto3"
 
 var (
 	file_etask_task_v1_task_proto_rawDescOnce sync.Once

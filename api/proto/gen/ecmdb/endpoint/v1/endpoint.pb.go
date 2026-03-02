@@ -190,8 +190,8 @@ const file_ecmdb_endpoint_v1_endpoint_proto_rawDesc = "" +
 	"\bis_audit\x18\x06 \x01(\bR\aisAudit\x12#\n" +
 	"\ris_permission\x18\a \x01(\bR\fisPermission2h\n" +
 	"\x0fEndpointService\x12U\n" +
-	"\rBatchRegister\x12,.ecmdb.endpoint.v1.BatchRegisterEndpointsReq\x1a\x16.google.protobuf.EmptyB\xd9\x01\n" +
-	"\x15com.ecmdb.endpoint.v1B\rEndpointProtoP\x01ZKgithub.com/Duke1616/ework-runner/api/proto/gen/ecmdb/endpoint/v1;endpointv1\xa2\x02\x03EEX\xaa\x02\x11Ecmdb.Endpoint.V1\xca\x02\x11Ecmdb\\Endpoint\\V1\xe2\x02\x1dEcmdb\\Endpoint\\V1\\GPBMetadata\xea\x02\x13Ecmdb::Endpoint::V1b\x06proto3"
+	"\rBatchRegister\x12,.ecmdb.endpoint.v1.BatchRegisterEndpointsReq\x1a\x16.google.protobuf.EmptyB\xd2\x01\n" +
+	"\x15com.ecmdb.endpoint.v1B\rEndpointProtoP\x01ZDgithub.com/Duke1616/etask/api/proto/gen/ecmdb/endpoint/v1;endpointv1\xa2\x02\x03EEX\xaa\x02\x11Ecmdb.Endpoint.V1\xca\x02\x11Ecmdb\\Endpoint\\V1\xe2\x02\x1dEcmdb\\Endpoint\\V1\\GPBMetadata\xea\x02\x13Ecmdb::Endpoint::V1b\x06proto3"
 
 var (
 	file_ecmdb_endpoint_v1_endpoint_proto_rawDescOnce sync.Once

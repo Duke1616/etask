@@ -1356,8 +1356,8 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"\x14TaskExecutionService\x12q\n" +
 	"\x12ListTaskExecutions\x12,.etask.executor.v1.ListTaskExecutionsRequest\x1a-.etask.executor.v1.ListTaskExecutionsResponse\x12k\n" +
 	"\x10GetExecutionLogs\x12*.etask.executor.v1.GetExecutionLogsRequest\x1a+.etask.executor.v1.GetExecutionLogsResponse\x12\x80\x01\n" +
-	"\x17BatchListTaskExecutions\x121.etask.executor.v1.BatchListTaskExecutionsRequest\x1a2.etask.executor.v1.BatchListTaskExecutionsResponseB\xd9\x01\n" +
-	"\x15com.etask.executor.v1B\rExecutorProtoP\x01ZKgithub.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1;executorv1\xa2\x02\x03EEX\xaa\x02\x11Etask.Executor.V1\xca\x02\x11Etask\\Executor\\V1\xe2\x02\x1dEtask\\Executor\\V1\\GPBMetadata\xea\x02\x13Etask::Executor::V1b\x06proto3"
+	"\x17BatchListTaskExecutions\x121.etask.executor.v1.BatchListTaskExecutionsRequest\x1a2.etask.executor.v1.BatchListTaskExecutionsResponseB\xd2\x01\n" +
+	"\x15com.etask.executor.v1B\rExecutorProtoP\x01ZDgithub.com/Duke1616/etask/api/proto/gen/etask/executor/v1;executorv1\xa2\x02\x03EEX\xaa\x02\x11Etask.Executor.V1\xca\x02\x11Etask\\Executor\\V1\xe2\x02\x1dEtask\\Executor\\V1\\GPBMetadata\xea\x02\x13Etask::Executor::V1b\x06proto3"
 
 var (
 	file_etask_executor_v1_executor_proto_rawDescOnce sync.Once
