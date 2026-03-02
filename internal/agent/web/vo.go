@@ -1,4 +1,4 @@
-package agent
+package web
 
 type Agent struct {
 	Name     string          `json:"name"`     // 分组的执行器服务名

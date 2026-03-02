@@ -6,6 +6,8 @@ func (s Status) ToUint8() uint8 {
 	return uint8(s)
 }
 
+const ServiceName = "agent"
+
 const (
 	// SUCCESS 成功
 	SUCCESS Status = 1

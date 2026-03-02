@@ -1,9 +1,9 @@
-package agent
+package web
 
 import (
 	"encoding/json"
 
-	"github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/internal/agent/domain"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
@@ -18,9 +18,9 @@ type Handler struct {
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
 }
 
-func NewHandler(reg registry.Registry) *Handler {
+func NewHandler(registry registry.Registry) *Handler {
 	return &Handler{
-		registry: reg,
+		registry: registry,
 	}
 }
 
@@ -31,7 +31,7 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 
 func (h *Handler) ListAgents(ctx *ginx.Context) (ginx.Result, error) {
 	// 查询所有服务，通过传入空字符串查询该前缀下所有注册节点
-	instances, err := h.registry.ListServices(ctx, agent.ServiceName)
+	instances, err := h.registry.ListServices(ctx, domain.ServiceName)
 	if err != nil {
 		return systemErrorResult, err
 	}

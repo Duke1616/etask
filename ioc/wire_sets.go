@@ -6,7 +6,6 @@ import (
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
-	"github.com/Duke1616/etask/internal/web/agent"
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/task"
 	"github.com/Duke1616/etask/pkg/ginx/middleware"
@@ -63,8 +62,8 @@ var (
 	)
 
 	AgentSet = wire.NewSet(
-		agent.NewHandler,
 		agentSvc.InitModule,
+		wire.FieldsOf(new(*agentSvc.Module), "Hdl"),
 	)
 
 	CompensatorSet = wire.NewSet(

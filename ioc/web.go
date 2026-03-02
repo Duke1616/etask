@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Duke1616/etask/internal/web/agent"
+	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/task"
 	"github.com/Duke1616/etask/pkg/ginx/middleware"
@@ -15,7 +15,7 @@ import (
 )
 
 func InitGinWebServer(mdls []gin.HandlerFunc, checkPolicyMiddleware *middleware.CheckPolicyMiddlewareBuilder,
-	sp session.Provider, taskHdl *task.Handler, executorHdl *executor.Handler, agentHdl *agent.Handler) *egin.Component {
+	sp session.Provider, taskHdl *task.Handler, executorHdl *executor.Handler, agentHdl *web.Handler) *egin.Component {
 	session.SetDefaultProvider(sp)
 
 	server := egin.DefaultContainer().Build(egin.WithPort(8765))

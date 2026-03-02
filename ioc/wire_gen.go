@@ -7,12 +7,11 @@
 package ioc
 
 import (
-	agent2 "github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/internal/service/task"
-	"github.com/Duke1616/etask/internal/web/agent"
 	"github.com/Duke1616/etask/internal/web/executor"
 	task2 "github.com/Duke1616/etask/internal/web/task"
 	"github.com/Duke1616/etask/pkg/ginx/middleware"
@@ -38,12 +37,13 @@ func InitApp() *App {
 	logService := task.NewLogService(taskExecutionLogDAO)
 	handler := task2.NewHandler(service, logService)
 	executorHandler := executor.NewHandler(registry)
-	agentHandler := agent.NewHandler(registry)
-	component := InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, agentHandler)
+	mq := InitMQ()
+	module := agent.InitModule(mq, client)
+	webHandler := module.Hdl
+	component := InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, webHandler)
 	string2 := InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
-	mq := InitMQ()
 	completeProducer := InitCompleteProducer(mq)
 	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
 	reporterServer := grpc.NewReporterServer(executionService)
@@ -57,7 +57,6 @@ func InitApp() *App {
 	executorNodePicker := InitExecutorNodePicker(registry)
 	iExecModeResolver := InitExecModeResolver(registry, taskRepository)
 	scheduler := InitScheduler(string2, runner, service, executionService, taskAcquirer, executorNodePicker, iExecModeResolver)
-	module := agent2.InitModule(mq, client)
 	executorExecutor := InitExecutor(registry)
 	retryCompensator := InitRetryCompensator(runner, executionService)
 	rescheduleCompensator := InitRescheduleCompensator(runner, executionService)
@@ -95,12 +94,13 @@ func InitSchedulerApp() *App {
 	logService := task.NewLogService(taskExecutionLogDAO)
 	handler := task2.NewHandler(service, logService)
 	executorHandler := executor.NewHandler(registry)
-	agentHandler := agent.NewHandler(registry)
-	component := InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, agentHandler)
+	mq := InitMQ()
+	module := agent.InitModule(mq, client)
+	webHandler := module.Hdl
+	component := InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, webHandler)
 	string2 := InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
-	mq := InitMQ()
 	completeProducer := InitCompleteProducer(mq)
 	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
 	reporterServer := grpc.NewReporterServer(executionService)
@@ -114,7 +114,6 @@ func InitSchedulerApp() *App {
 	executorNodePicker := InitExecutorNodePicker(registry)
 	iExecModeResolver := InitExecModeResolver(registry, taskRepository)
 	scheduler := InitScheduler(string2, runner, service, executionService, taskAcquirer, executorNodePicker, iExecModeResolver)
-	module := agent2.InitModule(mq, client)
 	retryCompensator := InitRetryCompensator(runner, executionService)
 	rescheduleCompensator := InitRescheduleCompensator(runner, executionService)
 	interruptCompensator := InitInterruptCompensator(clients, executionService)
@@ -147,7 +146,7 @@ func InitExecutorApp() *App {
 func InitAgentApp() *App {
 	mq := InitMQ()
 	client := InitEtcdClient()
-	module := agent2.InitModule(mq, client)
+	module := agent.InitModule(mq, client)
 	app := &App{
 		Agent: module,
 	}

@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/Duke1616/etask/internal/agent/domain"
 	event2 "github.com/Duke1616/etask/internal/agent/event"
 	"github.com/Duke1616/etask/internal/agent/service"
+	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
 	"github.com/ecodeclub/mq-api"
@@ -33,9 +35,10 @@ func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
 	wire.Build(
 		ProviderSet,
 		InitRegistry,
+		web.NewHandler,
 		initExecuteConsumer,
 		initExecuteProducer,
-		wire.Struct(new(Module), "Svc", "C"),
+		wire.Struct(new(Module), "Svc", "C", "Hdl"),
 	)
 	return new(Module)
 }
@@ -70,7 +73,7 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event2.TaskExecu
 	// NOTE: 转换为 JSON 字符串以适配前端 Handler.parseHandlers 的解析逻辑
 	handlerMetas, _ := json.Marshal(svc.ListHandlers())
 	instance := registry.ServiceInstance{
-		Name:    ServiceName, // 统一的服务分组名称
+		Name:    domain.ServiceName, // 统一的服务分组名称
 		Address: uuid.New().String(),
 		Metadata: map[string]any{
 			"name":               cfg.Name,

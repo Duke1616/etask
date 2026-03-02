@@ -1,5 +1,4 @@
-package agent
-
+package web
 
 import "github.com/ecodeclub/ginx"
 
