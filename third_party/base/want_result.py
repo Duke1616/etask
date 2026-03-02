@@ -3,7 +3,7 @@ import os
 import sys
 
 
-def __emit_fd3(data):
+def _emit_fd3(data):
     """内部函数：输出到 FD3"""
     json_str = json.dumps(data, ensure_ascii=False)
 
@@ -28,7 +28,7 @@ def want_result(**kwargs):
     模式 1: 一次性传入所有键值对
     用法：want_result(key1=value1, key2=value2, ...)
     """
-    __emit_fd3(kwargs)
+    _emit_fd3(kwargs)
 
 
 class JsonBuilder:
