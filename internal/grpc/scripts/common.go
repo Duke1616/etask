@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Duke1616/ework-runner/sdk/executor"
+	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/gotomicro/ego/core/elog"
 )
 

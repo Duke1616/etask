@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
-	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/reporter/v1"
-	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
+	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
+	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/ecodeclub/ekit/syncx"
 	"github.com/gotomicro/ego/core/elog"
 )

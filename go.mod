@@ -1,4 +1,4 @@
-module github.com/Duke1616/ework-runner
+module github.com/Duke1616/etask
 
 go 1.25.0
 

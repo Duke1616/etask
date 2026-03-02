@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/Duke1616/ework-runner/cmd/execute/ioc"
+	"github.com/Duke1616/etask/cmd/execute/ioc"
 	"github.com/gotomicro/ego"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/gotomicro/ego/server"

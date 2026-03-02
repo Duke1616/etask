@@ -1,15 +1,15 @@
 package ioc
 
 import (
-	agentSvc "github.com/Duke1616/ework-runner/internal/agent"
-	"github.com/Duke1616/ework-runner/internal/grpc"
-	"github.com/Duke1616/ework-runner/internal/repository"
-	"github.com/Duke1616/ework-runner/internal/repository/dao"
-	taskSvc "github.com/Duke1616/ework-runner/internal/service/task"
-	"github.com/Duke1616/ework-runner/internal/web/agent"
-	"github.com/Duke1616/ework-runner/internal/web/executor"
-	"github.com/Duke1616/ework-runner/internal/web/task"
-	"github.com/Duke1616/ework-runner/pkg/ginx/middleware"
+	agentSvc "github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/internal/grpc"
+	"github.com/Duke1616/etask/internal/repository"
+	"github.com/Duke1616/etask/internal/repository/dao"
+	taskSvc "github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/internal/web/agent"
+	"github.com/Duke1616/etask/internal/web/executor"
+	"github.com/Duke1616/etask/internal/web/task"
+	"github.com/Duke1616/etask/pkg/ginx/middleware"
 	"github.com/google/wire"
 )
 

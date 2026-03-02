@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 )
 
 var _ ExecutorNodePicker = &RandomPicker{}

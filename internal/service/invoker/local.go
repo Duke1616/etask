@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Duke1616/ework-runner/internal/domain"
+	"github.com/Duke1616/etask/internal/domain"
 )
 
 var _ Invoker = &LocalInvoker{}

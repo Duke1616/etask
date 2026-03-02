@@ -3,7 +3,7 @@ package scripts
 import (
 	"os/exec"
 
-	"github.com/Duke1616/ework-runner/sdk/executor"
+	"github.com/Duke1616/etask/sdk/executor"
 )
 
 // PythonTaskHandler Python 任务处理器

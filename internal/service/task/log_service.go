@@ -3,8 +3,8 @@ package task
 import (
 	"context"
 
-	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/internal/repository/dao"
+	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/repository/dao"
 )
 
 // LogService 任务日志服务接口

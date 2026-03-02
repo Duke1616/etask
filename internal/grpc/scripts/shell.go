@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/Duke1616/ework-runner/sdk/executor"
+	"github.com/Duke1616/etask/sdk/executor"
 )
 
 // ShellTaskHandler Shell 任务处理器

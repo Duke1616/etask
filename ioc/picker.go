@@ -1,9 +1,9 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ework-runner/internal/repository"
-	"github.com/Duke1616/ework-runner/internal/service/picker"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	"github.com/Duke1616/etask/internal/repository"
+	"github.com/Duke1616/etask/internal/service/picker"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 )
 
 // InitExecutorNodePicker 初始化节点选择器（只负责选节点）

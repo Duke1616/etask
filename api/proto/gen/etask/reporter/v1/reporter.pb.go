@@ -7,7 +7,7 @@
 package reporterv1
 
 import (
-	v1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
+	v1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

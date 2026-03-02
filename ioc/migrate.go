@@ -3,7 +3,7 @@ package ioc
 import (
 	"database/sql"
 
-	"github.com/Duke1616/ework-runner/deploy/migrations"
+	"github.com/Duke1616/etask/deploy/migrations"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/pressly/goose/v3"
 	"gorm.io/gorm"

@@ -1,7 +1,7 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ework-runner/internal/compensator"
+	"github.com/Duke1616/etask/internal/compensator"
 )
 
 func InitTasks(

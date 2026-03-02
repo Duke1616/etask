@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	endpointv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/endpoint/v1"
-	"github.com/Duke1616/ework-runner/cmd/scheduler/ioc"
-	"github.com/Duke1616/ework-runner/pkg/ginx/middleware"
+	endpointv1 "github.com/Duke1616/etask/api/proto/gen/ecmdb/endpoint/v1"
+	"github.com/Duke1616/etask/cmd/scheduler/ioc"
+	"github.com/Duke1616/etask/pkg/ginx/middleware"
 	"github.com/gotomicro/ego/server/egin"
 	"github.com/spf13/cobra"
 )

@@ -3,7 +3,7 @@ package picker
 import (
 	"context"
 
-	"github.com/Duke1616/ework-runner/internal/domain"
+	"github.com/Duke1616/etask/internal/domain"
 )
 
 // ExecutorNodePicker 是执行节点选择器的通用接口。

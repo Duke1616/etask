@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	policyv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/policy/v1"
+	policyv1 "github.com/Duke1616/etask/api/proto/gen/ecmdb/policy/v1"
 	"github.com/ecodeclub/ginx"
 	"github.com/ecodeclub/ginx/session"
 	"github.com/gin-gonic/gin"

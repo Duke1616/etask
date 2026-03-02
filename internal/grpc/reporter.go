@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	reporterv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/reporter/v1"
-	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/internal/service/task"
+	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
+	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/gotomicro/ego/core/elog"
 	"google.golang.org/grpc/codes"

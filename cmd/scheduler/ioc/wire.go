@@ -6,10 +6,10 @@ package ioc
 import (
 	"context"
 
-	endpointv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/endpoint/v1"
-	"github.com/Duke1616/ework-runner/internal/service/scheduler"
-	"github.com/Duke1616/ework-runner/ioc"
-	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
+	endpointv1 "github.com/Duke1616/etask/api/proto/gen/ecmdb/endpoint/v1"
+	"github.com/Duke1616/etask/internal/service/scheduler"
+	"github.com/Duke1616/etask/ioc"
+	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/google/wire"
 	"github.com/gotomicro/ego/server/egin"
 )

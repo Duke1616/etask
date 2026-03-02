@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Duke1616/ework-runner/cmd/endpoint"
-	"github.com/Duke1616/ework-runner/ioc"
+	"github.com/Duke1616/etask/cmd/endpoint"
+	"github.com/Duke1616/etask/ioc"
 	"github.com/gotomicro/ego"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/spf13/cobra"

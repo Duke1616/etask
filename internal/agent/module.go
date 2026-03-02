@@ -3,8 +3,8 @@ package agent
 import (
 	"context"
 
-	"github.com/Duke1616/ework-runner/internal/agent/event"
-	"github.com/Duke1616/ework-runner/internal/agent/service"
+	"github.com/Duke1616/etask/internal/agent/event"
+	"github.com/Duke1616/etask/internal/agent/service"
 	"github.com/gotomicro/ego/core/constant"
 	"github.com/gotomicro/ego/server"
 )

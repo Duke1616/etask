@@ -3,8 +3,8 @@ package agent
 import (
 	"encoding/json"
 
-	"github.com/Duke1616/ework-runner/internal/agent"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	"github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
 )

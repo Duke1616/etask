@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/internal/event"
-	"github.com/Duke1616/ework-runner/internal/service/acquirer"
-	"github.com/Duke1616/ework-runner/internal/service/task"
+	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/event"
+	"github.com/Duke1616/etask/internal/service/acquirer"
+	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/ecodeclub/mq-api"
 )
 

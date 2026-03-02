@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Duke1616/ework-runner/pkg/grpc/balancer"
-	jwtinterceptor "github.com/Duke1616/ework-runner/pkg/grpc/interceptors/jwt"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	"github.com/Duke1616/etask/pkg/grpc/balancer"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
-	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
+	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
+	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/pkg/grpc/pool"
 	"github.com/gotomicro/ego/core/elog"
 )
 

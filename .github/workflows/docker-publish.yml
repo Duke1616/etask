@@ -24,16 +24,16 @@ jobs:
         include:
           - service: runner
             path: .
-            image: duke1616/ework-runner
-            binary: ework-runner
+            image: duke1616/etask
+            binary: etask
           - service: execute
             path: ./cmd/execute
-            image: duke1616/ework-execute
-            binary: ework-execute
+            image: duke1616/etask-execute
+            binary: etask-execute
           - service: scheduler
             path: ./cmd/scheduler
-            image: duke1616/ework-scheduler
-            binary: ework-scheduler
+            image: duke1616/etask-scheduler
+            binary: etask-scheduler
 
     steps:
       - name: Checkout repository

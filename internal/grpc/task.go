@@ -3,9 +3,9 @@ package grpc
 import (
 	"context"
 
-	taskv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/task/v1"
-	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/internal/service/task"
+	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
+	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Duke1616/ework-runner/internal/event/complete"
-	"github.com/Duke1616/ework-runner/internal/service/acquirer"
-	"github.com/Duke1616/ework-runner/internal/service/task"
-	mqx "github.com/Duke1616/ework-runner/pkg/mpx"
+	"github.com/Duke1616/etask/internal/event/complete"
+	"github.com/Duke1616/etask/internal/service/acquirer"
+	"github.com/Duke1616/etask/internal/service/task"
+	mqx "github.com/Duke1616/etask/pkg/mpx"
 	"github.com/ecodeclub/mq-api"
 )
 

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Duke1616/ework-runner/internal/agent/domain"
-	"github.com/Duke1616/ework-runner/internal/grpc/scripts"
-	"github.com/Duke1616/ework-runner/sdk/executor"
+	"github.com/Duke1616/etask/internal/agent/domain"
+	"github.com/Duke1616/etask/internal/grpc/scripts"
+	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/ecodeclub/mq-api"
 	"github.com/gotomicro/ego/core/elog"
 )

@@ -1,8 +1,8 @@
 package task
 
 import (
-	"github.com/Duke1616/ework-runner/internal/domain"
-	"github.com/Duke1616/ework-runner/internal/service/task"
+	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
 )

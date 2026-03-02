@@ -6,9 +6,9 @@ import (
 	"net"
 	"os"
 
-	jwtinterceptor "github.com/Duke1616/ework-runner/pkg/grpc/interceptors/jwt"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
-	"github.com/Duke1616/ework-runner/pkg/netx"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
+	"github.com/Duke1616/etask/pkg/netx"
 	"github.com/gotomicro/ego/core/constant"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/gotomicro/ego/server"

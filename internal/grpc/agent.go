@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
-	"github.com/Duke1616/ework-runner/internal/repository"
-	"github.com/Duke1616/ework-runner/internal/service/task"
+	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
+	"github.com/Duke1616/etask/internal/repository"
+	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"
 )
 

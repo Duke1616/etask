@@ -7,9 +7,9 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ework-runner/ioc"
-	"github.com/Duke1616/ework-runner/pkg/grpc"
-	"github.com/Duke1616/ework-runner/sdk/executor"
+	"github.com/Duke1616/etask/ioc"
+	"github.com/Duke1616/etask/pkg/grpc"
+	"github.com/Duke1616/etask/sdk/executor"
 )
 
 // Injectors from wire.go:

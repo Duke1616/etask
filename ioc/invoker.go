@@ -1,9 +1,9 @@
 package ioc
 
 import (
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
-	"github.com/Duke1616/ework-runner/internal/service/invoker"
-	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
+	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
+	"github.com/Duke1616/etask/internal/service/invoker"
+	"github.com/Duke1616/etask/pkg/grpc/pool"
 )
 
 func InitInvoker(clients *pool.Clients[executorv1.ExecutorServiceClient]) invoker.Invoker {

@@ -1,10 +1,10 @@
 package ioc
 
 import (
-	endpointv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/endpoint/v1"
-	policyv1 "github.com/Duke1616/ework-runner/api/proto/gen/ecmdb/policy/v1"
-	grpcpkg "github.com/Duke1616/ework-runner/pkg/grpc"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	endpointv1 "github.com/Duke1616/etask/api/proto/gen/ecmdb/endpoint/v1"
+	policyv1 "github.com/Duke1616/etask/api/proto/gen/ecmdb/policy/v1"
+	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 )

@@ -3,8 +3,8 @@ package executor
 import (
 	"encoding/json"
 
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
-	"github.com/Duke1616/ework-runner/sdk/executor"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
+	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
 )

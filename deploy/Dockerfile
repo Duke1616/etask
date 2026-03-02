@@ -7,13 +7,13 @@ COPY . .
 RUN go mod tidy
 
 ARG SERVICE_PATH=.
-ARG SERVICE_NAME=ework-runner
+ARG SERVICE_NAME=etask
 RUN go build -a -o dist/${SERVICE_NAME} -ldflags="-w -s" ${SERVICE_PATH}
 
 FROM python:3.12.4-slim as deploy
 WORKDIR /app
 ENV EGO_DEBUG=true
-ARG SERVICE_NAME=ework-runner
+ARG SERVICE_NAME=etask
 COPY --from=build /app/dist/${SERVICE_NAME} .
 COPY ./third_party ./third_party
 RUN pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple --no-cache-dir \

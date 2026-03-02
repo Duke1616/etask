@@ -7,15 +7,15 @@
 package ioc
 
 import (
-	agent2 "github.com/Duke1616/ework-runner/internal/agent"
-	"github.com/Duke1616/ework-runner/internal/grpc"
-	"github.com/Duke1616/ework-runner/internal/repository"
-	"github.com/Duke1616/ework-runner/internal/repository/dao"
-	"github.com/Duke1616/ework-runner/internal/service/task"
-	"github.com/Duke1616/ework-runner/internal/web/agent"
-	"github.com/Duke1616/ework-runner/internal/web/executor"
-	task2 "github.com/Duke1616/ework-runner/internal/web/task"
-	"github.com/Duke1616/ework-runner/pkg/ginx/middleware"
+	agent2 "github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/internal/grpc"
+	"github.com/Duke1616/etask/internal/repository"
+	"github.com/Duke1616/etask/internal/repository/dao"
+	"github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/internal/web/agent"
+	"github.com/Duke1616/etask/internal/web/executor"
+	task2 "github.com/Duke1616/etask/internal/web/task"
+	"github.com/Duke1616/etask/pkg/ginx/middleware"
 )
 
 // Injectors from wire.go:

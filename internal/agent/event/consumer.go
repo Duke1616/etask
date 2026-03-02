@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Duke1616/ework-runner/internal/agent/domain"
-	"github.com/Duke1616/ework-runner/internal/agent/service"
-	"github.com/Duke1616/ework-runner/pkg/grpc/registry"
+	"github.com/Duke1616/etask/internal/agent/domain"
+	"github.com/Duke1616/etask/internal/agent/service"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/ecodeclub/mq-api"
 	"github.com/gotomicro/ego/core/elog"
 )

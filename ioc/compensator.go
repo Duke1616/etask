@@ -1,11 +1,11 @@
 package ioc
 
 import (
-	executorv1 "github.com/Duke1616/ework-runner/api/proto/gen/etask/executor/v1"
-	"github.com/Duke1616/ework-runner/internal/compensator"
-	"github.com/Duke1616/ework-runner/internal/service/runner"
-	"github.com/Duke1616/ework-runner/internal/service/task"
-	"github.com/Duke1616/ework-runner/pkg/grpc/pool"
+	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
+	"github.com/Duke1616/etask/internal/compensator"
+	"github.com/Duke1616/etask/internal/service/runner"
+	"github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/pkg/grpc/pool"
 	"github.com/spf13/viper"
 )
 
