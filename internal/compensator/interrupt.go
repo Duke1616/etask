@@ -82,7 +82,7 @@ func (t *InterruptCompensator) interruptTimeoutTasks(ctx context.Context) error 
 	}
 
 	if len(executions) == 0 {
-		t.logger.Info("没有找到可中断的任务")
+		t.logger.Debug("没有找到可中断的任务")
 		return nil
 	}
 

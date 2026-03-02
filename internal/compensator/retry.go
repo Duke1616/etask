@@ -82,7 +82,7 @@ func (r *RetryCompensator) retry(ctx context.Context) error {
 	}
 
 	if len(executions) == 0 {
-		r.logger.Info("没有找到可重试的任务")
+		r.logger.Debug("没有找到可重试的任务")
 		return nil
 	}
 

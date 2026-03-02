@@ -133,7 +133,5 @@ func (g *executorResolver) reconcile() {
 	if err != nil {
 		g.logger.Error("更新 gRPC 状态失败", elog.FieldErr(err))
 		g.cc.ReportError(err)
-	} else {
-		g.logger.Info("更新 gRPC 状态成功", elog.Any("addresses", address))
 	}
 }

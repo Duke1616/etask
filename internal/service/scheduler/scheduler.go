@@ -114,7 +114,7 @@ func (s *Scheduler) scheduleLoop() {
 		}
 		// 没有可以调度的任务就睡一会
 		if len(tasks) == 0 {
-			s.logger.Info("没有可调度的任务")
+			s.logger.Debug("没有可调度的任务")
 			// 睡眠一下
 			time.Sleep(s.config.ScheduleInterval)
 			continue
