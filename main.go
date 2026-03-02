@@ -25,7 +25,7 @@ func main() {
 	}
 
 	dir, _ := os.Getwd()
-	defaultCfg := dir + "/config/scheduler.yaml"
+	defaultCfg := dir + "/config/config.yaml"
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfg, "配置文件路径")
 
 	cobra.OnInitialize(initViper)
