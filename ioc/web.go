@@ -25,7 +25,6 @@ func InitGinWebServer(mdls []gin.HandlerFunc, checkPolicyMiddleware *middleware.
 	taskHdl.PublicRoutes(server.Engine)
 	executorHdl.PublicRoutes(server.Engine)
 	agentHdl.PublicRoutes(server.Engine)
-	agentHdl.PrivateRoutes(server.Engine)
 
 	// 验证是否登录
 	server.Use(session.CheckLoginMiddleware())
@@ -36,6 +35,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, checkPolicyMiddleware *middleware.
 	// 注册私有路由
 	taskHdl.PrivateRoutes(server.Engine)
 	executorHdl.PrivateRoutes(server.Engine)
+	agentHdl.PrivateRoutes(server.Engine)
 
 	return server
 }
