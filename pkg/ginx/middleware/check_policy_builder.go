@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -48,12 +47,14 @@ func (c *CheckPolicyMiddlewareBuilder) Build() gin.HandlerFunc {
 		})
 
 		if err != nil {
-			fmt.Println("err", err)
+			gCtx.AbortWithStatus(http.StatusForbidden)
+			c.logger.Error("调取权限接口失败", elog.FieldErr(err))
+			return
 		}
 
-		if err != nil || !resp.Allowed {
+		if !resp.Allowed {
 			gCtx.AbortWithStatus(http.StatusForbidden)
-			c.logger.Warn("用户无权限", elog.FieldErr(err))
+			c.logger.Warn("用户无权限", elog.Any("权限状态", resp.Allowed))
 			return
 		}
 	}
