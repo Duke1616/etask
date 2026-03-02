@@ -50,5 +50,5 @@ class JsonBuilder:
 
     def finalize_json(self):
         # 输出到 FD3 并重置
-        __emit_fd3(self.data)
+        _emit_fd3(self.data)
         self.data = {}
