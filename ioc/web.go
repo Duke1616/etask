@@ -21,7 +21,7 @@ const Resource = "TASK"
 func InitGinWebServer(mdls []gin.HandlerFunc, sdk *policy.SDK,
 	taskHdl *task.Handler, executorHdl *executor.Handler, agentHdl *web.Handler, listener net.Listener) *egin.Component {
 
-	server := egin.DefaultContainer().Build(egin.WithListener(listener))
+	server := egin.Load("server.egin").Build(egin.WithListener(listener))
 	server.Use(mdls...)
 
 	// 注册公开路由

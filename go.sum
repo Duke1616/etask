@@ -37,8 +37,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/toml v1.1.0 h1:ksErzDEI1khOiGPgpwuI7x2ebx/uXQNw7xJpn9Eq1+I=
 github.com/BurntSushi/toml v1.1.0/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/Duke1616/ecmdb v1.10.1-0.20260303070146-e903c1d4f6e1 h1:1XQgZZz/GarbxZNSr+kPFlweDpIGCAvaw+QtZjlt4uQ=
-github.com/Duke1616/ecmdb v1.10.1-0.20260303070146-e903c1d4f6e1/go.mod h1:i38VqmuiM6LjAR4/mINfAa9rtIaPUgG0dSpotT8Jq2k=
+github.com/Duke1616/ecmdb v1.10.1-0.20260303073509-f595260fe00f h1:dSvrszVKBWQdy53EdMNaC14kCTUJF7ArxhmPGsLOCTE=
+github.com/Duke1616/ecmdb v1.10.1-0.20260303073509-f595260fe00f/go.mod h1:i38VqmuiM6LjAR4/mINfAa9rtIaPUgG0dSpotT8Jq2k=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/RaMin0/gin-health-check v0.0.0-20180807004848-a677317b3f01 h1:GHwYgY6lZR2QKIuYH5k8DFK4e2h2oEEOtyI9E6qrpII=
 github.com/RaMin0/gin-health-check v0.0.0-20180807004848-a677317b3f01/go.mod h1:vZ/F780spvlix7Qg0/17Uj0SayI+CqtybQHtPEV9RTE=

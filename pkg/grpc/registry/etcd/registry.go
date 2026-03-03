@@ -151,7 +151,7 @@ func (r *Registry) ListServices(ctx context.Context, name string) ([]registry.Se
 	if err != nil {
 		return nil, err
 	}
-	r.logger.Info("ListServices查询结果", elog.String("service", name), elog.Int("count", len(resp.Kvs)))
+	r.logger.Debug("ListServices查询结果", elog.String("service", name), elog.Int("count", len(resp.Kvs)))
 	res := make([]registry.ServiceInstance, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
 		var si registry.ServiceInstance
