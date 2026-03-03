@@ -26,13 +26,6 @@ redis:
   addr: "127.0.0.1:6379"
   password: "1234567890"
 
-# 会话与 Cookie 配置 (Web 端使用)
-session:
-  session_encrypted_key: "1234567890Key" # Session 加密 Key
-  cookie:
-    domain: ".example.com"  # Cookie 作用域
-    name: "ecmdb-token-key" # Cookie 名称
-
 # 消息队列配置 (Kafka)
 kafka:
   network: tcp
@@ -43,6 +36,15 @@ kafka:
 etcd:
   endpoints:
     - 127.0.0.1:2379
+
+# web 配置: 对外暴露 http 接口
+web:
+  host: "0.0.0.0"
+  port: 8765
+
+# 策略鉴权：ECMDB 服务地址，用于登录验证与权限鉴权
+policy:
+  auth_url: http://127.0.0.1:8000
 
 # gRPC 服务及客户端配置
 grpc:

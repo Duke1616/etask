@@ -8,7 +8,8 @@ package ioc
 
 import (
 	"context"
-	"github.com/Duke1616/etask/api/proto/gen/ecmdb/endpoint/v1"
+	"github.com/Duke1616/ecmdb/api/proto/gen/ecmdb/endpoint/v1"
+	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
@@ -18,7 +19,6 @@ import (
 	"github.com/Duke1616/etask/internal/web/executor"
 	task2 "github.com/Duke1616/etask/internal/web/task"
 	"github.com/Duke1616/etask/ioc"
-	"github.com/Duke1616/etask/pkg/ginx/middleware"
 	grpc2 "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/gotomicro/ego/server/egin"
 )
@@ -27,13 +27,7 @@ import (
 
 func InitSchedulerApp() *SchedulerApp {
 	v := ioc.InitGinMiddlewares()
-	client := ioc.InitEtcdClient()
-	registry := ioc.InitRegistry(client)
-	clientConnInterface := ioc.InitECMDBGrpcClient(registry)
-	policyServiceClient := ioc.InitPolicyServiceClient(clientConnInterface)
-	cmdable := ioc.InitRedis()
-	provider := ioc.InitSession(cmdable)
-	checkPolicyMiddlewareBuilder := middleware.NewCheckPolicyMiddlewareBuilder(policyServiceClient, provider)
+	sdk := policy.NewSDK()
 	db := ioc.InitDB()
 	taskDAO := dao.NewGORMTaskDAO(db)
 	taskRepository := repository.NewTaskRepository(taskDAO)
@@ -41,11 +35,14 @@ func InitSchedulerApp() *SchedulerApp {
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
 	logService := task.NewLogService(taskExecutionLogDAO)
 	handler := task2.NewHandler(service, logService)
+	client := ioc.InitEtcdClient()
+	registry := ioc.InitRegistry(client)
 	executorHandler := executor.NewHandler(registry)
 	mq := ioc.InitMQ()
 	module := agent.InitModule(mq, client)
 	webHandler := module.Hdl
-	component := ioc.InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, webHandler)
+	listener := ioc.InitListener()
+	component := ioc.InitGinWebServer(v, sdk, handler, executorHandler, webHandler, listener)
 	string2 := ioc.InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
@@ -67,6 +64,7 @@ func InitSchedulerApp() *SchedulerApp {
 	interruptCompensator := ioc.InitInterruptCompensator(clients, executionService)
 	completeConsumer := ioc.InitCompleteEventConsumer(mq, service, executionService, taskAcquirer)
 	v2 := ioc.InitTasks(retryCompensator, rescheduleCompensator, interruptCompensator, completeConsumer)
+	clientConnInterface := ioc.InitECMDBGrpcClient(registry)
 	endpointServiceClient := ioc.InitEndpointServiceClient(clientConnInterface)
 	schedulerApp := &SchedulerApp{
 		Web:         component,

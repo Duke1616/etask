@@ -6,14 +6,15 @@ import (
 	"strings"
 	"time"
 
-	endpointv1 "github.com/Duke1616/etask/api/proto/gen/ecmdb/endpoint/v1"
+	endpointv1 "github.com/Duke1616/ecmdb/api/proto/gen/ecmdb/endpoint/v1"
+	initIoc "github.com/Duke1616/etask/ioc"
+
 	"github.com/Duke1616/etask/cmd/scheduler/ioc"
-	"github.com/Duke1616/etask/pkg/ginx/middleware"
 	"github.com/gotomicro/ego/server/egin"
 	"github.com/spf13/cobra"
 )
 
-const Resource = middleware.Resource
+const Resource = initIoc.Resource
 
 var Cmd = &cobra.Command{
 	Use:   "endpoint",

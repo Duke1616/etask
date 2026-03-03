@@ -3,8 +3,9 @@ module github.com/Duke1616/etask
 go 1.25.0
 
 require (
+	github.com/Duke1616/ecmdb v1.10.1-0.20260303070146-e903c1d4f6e1
 	github.com/ecodeclub/ekit v0.0.10
-	github.com/ecodeclub/ginx v0.0.2
+	github.com/ecodeclub/ginx v0.0.3-0.20250724125208-2ec06fc61450
 	github.com/ecodeclub/mq-api v0.0.0-20240508035004-fd7de3346cfe
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gin-contrib/cors v1.7.2
@@ -15,7 +16,7 @@ require (
 	github.com/gotomicro/ego v1.2.2
 	github.com/meoying/dlock-go v0.0.0-20250530125835-af969a8b419d
 	github.com/pressly/goose/v3 v3.27.0
-	github.com/redis/go-redis/v9 v9.7.3
+	github.com/redis/go-redis/v9 v9.12.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
@@ -62,9 +63,8 @@ require (
 	github.com/go-playground/validator/v10 v10.20.0 // indirect
 	github.com/go-resty/resty/v2 v2.13.1 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
-	github.com/goccy/go-json v0.10.2 // indirect
+	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/cel-go v0.11.3 // indirect
 	github.com/gotomicro/logrotate v0.0.0-20211108034117-46d53eedc960 // indirect
@@ -75,7 +75,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

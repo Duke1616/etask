@@ -1,6 +1,7 @@
 package ioc
 
 import (
+	"github.com/Duke1616/ecmdb/pkg/policy"
 	agentSvc "github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
@@ -8,7 +9,6 @@ import (
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/task"
-	"github.com/Duke1616/etask/pkg/ginx/middleware"
 	"github.com/google/wire"
 )
 
@@ -26,10 +26,9 @@ var (
 
 	WebSetup = wire.NewSet(
 		InitECMDBGrpcClient,
-		InitPolicyServiceClient,
 		InitEndpointServiceClient,
-		middleware.NewCheckPolicyMiddlewareBuilder,
-		InitSession,
+		policy.NewSDK,
+		InitListener,
 		InitGinMiddlewares,
 		InitGinWebServer,
 	)

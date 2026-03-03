@@ -7,6 +7,7 @@
 package ioc
 
 import (
+	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
@@ -14,7 +15,6 @@ import (
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/internal/web/executor"
 	task2 "github.com/Duke1616/etask/internal/web/task"
-	"github.com/Duke1616/etask/pkg/ginx/middleware"
 )
 
 // Injectors from wire.go:
@@ -22,13 +22,7 @@ import (
 // InitApp 全量启动注入器 (包含 Scheduler + Agent + Executor)
 func InitApp() *App {
 	v := InitGinMiddlewares()
-	client := InitEtcdClient()
-	registry := InitRegistry(client)
-	clientConnInterface := InitECMDBGrpcClient(registry)
-	policyServiceClient := InitPolicyServiceClient(clientConnInterface)
-	cmdable := InitRedis()
-	provider := InitSession(cmdable)
-	checkPolicyMiddlewareBuilder := middleware.NewCheckPolicyMiddlewareBuilder(policyServiceClient, provider)
+	sdk := policy.NewSDK()
 	db := InitDB()
 	taskDAO := dao.NewGORMTaskDAO(db)
 	taskRepository := repository.NewTaskRepository(taskDAO)
@@ -36,11 +30,14 @@ func InitApp() *App {
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
 	logService := task.NewLogService(taskExecutionLogDAO)
 	handler := task2.NewHandler(service, logService)
+	client := InitEtcdClient()
+	registry := InitRegistry(client)
 	executorHandler := executor.NewHandler(registry)
 	mq := InitMQ()
 	module := agent.InitModule(mq, client)
 	webHandler := module.Hdl
-	component := InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, webHandler)
+	listener := InitListener()
+	component := InitGinWebServer(v, sdk, handler, executorHandler, webHandler, listener)
 	string2 := InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
@@ -63,6 +60,7 @@ func InitApp() *App {
 	interruptCompensator := InitInterruptCompensator(clients, executionService)
 	completeConsumer := InitCompleteEventConsumer(mq, service, executionService, taskAcquirer)
 	v2 := InitTasks(retryCompensator, rescheduleCompensator, interruptCompensator, completeConsumer)
+	clientConnInterface := InitECMDBGrpcClient(registry)
 	endpointServiceClient := InitEndpointServiceClient(clientConnInterface)
 	app := &App{
 		Web:         component,
@@ -79,13 +77,7 @@ func InitApp() *App {
 // InitSchedulerApp 纯净的调度中心注入器 (不含原生 Executor)
 func InitSchedulerApp() *App {
 	v := InitGinMiddlewares()
-	client := InitEtcdClient()
-	registry := InitRegistry(client)
-	clientConnInterface := InitECMDBGrpcClient(registry)
-	policyServiceClient := InitPolicyServiceClient(clientConnInterface)
-	cmdable := InitRedis()
-	provider := InitSession(cmdable)
-	checkPolicyMiddlewareBuilder := middleware.NewCheckPolicyMiddlewareBuilder(policyServiceClient, provider)
+	sdk := policy.NewSDK()
 	db := InitDB()
 	taskDAO := dao.NewGORMTaskDAO(db)
 	taskRepository := repository.NewTaskRepository(taskDAO)
@@ -93,11 +85,14 @@ func InitSchedulerApp() *App {
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
 	logService := task.NewLogService(taskExecutionLogDAO)
 	handler := task2.NewHandler(service, logService)
+	client := InitEtcdClient()
+	registry := InitRegistry(client)
 	executorHandler := executor.NewHandler(registry)
 	mq := InitMQ()
 	module := agent.InitModule(mq, client)
 	webHandler := module.Hdl
-	component := InitGinWebServer(v, checkPolicyMiddlewareBuilder, provider, handler, executorHandler, webHandler)
+	listener := InitListener()
+	component := InitGinWebServer(v, sdk, handler, executorHandler, webHandler, listener)
 	string2 := InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
@@ -119,6 +114,7 @@ func InitSchedulerApp() *App {
 	interruptCompensator := InitInterruptCompensator(clients, executionService)
 	completeConsumer := InitCompleteEventConsumer(mq, service, executionService, taskAcquirer)
 	v2 := InitTasks(retryCompensator, rescheduleCompensator, interruptCompensator, completeConsumer)
+	clientConnInterface := InitECMDBGrpcClient(registry)
 	endpointServiceClient := InitEndpointServiceClient(clientConnInterface)
 	app := &App{
 		Web:         component,
