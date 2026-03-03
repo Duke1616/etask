@@ -3,9 +3,7 @@
 package agent
 
 import (
-	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/Duke1616/etask/internal/agent/domain"
 	event2 "github.com/Duke1616/etask/internal/agent/event"
@@ -16,7 +14,6 @@ import (
 	"github.com/ecodeclub/mq-api"
 	"github.com/google/uuid"
 	"github.com/google/wire"
-	"github.com/gotomicro/ego/core/elog"
 	"github.com/spf13/viper"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -65,12 +62,6 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event2.TaskExecu
 		panic(err)
 	}
 
-	// 1. 服务注册
-	// Agent 模式配置读取 (实例注册)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
-	// NOTE: 转换为 JSON 字符串以适配前端 Handler.parseHandlers 的解析逻辑
 	handlerMetas, _ := json.Marshal(svc.ListHandlers())
 	instance := registry.ServiceInstance{
 		Name:    domain.ServiceName, // 统一的服务分组名称
@@ -81,10 +72,6 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event2.TaskExecu
 			"topic":              cfg.Topic,
 			"supported_handlers": string(handlerMetas),
 		},
-	}
-	err := reg.Register(ctx, instance)
-	if err != nil {
-		elog.Error("agent_register_failed", elog.FieldErr(err))
 	}
 
 	// 2. 创建消费者

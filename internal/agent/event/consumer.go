@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Duke1616/etask/internal/agent/domain"
 	"github.com/Duke1616/etask/internal/agent/service"
@@ -48,7 +49,14 @@ func NewExecuteConsumer(q mq.MQ, svc service.Service, topic string, producer Tas
 }
 
 func (c *ExecuteConsumer) Start(ctx context.Context) {
-	// 启动 worker 协程
+	// 1. 服务注册
+	regCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+	defer cancel()
+	if err := c.reg.Register(regCtx, c.instance); err != nil {
+		c.logger.Error("agent_register_failed", elog.FieldErr(err))
+	}
+
+	// 2. 启动 worker 协程
 	for i := 0; i < c.workerCount; i++ {
 		go func(workerID int) {
 			c.logger.Info("启动任务工作协程", elog.Int("worker", workerID))

@@ -7,7 +7,6 @@
 package agent
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/Duke1616/etask/internal/agent/domain"
 	"github.com/Duke1616/etask/internal/agent/event"
@@ -18,10 +17,8 @@ import (
 	"github.com/ecodeclub/mq-api"
 	"github.com/google/uuid"
 	"github.com/google/wire"
-	"github.com/gotomicro/ego/core/elog"
 	"github.com/spf13/viper"
 	"go.etcd.io/etcd/client/v3"
-	"time"
 )
 
 // Injectors from wire.go:
@@ -73,9 +70,6 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event.TaskExecut
 		panic(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
 	handlerMetas, _ := json.Marshal(svc.ListHandlers())
 	instance := registry.ServiceInstance{
 		Name:    domain.ServiceName,
@@ -86,10 +80,6 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event.TaskExecut
 			"topic":              cfg.Topic,
 			"supported_handlers": string(handlerMetas),
 		},
-	}
-	err := reg.Register(ctx, instance)
-	if err != nil {
-		elog.Error("agent_register_failed", elog.FieldErr(err))
 	}
 
 	consumer, err := event.NewExecuteConsumer(q, svc, cfg.Topic, producer, reg, instance, cfg.WorkerCount)
