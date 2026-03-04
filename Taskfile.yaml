@@ -51,6 +51,7 @@ tasks:
     cmds:
       - cd internal/agent && wire
       - cd cmd/scheduler/ioc && wire
+      - cd ioc && wire
 
   # --- 数据库迁移 ---
 
