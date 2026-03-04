@@ -28,10 +28,9 @@ type Registry struct {
 	client *clientv3.Client
 	prefix string // 服务注册前缀
 
-	mutex       sync.RWMutex
-	watchCancel []func()
-	leases      map[string]func() // 控制生命周期
-	logger      *elog.Component
+	mutex   sync.RWMutex
+	cancels map[string]func() // 统一管理所有异步任务的生命周期
+	logger  *elog.Component
 }
 
 // NewRegistry 创建 Registry,使用默认前缀
@@ -42,11 +41,24 @@ func NewRegistry(c *clientv3.Client) (*Registry, error) {
 // NewRegistryWithPrefix 创建 Registry,使用自定义前缀
 func NewRegistryWithPrefix(c *clientv3.Client, prefix string) (*Registry, error) {
 	return &Registry{
-		client: c,
-		prefix: prefix,
-		leases: make(map[string]func()),
-		logger: elog.DefaultLogger.With(elog.FieldComponentName("grpc.registry.etcd")),
+		client:  c,
+		prefix:  prefix,
+		cancels: make(map[string]func()),
+		logger:  elog.DefaultLogger.With(elog.FieldComponentName("grpc.registry.etcd")),
 	}, nil
+}
+
+// unmarshal 统一解析 etcd 节点数据
+func (r *Registry) unmarshal(kv *mvccpb.KeyValue) (registry.ServiceInstance, bool) {
+	var si registry.ServiceInstance
+	if kv == nil || len(kv.Value) == 0 {
+		return si, false
+	}
+	if err := json.Unmarshal(kv.Value, &si); err != nil {
+		r.logger.Warn("解析实例数据失败", elog.String("key", string(kv.Key)), elog.FieldErr(err))
+		return si, false
+	}
+	return si, true
 }
 
 func (r *Registry) Register(ctx context.Context, si registry.ServiceInstance) error {
@@ -55,76 +67,45 @@ func (r *Registry) Register(ctx context.Context, si registry.ServiceInstance) er
 		return err
 	}
 
-	// NOTE: 工业级标准建议 TTL >= 30s 以防御瞬时网络波动
-	sess, err := concurrency.NewSession(r.client, concurrency.WithTTL(30))
-	if err != nil {
-		return err
-	}
-
 	key := r.instanceKey(si)
-	_, err = r.client.Put(ctx, key, string(val), clientv3.WithLease(sess.Lease()))
-	if err != nil {
-		_ = sess.Close()
-		return err
-	}
+	regCtx, cancel := context.WithCancel(context.Background())
+	r.registerCancel(key, cancel)
 
-	startCtx, cancel := context.WithCancel(context.Background())
-	r.mutex.Lock()
-	if r.leases == nil {
-		r.leases = make(map[string]func())
-	}
-	if oldCancel, ok := r.leases[key]; ok {
-		oldCancel()
-	}
-	r.leases[key] = cancel
-	r.mutex.Unlock()
-
-	go r.maintainLoop(startCtx, si, string(val), sess)
+	go r.keepAlive(regCtx, si, string(val))
 	return nil
 }
 
-func (r *Registry) maintainLoop(ctx context.Context, si registry.ServiceInstance, val string, sess *concurrency.Session) {
+// keepAlive 核心维护逻辑：建立 Session -> Put 数据 -> 阻塞等待失效 -> 失败重试
+func (r *Registry) keepAlive(ctx context.Context, si registry.ServiceInstance, val string) {
+	backoff := time.Second
 	for {
+		// 1. 建立 Session
+		sess, err := concurrency.NewSession(r.client, concurrency.WithTTL(30))
+		if err == nil {
+			// 2. 注册服务
+			_, err = r.client.Put(ctx, r.instanceKey(si), val, clientv3.WithLease(sess.Lease()))
+		}
+
+		// 3. 失败处理：退避重试
+		if err != nil {
+			r.logger.Error("服务注册/全量同步失败", elog.FieldErr(err), elog.String("backoff", backoff.String()))
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+				backoff = min(backoff*2, 30*time.Second)
+				continue
+			}
+		}
+
+		// 4. 成功后阻塞：重置退避时间，等待 Session 挂掉或被取消
+		backoff = time.Second
 		select {
 		case <-ctx.Done():
 			_ = sess.Close()
 			return
 		case <-sess.Done():
 			r.logger.Warn("Session 失效，准备重新注册", elog.String("instance", si.Address))
-		}
-
-		backoff := time.Second
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			// 重新建立 Session 和 Lease
-			newSess, err := concurrency.NewSession(r.client, concurrency.WithTTL(30))
-			if err != nil {
-				r.logger.Error("创建 Session 失败", elog.FieldErr(err), elog.String("backoff", backoff.String()))
-				time.Sleep(backoff)
-				backoff = min(backoff*2, 30*time.Second)
-				continue
-			}
-
-			putCtx, putCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_, err = r.client.Put(putCtx, r.instanceKey(si), val, clientv3.WithLease(newSess.Lease()))
-			putCancel()
-
-			if err != nil {
-				r.logger.Error("重新注册实例失败", elog.FieldErr(err), elog.String("backoff", backoff.String()))
-				_ = newSess.Close()
-				time.Sleep(backoff)
-				backoff = min(backoff*2, 30*time.Second)
-				continue
-			}
-
-			r.logger.Info("重新注册实例成功", elog.String("instance", si.Address))
-			sess = newSess
-			break
 		}
 	}
 }
@@ -134,14 +115,15 @@ func (r *Registry) instanceKey(s registry.ServiceInstance) string {
 }
 
 func (r *Registry) UnRegister(ctx context.Context, si registry.ServiceInstance) error {
+	key := r.instanceKey(si)
 	r.mutex.Lock()
-	if cancel, ok := r.leases[r.instanceKey(si)]; ok {
+	if cancel, ok := r.cancels[key]; ok {
 		cancel()
-		delete(r.leases, r.instanceKey(si))
+		delete(r.cancels, key)
 	}
 	r.mutex.Unlock()
 
-	_, err := r.client.Delete(ctx, r.instanceKey(si))
+	_, err := r.client.Delete(ctx, key)
 	return err
 }
 
@@ -151,16 +133,12 @@ func (r *Registry) ListServices(ctx context.Context, name string) ([]registry.Se
 	if err != nil {
 		return nil, err
 	}
-	r.logger.Debug("ListServices查询结果", elog.String("service", name), elog.Int("count", len(resp.Kvs)))
+
 	res := make([]registry.ServiceInstance, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
-		var si registry.ServiceInstance
-		err = json.Unmarshal(kv.Value, &si)
-		if err != nil {
-			r.logger.Warn("解析实例数据失败", elog.String("key", string(kv.Key)), elog.FieldErr(err))
-			continue
+		if si, ok := r.unmarshal(kv); ok {
+			res = append(res, si)
 		}
-		res = append(res, si)
 	}
 	return res, nil
 }
@@ -170,67 +148,66 @@ func (r *Registry) serviceKey(name string) string {
 }
 
 func (r *Registry) Subscribe(name string) <-chan registry.Event {
+	res := make(chan registry.Event, 64)
 	ctx, cancel := context.WithCancel(context.Background())
-	r.mutex.Lock()
-	r.watchCancel = append(r.watchCancel, cancel)
-	r.mutex.Unlock()
+	r.registerCancel(name+"_watch", cancel)
 
-	res := make(chan registry.Event, 16)
 	go func() {
 		defer close(res)
-
 		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
+			// 使用 for-range 自动处理 channel 接收逻辑
+			ch := r.client.Watch(ctx, r.serviceKey(name), clientv3.WithPrefix(), clientv3.WithPrevKV())
+			for resp := range ch {
+				if resp.Err() != nil {
+					break // 发生错误延迟重练
+				}
 
-			// 每次重启 Watch，为了防止漏事件，强行发一次 EventTypeAdd 触发全量同步
-			select {
-			case res <- registry.Event{Type: registry.EventTypeAdd}:
-			case <-ctx.Done():
-				return
-			}
-
-			// 监听目标服务的前缀，不需要预先获取 revision，由 etcd 客户端内部接管
-			ch := r.client.Watch(ctx, r.serviceKey(name), clientv3.WithPrefix())
-		WatchLoop:
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case resp, ok := <-ch:
-					if !ok || resp.Canceled || resp.Err() != nil {
-						// 只要断联/出错（如 Compacted），直接退出当前 Watch 循环，延时后重新发起全新的 Watch
-						time.Sleep(time.Second)
-						break WatchLoop
+				for _, event := range resp.Events {
+					kv := event.Kv
+					if event.Type == mvccpb.DELETE {
+						kv = event.PrevKv
 					}
 
-					for _, event := range resp.Events {
+					if si, ok := r.unmarshal(kv); ok {
 						select {
-						case res <- registry.Event{Type: typesMap[event.Type]}:
+						case res <- registry.Event{Type: typesMap[event.Type], Instance: si}:
 						case <-ctx.Done():
 							return
 						}
 					}
 				}
 			}
+
+			// Watch 异常断开，延迟一秒重刷
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+			}
 		}
 	}()
 	return res
 }
 
+// registerCancel 统一管理异步任务的取消函数
+func (r *Registry) registerCancel(key string, cancel func()) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	if r.cancels == nil {
+		r.cancels = make(map[string]func())
+	}
+	if old, ok := r.cancels[key]; ok {
+		old()
+	}
+	r.cancels[key] = cancel
+}
+
 func (r *Registry) Close() error {
 	r.mutex.Lock()
-	for _, cancel := range r.watchCancel {
+	for _, cancel := range r.cancels {
 		cancel()
 	}
-	for _, cancel := range r.leases {
-		cancel()
-	}
-	r.leases = make(map[string]func())
+	r.cancels = make(map[string]func())
 	r.mutex.Unlock()
-	// 因为 client 是外面传进来的，所以我们在上层进行控制，可能被其它的人使用着
 	return nil
 }
