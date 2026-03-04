@@ -1,121 +1,127 @@
-# ETask 分布式异步执行引擎
+<div align="center">
 
-ETask 是 ECMDB 生态系统中的分布式任务执行组件。它主要用于解耦主应用的执行压力，通过分布式架构异步处理耗时的自动化运维剧本和巡检任务。
+# ⚙️ ETask - 分布式任务调度与异步执行引擎
 
-## 核心特性
+![Version](https://img.shields.io/badge/version-v0.0.4-blue.svg)
+![Go Version](https://img.shields.io/badge/go-1.25+-green.svg)
+![License](https://img.shields.io/badge/license-MIT-orange.svg)
+![Status](https://img.shields.io/badge/status-GA-brightgreen.svg)
 
-### 主站解耦与网络隔离
-将耗时任务异步化，防止主站阻塞；ETask 可部署在隔离网络，通过中间件转发指令，降低安全风险。
+</div>
 
-### 异构脚本结果标准化
-支持 Python、Shell 等脚本，利用 FD3 或标准输出捕获，将结果统一转为 JSON。
+## 🎯 核心功能
 
-### 弹性架构与多链路分发
-仅需变更启动参数即可灵活切换程序角色（`Scheduler` / `Agent` / `Executor`）。针对企业严苛的防火墙环境，演化出三套互补的任务获取链路：
-- **Kafka Agent**：在无外部入口的网络环境中，通过消息队列主动获取任务。
-- **gRPC PUSH**：调度中心直接向内部节点推送任务，响应快速。
-- **gRPC PULL**：执行节点主动轮询获取任务，适用于受限网络环境。
+ETask 是 ECMDB 生态系统中的专业分布式任务执行组件。它主要用于解耦主应用的执行压力，通过分布式架构异步处理耗时的自动化运维剧本和巡检任务。
+
+### 🛡️ **主站解耦与网络隔离**
+- **全异步执行**：将耗时网络探活、配置收集、自动化剧本下发任务转交于 ETask 异步化，彻底防止主站阻塞。
+- **高危操作沙盒化**：允许将 ETask 执行器部署在严格网络隔离的安全区，主控通过中心态的中间件传递指令，大幅度压缩暴露的核心安全侧攻击面。
+
+### 🔄 **弹性架构与多链路分发**
+仅需变更基础启动参数，即可灵活使单个二进制程序切换不同微服务角色（`Scheduler` / `Agent` / `Executor`），为严苛的防火墙环境演化出三套互补获取链路：
+- **Kafka Agent 模式**：完全不需要监听外部入站端口，依靠主动订阅消息队列获取任务，从物理上隔绝外网反向探测。
+- **gRPC PUSH 模式**：调度中心利用内部高速网络，直接向处于同一可信内网的节点集群发起高速点对点下抛推送。
+- **gRPC PULL 模式**：执行节点定时利用长轮询向控制端认领任务，完美适配高网络限制或边缘侧弱网环境。
+
+### 📦 **异构脚本结果标准化提取**
+- **跨环境支撑**：全量支持透传解析各形态执行文件，如常见 Shell 脚本或封装依赖的 Python 工具链路。
+- **结构化收集**：执行完毕不仅采集标准输出，更提供系统级的描述符管道 (FD) 挂载拦截，强制将结果转为标准 JSON 结构响应回主控系统。
+
+## ⚙️ 核心处理调度流转架构
+
+展现从 ECMDB 到内部调度分发，及多种派发通道到最后状态回流的并行逻辑网络视角：
 
 ```mermaid
-
 sequenceDiagram
-    participant ECMDB as 主业务平台
-    participant Scheduler as ETask (调度器)
-    participant Kafka as 消息队列 (中间件)
-    participant Agent as ETask (Agent节点)
-    participant Executor as ETask (Executor节点)
+    participant ECMDB as 🎛️ 主业务平台 (ECMDB)
+    participant Scheduler as 🧠 ETask 调度大脑 (Scheduler)
+    
+    participant Agent as 🛡️ 隔离区/边缘 (Agent 节点)
+    participant Kafka as 📨 事件总线 (Kafka)
+    participant Executor as ⚡️ 高速内网区 (Executor 节点)
 
-    ECMDB->>Scheduler: 1. 下发定时或手动执行任务指令
-    Note over Scheduler,Agent: Agent 模式 (基于 Kafka 纯异步流)
-    Scheduler->>Kafka: 2a. 极速投递发布指令 (Topic: task-execute)
-    Kafka-->>Agent: 3a. Agent 不断消费拉取并处理
-    Agent-->>Kafka: 4a. 执行结束将规整后的状态与日志写回 Topic
-    Kafka-->>Scheduler: 5a. Scheduler 消费并获取结果
-    Note over Scheduler,Executor: Executor 模式 (基于 gRPC / PUSH 与 PULL 引擎)
-    Scheduler->>Executor: 2b. [PUSH 向下投递] 直接发起 gRPC Execute
-    Executor->>Scheduler: 3b. [PULL 向上认领] 30s 长轮询调用 PullTask 请求任务
-    Executor->>Executor: 4b. Context & syncx.Map 锁定并在内部协程独立运行
-    Executor-->>Scheduler: 5b. 获取底层结果通过 Reporter 客户端随时上报进度
-    Scheduler-->>ECMDB: 6. 同步更新主系统库并结束当前生命周期
-```
----
+    ECMDB->>Scheduler: 1. Http/gRPC 派下发任务请求载荷
+    
+    Note over Scheduler,Agent: ⏩ Agent 分支模式 (基于 Kafka 队列去中心化流转)
+    Scheduler->>Kafka: 2a. 将包含脚本上下文的发布指令投进 Topic
+    Kafka-->>Agent: 3a. Agent 循环长订阅拉取到当前任务
+    Agent-->>Kafka: 4a. 独立运行完毕，将结果 JSON 写回状态 Topic
+    Kafka-->>Scheduler: 5a. 调度大脑收到反馈收集确认
 
-## 架构与组件模式
+    Note over Scheduler,Executor: ⚡️ Executor 分支模式 (基于 gRPC 高性能直连传输)
+    Scheduler->>Executor: 2b. (PUSH 模式) 路由直指点对点触发 Execute()
+    Executor-->>Scheduler: 3b. (PULL 模式) Worker 唤醒并发起长请求主动签收
+    Executor->>Executor: 4b. 依赖 Context 隔离，剥离内部协程执行子进程
+    Executor-->>Scheduler: 5b. 获取执行完成时的结果报告 (Reporter) 并同步返回
 
-ETask 支持通过启动命令的 `--mode` 参数以不同角色运行，以适应不同的网络部署环境：
-
-### Scheduler (调度节点)
-负责具体任务的组装、分发和执行状态监听。从核心后台接管执行指令，下发给可用的工作节点，并处理返回的终态结果。
-```bash
-go run main.go server --mode scheduler
+    Scheduler-->>ECMDB: 6. 落盘状态流转并驱动核心 CMDB 闭环完成所有动作
 ```
 
-### Agent (消息代理节点)
-基于 Kafka 消息队列构建的无状态执行节点。通过订阅 Topic 主动拉取任务，适用于部署在具有严格入站网络防火墙限制（无法被主动链接）的独立内网环境。
+## 🏗️ 角色启动与部署模式
+
+通过启动命令的 `--mode` 参数设定当前程序所处的网络拓扑阶段。所有特性均编译在同一可执行文件内：
+
+| 组件名称 | 说明 | 启动指令 |
+| :--- | :--- | :--- |
+| **Scheduler (调度大脑)** | 位于中心端，统筹从核心业务平台下发的具体编排载体，并负责在不同边缘执行集群中路由和重试。 | `go run main.go server --mode scheduler` |
+| **Agent (消息代理端)** | 无需开放端口的静默节点，基于 Kafka 构建。专门部署于有着苛刻的出入站限制，只能对外联通的隔离网段。 | `go run main.go server --mode agent` |
+| **Executor (原生直连端)** | 采用 gRPC rpc 构建的高并发节点，拥有最强的心跳发现机制与最低的延迟分发速度，适合部署在核心机房圈中。 | `go run main.go server --mode executor` |
+
+> 💡 **聚合模式提示**: 当进行开发测试或者只有一台宿主机可利用时，可使用 `go run main.go server --mode all` 将以上三大组件融合捆绑在一个常驻进程内。
+
+## 💻 后端核心技术矩阵
+
+保证分布式环境下的可用性与长平稳心跳探测，所有强依赖均围绕企业级常见组件：
+
+- **开发语言与引擎**：Go 1.25.0、[Ego](https://github.com/gotomicro/ego) (基础框架)、gRPC (底层通讯规范)
+- **调度存储依赖**：MySQL (支持 Egorm 操作基础数据与任务载荷)
+- **高性能去中心化总线**：Kafka (承载异步任务与大规模执行回传状态池)
+- **注册与发现**：Etcd (心跳保活续期、租约签发与在线 Endpoint 热同步)
+
+## 📚 本地开发与联调指南
+
+本系统在根目录使用 `Taskfile.yaml` 聚合了常用的环境准备与启动测试工作：
+
+### 1. 基础环境与代码生成
+开始联调前，务必保证开发主机能连通测试环境的 **Kafka** 与 **Etcd**。配置路径：`config/all.yaml`。
+
 ```bash
-go run main.go server --mode agent
-```
-
-### Executor (原生 RPC 节点)
-基于 gRPC 框架对外提供跨服务点对点调用接口的执行节点。适用于与调度中心处于同一高速可控内网、追求调用低时延反馈的场景。
-```bash
-go run main.go server --mode executor
-```
-
-> **组合模式 (All)**：在本地开发联调或小型局域网部署时，默认支持使用 `--mode all` 参数，将上述三种能力组件聚合在同一进程中启动。
-
----
-
-## 技术栈与依赖
-
-- **开发语言**：Go 1.25.0
-- **通信与中间件**：
-  - **Kafka**：作为 Agent 模式下的任务分发消息总线。
-  - **Etcd**：用于节点的服务注册发现与 TTL 心跳健康维护。
-  - **gRPC / Protobuf**：底层 RPC 节点点对点通信规范实现。
-
----
-
-## 本地开发指南
-
-项目内集成了 `task` 作为常用开发及构建流程命令管理工具。
-
-### 1. 环境准备
-开发前请确保系统中已配置好 Go 1.25.0 环境，以及可用的 Etcd、Kafka 中间件服务。
-
-> **💡 特别提示**：ETask 完全支持独立部署。若需接入 ECMDB 生态，请确保两边连接的是**同一个 Etcd 与 Kafka 集群**。
-
-配置信息默认加载路径为 `config/all.yaml`。
-
-### 2. 初始化与代码生成
-安装依赖、生成协议与依赖注入代码，并执行数据库表结构迁移：
-```bash
-# 整理 Go 模块依赖
+# 整理并拉取 Go 模块包
 go mod tidy
 
-# 重新生成基于 Protobuf (v1) 的 gRPC 协议文件
+# 依赖 Buf，重新针对修改过的 Protobuf (api层) 生成通信存根
 task gen
 
-# 利用 Wire 生成项目的控制反转（依赖注入）关联代码
+# 利用 Wire 生成项目的自动化控制反转 (DI) 依赖注入层
 task wire
 
-# 执行数据库表结构迁移（连接凭证读取自 .env）
+# 初始化并根据对应库执行数据库结构强制同步建表
 task migrate:up
 ```
 
-### 3. 多场景服务启动
-项目使用 `task` 封装了启动命令，底层均映射至 `go run main.go server --mode xxx`：
+### 2. 多态服务快捷启动
+开发调试提供了专属的 task 命令别名，用于模拟网络中的多个物理角色节点：
 
 ```bash
-# 【单体体验】启动大全量模式（同时挂载 Scheduler、Agent 和 Executor）
-task run               # 相当于: go run main.go server --mode all
+# 【一键体验】同时拉起具有分发中心与本地执行能力的全量引擎
+task run               
 
-# 【大脑启动】仅启动充当分发决策中心的 Scheduler 节点
-task scheduler         # 相当于: go run main.go server --mode scheduler
+# 【仅启动主控】剥离执行单元，单纯监听业务网关请求
+task scheduler         
 
-# 【无状态边缘】专门为具有入站限制的内网代理启动，拉取 Topic
-task agent             # 相当于: go run main.go server --mode agent
+# 【启动隔离节点】专门订阅 Kafka 队列来干活的不开放端口节点
+task agent             
 
-# 【微服务直通】启动原生 gRPC 执行器，接受内网的极速派发
-task executor          # 相当于: go run main.go server --mode executor
+# 【启动直连节点】对外暴露 gRPC 执行端口等待指派任务分配的集群节点
+task executor          
 ```
+
+---
+
+<div align="center">
+
+**🌟 如果这个核心执行中枢对您有帮助，请给我们一个 Star！**
+
+Made with ❤️ by [Duke1616](https://github.com/Duke1616)
+
+</div>
