@@ -41,10 +41,11 @@ func InitSchedulerApp() *App {
 		ConsumerSet,
 		ProducerSet,
 		GrpcSet,
-		AgentSet,
+		AgentWebSet,
 		AppSet,
 		// 显式字段注入，忽略 Executor 字段，避免引入依赖
-		wire.Struct(new(App), "Web", "Server", "Scheduler", "Agent", "Tasks", "EndpointSvc"),
+		// 同时忽略 Agent 字段，因为 Scheduler 模式下不需要运行 Agent 消费者
+		wire.Struct(new(App), "Web", "Server", "Scheduler", "Tasks", "EndpointSvc"),
 	)
 	return new(App)
 }

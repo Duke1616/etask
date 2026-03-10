@@ -3,6 +3,7 @@ package ioc
 import (
 	"github.com/Duke1616/ecmdb/pkg/policy"
 	agentSvc "github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
@@ -63,6 +64,11 @@ var (
 	AgentSet = wire.NewSet(
 		agentSvc.InitModule,
 		wire.FieldsOf(new(*agentSvc.Module), "Hdl"),
+	)
+
+	// AgentWebSet 专门用于 Scheduler 等只需要查看 Agent 状态而不运行 Agent 的场景
+	AgentWebSet = wire.NewSet(
+		web.NewHandler,
 	)
 
 	CompensatorSet = wire.NewSet(

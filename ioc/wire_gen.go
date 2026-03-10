@@ -9,6 +9,7 @@ package ioc
 import (
 	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
@@ -88,14 +89,13 @@ func InitSchedulerApp() *App {
 	client := InitEtcdClient()
 	registry := InitRegistry(client)
 	executorHandler := executor.NewHandler(registry)
-	mq := InitMQ()
-	module := agent.InitModule(mq, client)
-	webHandler := module.Hdl
+	webHandler := web.NewHandler(registry)
 	listener := InitListener()
 	component := InitGinWebServer(v, sdk, handler, executorHandler, webHandler, listener)
 	string2 := InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
+	mq := InitMQ()
 	completeProducer := InitCompleteProducer(mq)
 	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
 	reporterServer := grpc.NewReporterServer(executionService)
@@ -120,7 +120,6 @@ func InitSchedulerApp() *App {
 		Web:         component,
 		Server:      server,
 		Scheduler:   scheduler,
-		Agent:       module,
 		Tasks:       v2,
 		EndpointSvc: endpointServiceClient,
 	}
