@@ -10,11 +10,13 @@ import (
 	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/agent/web"
+	grpc2 "github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/internal/service/task"
 	executor2 "github.com/Duke1616/etask/internal/web/executor"
 	task2 "github.com/Duke1616/etask/internal/web/task"
+	"github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/gotomicro/ego/server/egin"
 )
@@ -88,6 +90,28 @@ func InitAgentModule(base *Base) *agent.Module {
 	client := base.Etcd
 	module := agent.InitModule(mq, client)
 	return module
+}
+
+// InitSchedulerServerModule 构造调度中心的 gRPC 服务端 (负责接收上报、下发任务及服务注册)
+func InitSchedulerServerModule(base *Base) *grpc.Server {
+	registry := base.Registry
+	string2 := InitNodeID()
+	db := base.DB
+	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
+	taskDAO := dao.NewGORMTaskDAO(db)
+	taskRepository := repository.NewTaskRepository(taskDAO)
+	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
+	service := task.NewService(taskRepository)
+	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
+	logService := task.NewLogService(taskExecutionLogDAO)
+	mq := base.MQ
+	completeProducer := InitCompleteProducer(mq)
+	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
+	reporterServer := grpc2.NewReporterServer(executionService)
+	taskServer := grpc2.NewTaskServer(service)
+	agentServer := grpc2.NewAgentServer(taskExecutionRepository, logService)
+	server := InitSchedulerNodeGRPCServer(registry, reporterServer, taskServer, agentServer)
+	return server
 }
 
 // InitWebModule 专门用于构造管理后台 Web 路由

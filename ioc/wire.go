@@ -6,6 +6,7 @@ package ioc
 import (
 	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent"
+	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/google/wire"
 	"github.com/gotomicro/ego/server/egin"
@@ -55,6 +56,20 @@ func InitAgentModule(base *Base) *agent.Module {
 	wire.Build(
 		AgentSet,
 		wire.FieldsOf(new(*Base), "MQ", "Etcd"),
+	)
+	return nil
+}
+
+// InitSchedulerServerModule 构造调度中心的 gRPC 服务端 (负责接收上报、下发任务及服务注册)
+func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
+	wire.Build(
+		TaskSet,
+		TaskExecutionSet,
+		SchedulerSet,
+		AppSet,
+		ProducerSet,
+		// 从 Base 中提取依赖
+		wire.FieldsOf(new(*Base), "Registry", "DB", "MQ"),
 	)
 	return nil
 }

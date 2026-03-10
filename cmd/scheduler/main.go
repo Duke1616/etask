@@ -49,8 +49,9 @@ func startServer() {
 	app := &ioc.App{Base: base}
 
 	// 2. 物理加载所需模块
-	app.Load(ioc.InitWebModule(base))       // 加载管理界面路由
-	app.Load(ioc.InitSchedulerModule(base)) // 加载调度中心业务逻辑
+	app.Load(ioc.InitWebModule(base))             // 加载管理界面路由
+	app.Load(ioc.InitSchedulerModule(base))       // 加载调度中心业务逻辑
+	app.Load(ioc.InitSchedulerServerModule(base)) // 加载调度中心 gRPC Server (含服务注册)
 
 	// 3. 启动后台任务
 	ctx := context.Background()

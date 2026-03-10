@@ -66,6 +66,7 @@ func startServer() {
 	// 根据具体模式“物理激活”相应模块
 	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeScheduler] {
 		app.Load(ioc.InitSchedulerModule(base))
+		app.Load(ioc.InitSchedulerServerModule(base))
 	}
 
 	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeExecutor] {
