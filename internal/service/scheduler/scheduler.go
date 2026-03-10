@@ -152,7 +152,7 @@ func (s *Scheduler) scheduleOnce(task domain.Task) error {
 			elog.String("selectedNodeID", nodeID),
 			elog.Int64("taskID", task.ID))
 
-		// NOTE: 通过独立的 modeResolver 感知节点模式并写入 DB，
+		// 通过独立的 modeResolver 感知节点模式并写入 DB，
 		// 调度器不封装任何 registry / DB 细节。
 		task.ExecMode = s.modeResolver.ResolveMode(s.ctx, task, nodeID)
 	}

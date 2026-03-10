@@ -1,6 +1,8 @@
 package ioc
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
@@ -28,16 +30,10 @@ func InitExecutor(reg registrysdk.Registry) *executor.Executor {
 		panic(err)
 	}
 
-	mode := viper.GetString("executor.mode")
-	if mode == "" {
-		mode = "PUSH"
-	}
-	desc := viper.GetString("executor.desc")
-
 	cfg := executor.Config{
-		Mode:   mode,
-		Desc:   desc,
-		Server: serverCfg,
+		Mode:   resolveMode(),
+		Desc:   viper.GetString("executor.desc"),
+		Server: resolveServer(serverCfg),
 		Client: clientCfg,
 	}
 
@@ -82,4 +78,29 @@ func InitExecutorServiceGRPCClients(reg registrysdk.Registry) *pool.Clients[exec
 		func(conn *grpc.ClientConn) executorv1.ExecutorServiceClient {
 			return executorv1.NewExecutorServiceClient(conn)
 		})
+}
+
+// resolveServer 确定最终的 NodeID
+// 优先级：环境变量 EXECUTOR_NODE_ID > 配置文件中的原始 ID
+// 最终格式：serviceName:nodeID
+func resolveServer(sc grpcpkg.ServerConfig) grpcpkg.ServerConfig {
+	nodeID := os.Getenv("EXECUTOR_NODE_ID")
+	if nodeID == "" {
+		nodeID = sc.ServiceId
+	}
+
+	if nodeID != "" {
+		sc.ServiceId = fmt.Sprintf("%s:%s", sc.ServiceName, nodeID)
+	}
+
+	return sc
+}
+
+func resolveMode() string {
+	mode := viper.GetString("executor.mode")
+	if mode == "" {
+		mode = "PUSH"
+	}
+
+	return mode
 }

@@ -229,7 +229,7 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 		}
 		return nil
 	case state.Status.IsTerminalStatus():
-		// NOTE: 只发送完成事件,由消费者统一更新终止状态,避免重复更新
+		// 只发送完成事件,由消费者统一更新终止状态,避免重复更新
 		s.sendCompletedEvent(ctx, state, execution)
 		return nil
 	default:

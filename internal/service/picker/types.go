@@ -16,7 +16,7 @@ type ExecutorNodePicker interface {
 }
 
 // IExecModeResolver 负责感知节点的执行模式并进行持久化。
-// NOTE: 与 picker 责任分离：picker 只选节点，resolver 负责“感知模式 + 写 DB”。
+// 与 picker 责任分离：picker 只选节点，resolver 负责“感知模式 + 写 DB”。
 type IExecModeResolver interface {
 	// ResolveMode 查询选中节点在注册时声明的执行模式，
 	// 并将结果写入 tasks.exec_mode 作为快照记录，返回模式。

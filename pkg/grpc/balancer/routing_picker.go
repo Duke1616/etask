@@ -37,9 +37,10 @@ func (p *routingPicker) Pick(info balancer.PickInfo) (balancer.PickResult, error
 	if hasSpecific {
 		// 查找指定的节点
 		for i := range p.nodeIDs {
-			if p.nodeIDs[i] == specificNodeID {
-				return balancer.PickResult{SubConn: p.subConns[i], Done: nil}, nil
+			if p.nodeIDs[i] != specificNodeID {
+				continue
 			}
+			return balancer.PickResult{SubConn: p.subConns[i], Done: nil}, nil
 		}
 		// 如果指定的节点不可用，返回错误
 		return balancer.PickResult{}, status.Errorf(codes.Unavailable,

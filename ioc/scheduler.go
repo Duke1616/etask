@@ -11,11 +11,6 @@ import (
 )
 
 func InitNodeID() string {
-	nodeID := viper.GetString("scheduler.nodeID")
-	if nodeID != "" {
-		return nodeID
-	}
-
 	return uuid.New().String()
 }
 
