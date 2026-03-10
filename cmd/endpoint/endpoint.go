@@ -9,7 +9,6 @@ import (
 	endpointv1 "github.com/Duke1616/ecmdb/api/proto/gen/ecmdb/endpoint/v1"
 	initIoc "github.com/Duke1616/etask/ioc"
 
-	"github.com/Duke1616/etask/cmd/scheduler/ioc"
 	"github.com/gotomicro/ego/server/egin"
 	"github.com/spf13/cobra"
 )
@@ -21,11 +20,16 @@ var Cmd = &cobra.Command{
 	Short: "ework-runner endpoint",
 	Long:  "注册所有路由信息到 Endpoint 中，用于动态菜单API鉴权中使用",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app := ioc.InitSchedulerApp()
+		// 1. 初始化共享基础设施
+		base := initIoc.InitBase()
+		app := &initIoc.App{Base: base}
+
+		// 2. 加载 Web 模块以获取路由信息
+		app.Load(initIoc.InitWebModule(base))
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		err := initEndpoint(ctx, app.Web, app.EndpointSvc)
+		err := initEndpoint(ctx, app.Web, base.EndpointSvc)
 		if err != nil {
 			panic(err)
 		}

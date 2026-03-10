@@ -3,11 +3,10 @@ package main
 import (
 	"os"
 
-	"github.com/Duke1616/etask/cmd/execute/ioc"
+	"github.com/Duke1616/etask/ioc"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gotomicro/ego"
 	"github.com/gotomicro/ego/core/elog"
-	"github.com/gotomicro/ego/server"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -15,18 +14,17 @@ import (
 func main() {
 	initViper()
 
-	// 创建 ego 应用实例
+	// 1. 初始化共享基础设施
+	base := ioc.InitBase()
+	app := &ioc.App{Base: base}
+
+	// 2. 物理加载 Executor 模块
+	app.Load(ioc.InitExecutorModule(base))
+
+	// 3. 获取并启动服务
+	servers := app.GetServers([]string{ioc.ModeExecutor})
 	egoApp := ego.New()
-
-	// 初始化 Agent 应用
-	app := ioc.InitExecuteApp()
-
-	// 启动服务
-	if err := egoApp.Serve(
-		func() server.Server {
-			return app.Server
-		}(),
-	).Run(); err != nil {
+	if err := egoApp.Serve(servers...).Run(); err != nil {
 		elog.Panic("startup", elog.FieldErr(err))
 	}
 }

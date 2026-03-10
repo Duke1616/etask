@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/Duke1616/etask/cmd/endpoint"
-	"github.com/Duke1616/etask/cmd/scheduler/ioc"
+	"github.com/Duke1616/etask/ioc"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gotomicro/ego"
 	"github.com/gotomicro/ego/core/elog"
@@ -44,18 +44,22 @@ func main() {
 }
 
 func startServer() {
-	// 创建 ego 应用实例
+	// 1. 初始化共享基础设施
+	base := ioc.InitBase()
+	app := &ioc.App{Base: base}
+
+	// 2. 物理加载所需模块
+	app.Load(ioc.InitWebModule(base))       // 加载管理界面路由
+	app.Load(ioc.InitSchedulerModule(base)) // 加载调度中心业务逻辑
+
+	// 3. 启动后台任务
+	ctx := context.Background()
+	app.StartBackgroundTasks(ctx, []string{ioc.ModeScheduler})
+
+	// 4. 运行服务
 	egoApp := ego.New()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	app := ioc.InitSchedulerApp()
-	app.StartTasks(ctx)
-
-	// 启动服务 (显式注册调度中心需要的组件)
-	if err := egoApp.Serve(app.Web, app.Server, app.Scheduler).
-		Cron().
-		Run(); err != nil {
+	servers := app.GetServers([]string{ioc.ModeScheduler})
+	if err := egoApp.Serve(servers...).Run(); err != nil {
 		elog.Panic("startup", elog.FieldErr(err))
 	}
 }

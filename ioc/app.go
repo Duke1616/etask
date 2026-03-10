@@ -2,14 +2,19 @@ package ioc
 
 import (
 	"context"
+	"net"
 
 	endpointv1 "github.com/Duke1616/ecmdb/api/proto/gen/ecmdb/endpoint/v1"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/sdk/executor"
+	"github.com/ecodeclub/mq-api"
 	"github.com/gotomicro/ego/server"
 	"github.com/gotomicro/ego/server/egin"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"gorm.io/gorm"
 )
 
 const (
@@ -24,14 +29,54 @@ type Task interface {
 	Start(ctx context.Context)
 }
 
-type App struct {
-	Web         *egin.Component
-	Server      *grpcpkg.Server
-	Scheduler   *scheduler.Scheduler
-	Agent       *agent.Module
-	Executor    *executor.Executor
-	Tasks       []Task
+// Base 基础基础设施（共享连接、客户端等）
+type Base struct {
+	DB          *gorm.DB
+	Registry    registry.Registry
+	MQ          mq.MQ
+	Etcd        *clientv3.Client
+	Listener    net.Listener
 	EndpointSvc endpointv1.EndpointServiceClient
+}
+
+// SchedulerModule 调度中心模块资源
+type SchedulerModule struct {
+	Svc   *scheduler.Scheduler
+	Tasks []Task
+}
+
+// App 模块化容器
+type App struct {
+	Web       *egin.Component
+	Server    *grpcpkg.Server
+	Scheduler *scheduler.Scheduler
+	Agent     *agent.Module
+	Executor  *executor.Executor
+	Tasks     []Task
+
+	// 共享基础资源
+	Base *Base
+}
+
+// Load 加载模块到容器
+func (a *App) Load(m any) {
+	switch mod := m.(type) {
+	case *egin.Component:
+		a.Web = mod
+	case *grpcpkg.Server:
+		a.Server = mod
+	case *scheduler.Scheduler:
+		a.Scheduler = mod
+	case *SchedulerModule:
+		a.Scheduler = mod.Svc
+		a.Tasks = append(a.Tasks, mod.Tasks...)
+	case *agent.Module:
+		a.Agent = mod
+	case *executor.Executor:
+		a.Executor = mod
+	case []Task:
+		a.Tasks = append(a.Tasks, mod...)
+	}
 }
 
 // GetServers 根据运行模式获取需要启动的服务列表

@@ -50,24 +50,30 @@ func main() {
 }
 
 func startServer() {
-	var app *ioc.App
+	// 1. 初始化所有模块共享的基础设施（仅连接，不启动业务）
+	base := ioc.InitBase()
+	app := &ioc.App{Base: base}
 
-	// 核心：基于模式选择【专门】的注入器
-	// scheduler 模式下不创建 Executor，executor 模式下不创建 DB/Redis
-	if len(modes) == 1 {
-		switch modes[0] {
-		case ioc.ModeScheduler:
-			app = ioc.InitSchedulerApp()
-		case ioc.ModeExecutor:
-			app = ioc.InitExecutorApp()
-		case ioc.ModeAgent:
-			app = ioc.InitAgentApp()
-		default:
-			app = ioc.InitApp()
-		}
-	} else {
-		// 组合模式使用全量注入
-		app = ioc.InitApp()
+	// 2. 动态装配模式
+	modeMap := make(map[string]bool)
+	for _, m := range modes {
+		modeMap[m] = true
+	}
+
+	// 始终尝试加载 Web 模块（提供健康检查和管理 API）
+	app.Load(ioc.InitWebModule(base))
+
+	// 根据具体模式“物理激活”相应模块
+	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeScheduler] {
+		app.Load(ioc.InitSchedulerModule(base))
+	}
+
+	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeExecutor] {
+		app.Load(ioc.InitExecutorModule(base))
+	}
+
+	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeAgent] {
+		app.Load(ioc.InitAgentModule(base))
 	}
 
 	// 此时 app 中的某些字段（如 app.Server 或 app.Executor）可能为 nil

@@ -20,8 +20,6 @@ var (
 		InitDistributedLock,
 		InitEtcdClient,
 		InitMQ,
-		InitRunner,
-		InitInvoker,
 		InitRegistry,
 	)
 

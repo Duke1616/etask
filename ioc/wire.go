@@ -4,75 +4,75 @@
 package ioc
 
 import (
+	"github.com/Duke1616/ecmdb/pkg/policy"
+	"github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/google/wire"
+	"github.com/gotomicro/ego/server/egin"
 )
 
-// InitApp 全量启动注入器 (包含 Scheduler + Agent + Executor)
-func InitApp() *App {
+// InitBase 初始化所有共享基础设施（建立连接，但不运行业务）
+func InitBase() *Base {
 	wire.Build(
 		BaseSet,
 		WebSetup,
-		TaskSet,
-		ExecutorSet,
-		TaskExecutionSet,
-		SchedulerSet,
-		CompensatorSet,
-		ConsumerSet,
-		ProducerSet,
-		GrpcSet,
-		AgentSet,
-		AppSet,
-		InitExecutor,
-		wire.Struct(new(App), "*"),
+		wire.Struct(new(Base), "*"),
 	)
-	return new(App)
+	return new(Base)
 }
 
-// InitSchedulerApp 纯净的调度中心注入器 (不含原生 Executor)
-func InitSchedulerApp() *App {
+// InitSchedulerModule 专门用于构造 Scheduler 模块及其配套后台任务
+func InitSchedulerModule(base *Base) *SchedulerModule {
 	wire.Build(
-		BaseSet,
-		WebSetup,
 		TaskSet,
-		ExecutorSet,
 		TaskExecutionSet,
 		SchedulerSet,
 		CompensatorSet,
 		ConsumerSet,
 		ProducerSet,
 		GrpcSet,
+		InitRunner,
+		InitInvoker,
+		// 从 Base 中提取基础资源
+		wire.FieldsOf(new(*Base), "DB", "Registry", "MQ"),
+		InitTasks,
+		wire.Struct(new(SchedulerModule), "Svc", "Tasks"),
+	)
+	return nil
+}
+
+// InitExecutorModule 专门用于构造原生执行器模块
+func InitExecutorModule(base *Base) *executor.Executor {
+	wire.Build(
+		InitExecutor,
+		wire.FieldsOf(new(*Base), "Registry"),
+	)
+	return nil
+}
+
+// InitAgentModule 专门用于构造异步代理模块 (包含 Kafka 消费者)
+func InitAgentModule(base *Base) *agent.Module {
+	wire.Build(
+		AgentSet,
+		wire.FieldsOf(new(*Base), "MQ", "Etcd"),
+	)
+	return nil
+}
+
+// InitWebModule 专门用于构造管理后台 Web 路由
+func InitWebModule(base *Base) *egin.Component {
+	wire.Build(
+		TaskSet,
+		TaskExecutionSet,
+		ExecutorSet,
 		AgentWebSet,
-		AppSet,
-		// 显式字段注入，忽略 Executor 字段，避免引入依赖
-		// 同时忽略 Agent 字段，因为 Scheduler 模式下不需要运行 Agent 消费者
-		wire.Struct(new(App), "Web", "Server", "Scheduler", "Tasks", "EndpointSvc"),
+		// 只保留 Web 处理器的构造逻辑，基础资源从 base 拿
+		InitGinWebServer,
+		InitGinMiddlewares,
+		policy.NewSDK,
+
+		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
+		wire.FieldsOf(new(*Base), "DB", "Registry", "Listener"),
 	)
-	return new(App)
-}
-
-// InitExecutorApp 纯净的原生执行器注入器 (不含 DB/Redis/Kafka/Scheduler 等后台逻辑)
-func InitExecutorApp() *App {
-	wire.Build(
-		// 仅包含基础 Etcd 和注册中心
-		InitEtcdClient,
-		InitRegistry,
-		InitExecutor,
-
-		// 仅填充 Web (健康检查) 和 Executor
-		wire.Struct(new(App), "Executor"),
-	)
-	return new(App)
-}
-
-// InitAgentApp 纯净的异步代理注入器 (不含 DB/Redis/Scheduler 等后台逻辑)
-func InitAgentApp() *App {
-	wire.Build(
-		InitEtcdClient,
-		InitMQ,
-		AgentSet,
-
-		// 仅填充 Agent 模块
-		wire.Struct(new(App), "Agent"),
-	)
-	return new(App)
+	return nil
 }
