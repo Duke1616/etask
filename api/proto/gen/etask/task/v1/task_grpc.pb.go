@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TaskService_CreateTask_FullMethodName = "/etask.task.v1.TaskService/CreateTask"
-	TaskService_GetTask_FullMethodName    = "/etask.task.v1.TaskService/GetTask"
-	TaskService_RetryTask_FullMethodName  = "/etask.task.v1.TaskService/RetryTask"
+	TaskService_CreateTask_FullMethodName      = "/etask.task.v1.TaskService/CreateTask"
+	TaskService_GetTask_FullMethodName         = "/etask.task.v1.TaskService/GetTask"
+	TaskService_RetryTaskByID_FullMethodName   = "/etask.task.v1.TaskService/RetryTaskByID"
+	TaskService_RetryTaskByName_FullMethodName = "/etask.task.v1.TaskService/RetryTaskByName"
 )
 
 // TaskServiceClient is the client API for TaskService service.
@@ -34,8 +35,10 @@ type TaskServiceClient interface {
 	CreateTask(ctx context.Context, in *CreateTaskRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error)
 	// 获取任务
 	GetTask(ctx context.Context, in *GetTaskRequest, opts ...grpc.CallOption) (*GetTaskResponse, error)
-	// 重试任务
-	RetryTask(ctx context.Context, in *RetryTaskRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error)
+	// 重试任务 (按ID)
+	RetryTaskByID(ctx context.Context, in *RetryTaskByIDRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error)
+	// 重试任务 (按名称)
+	RetryTaskByName(ctx context.Context, in *RetryTaskByNameRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error)
 }
 
 type taskServiceClient struct {
@@ -66,10 +69,20 @@ func (c *taskServiceClient) GetTask(ctx context.Context, in *GetTaskRequest, opt
 	return out, nil
 }
 
-func (c *taskServiceClient) RetryTask(ctx context.Context, in *RetryTaskRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error) {
+func (c *taskServiceClient) RetryTaskByID(ctx context.Context, in *RetryTaskByIDRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RetryTaskResponse)
-	err := c.cc.Invoke(ctx, TaskService_RetryTask_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, TaskService_RetryTaskByID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *taskServiceClient) RetryTaskByName(ctx context.Context, in *RetryTaskByNameRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RetryTaskResponse)
+	err := c.cc.Invoke(ctx, TaskService_RetryTaskByName_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +99,10 @@ type TaskServiceServer interface {
 	CreateTask(context.Context, *CreateTaskRequest) (*CreateTaskResponse, error)
 	// 获取任务
 	GetTask(context.Context, *GetTaskRequest) (*GetTaskResponse, error)
-	// 重试任务
-	RetryTask(context.Context, *RetryTaskRequest) (*RetryTaskResponse, error)
+	// 重试任务 (按ID)
+	RetryTaskByID(context.Context, *RetryTaskByIDRequest) (*RetryTaskResponse, error)
+	// 重试任务 (按名称)
+	RetryTaskByName(context.Context, *RetryTaskByNameRequest) (*RetryTaskResponse, error)
 	mustEmbedUnimplementedTaskServiceServer()
 }
 
@@ -104,8 +119,11 @@ func (UnimplementedTaskServiceServer) CreateTask(context.Context, *CreateTaskReq
 func (UnimplementedTaskServiceServer) GetTask(context.Context, *GetTaskRequest) (*GetTaskResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTask not implemented")
 }
-func (UnimplementedTaskServiceServer) RetryTask(context.Context, *RetryTaskRequest) (*RetryTaskResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RetryTask not implemented")
+func (UnimplementedTaskServiceServer) RetryTaskByID(context.Context, *RetryTaskByIDRequest) (*RetryTaskResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetryTaskByID not implemented")
+}
+func (UnimplementedTaskServiceServer) RetryTaskByName(context.Context, *RetryTaskByNameRequest) (*RetryTaskResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetryTaskByName not implemented")
 }
 func (UnimplementedTaskServiceServer) mustEmbedUnimplementedTaskServiceServer() {}
 func (UnimplementedTaskServiceServer) testEmbeddedByValue()                     {}
@@ -164,20 +182,38 @@ func _TaskService_GetTask_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TaskService_RetryTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RetryTaskRequest)
+func _TaskService_RetryTaskByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryTaskByIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TaskServiceServer).RetryTask(ctx, in)
+		return srv.(TaskServiceServer).RetryTaskByID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: TaskService_RetryTask_FullMethodName,
+		FullMethod: TaskService_RetryTaskByID_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskServiceServer).RetryTask(ctx, req.(*RetryTaskRequest))
+		return srv.(TaskServiceServer).RetryTaskByID(ctx, req.(*RetryTaskByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaskService_RetryTaskByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryTaskByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaskServiceServer).RetryTaskByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaskService_RetryTaskByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaskServiceServer).RetryTaskByName(ctx, req.(*RetryTaskByNameRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -198,8 +234,12 @@ var TaskService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TaskService_GetTask_Handler,
 		},
 		{
-			MethodName: "RetryTask",
-			Handler:    _TaskService_RetryTask_Handler,
+			MethodName: "RetryTaskByID",
+			Handler:    _TaskService_RetryTaskByID_Handler,
+		},
+		{
+			MethodName: "RetryTaskByName",
+			Handler:    _TaskService_RetryTaskByName_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

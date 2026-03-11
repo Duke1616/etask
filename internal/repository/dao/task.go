@@ -3,12 +3,14 @@ package dao
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/pkg/sqlx"
+	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -50,6 +52,8 @@ type TaskDAO interface {
 	Create(ctx context.Context, task Task) (*Task, error)
 	// GetByID 根据ID获取任务
 	GetByID(ctx context.Context, id int64) (*Task, error)
+	// GetByName 根据名称获取任务
+	GetByName(ctx context.Context, name string) (*Task, error)
 	// FindByPlanID 根据计划ID获取所有子任务
 	FindByPlanID(ctx context.Context, planID int64) ([]*Task, error)
 	// FindScheduleTasks 查询可调度的任务列表
@@ -95,6 +99,9 @@ func (g *GORMTaskDAO) Create(ctx context.Context, task Task) (*Task, error) {
 	task.Utime, task.Ctime = now, now
 	err := g.db.WithContext(ctx).Create(&task).Error
 	if err != nil {
+		if g.isUniqueConstraintError(err) {
+			return nil, fmt.Errorf("%w", errs.ErrTaskNameDuplicate)
+		}
 		return nil, err
 	}
 	return &task, nil
@@ -103,6 +110,15 @@ func (g *GORMTaskDAO) Create(ctx context.Context, task Task) (*Task, error) {
 func (g *GORMTaskDAO) GetByID(ctx context.Context, id int64) (*Task, error) {
 	var task Task
 	err := g.db.WithContext(ctx).Where("id = ?", id).First(&task).Error
+	if err != nil {
+		return nil, err
+	}
+	return &task, nil
+}
+
+func (g *GORMTaskDAO) GetByName(ctx context.Context, name string) (*Task, error) {
+	var task Task
+	err := g.db.WithContext(ctx).Where("name = ?", name).First(&task).Error
 	if err != nil {
 		return nil, err
 	}
@@ -338,4 +354,18 @@ func (g *GORMTaskDAO) Retry(ctx context.Context, id, version, nextTime int64) (*
 		return nil, err
 	}
 	return updatedTask, nil
+}
+
+// isUniqueConstraintError 检查是否是唯一索引冲突错误
+func (g *GORMTaskDAO) isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	me := new(mysql.MySQLError)
+	if ok := errors.As(err, &me); ok {
+		const uniqueIndexErrNo uint16 = 1062
+		return me.Number == uniqueIndexErrNo
+	}
+	// 也可以兜底检查 GORM 的泛化错误
+	return errors.Is(err, gorm.ErrDuplicatedKey)
 }

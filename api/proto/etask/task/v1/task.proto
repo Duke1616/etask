@@ -20,6 +20,15 @@ enum TaskStatus {
   COMPLETED = 4; // 已完成
 }
 
+// TaskErrorCode 业务错误码
+enum TaskErrorCode {
+  SUCCESS = 0; // 成功
+  SYSTEM_ERROR = 1; // 系统内部错误
+  DUPLICATE_NAME = 1001; // 任务名称重复
+  TASK_NOT_FOUND = 1002; // 任务不存在
+  TASK_RUNNING = 1003; // 任务正在运行中，无法重试
+}
+
 // GrpcConfig gRPC配置
 message GrpcConfig {
   string service_name = 1; // 服务名称
@@ -81,9 +90,10 @@ message CreateTaskRequest {
   ExecMode exec_mode = 9; // 执行模式
 }
 
-// CreateTaskResponse 创建任务响应
 message CreateTaskResponse {
   int64 id = 1; // 创建的任务ID
+  TaskErrorCode code = 2; // 业务错误码
+  string message = 3; // 友好提示信息
 }
 
 // GetTaskRequest 获取任务请求
@@ -96,13 +106,22 @@ message GetTaskResponse {
   Task task = 1; // 任务信息
 }
 
-// RetryTaskRequest 重试任务请求
-message RetryTaskRequest {
+// RetryTaskByIDRequest 重试任务请求 (按ID)
+message RetryTaskByIDRequest {
   int64 id = 1; // 任务ID
 }
 
+// RetryTaskByNameRequest 重试任务请求 (按名称)
+message RetryTaskByNameRequest {
+  string name = 1; // 任务名称
+}
+
 // RetryTaskResponse 重试任务响应
-message RetryTaskResponse {}
+message RetryTaskResponse {
+  int64 id = 1; // 任务ID
+  TaskErrorCode code = 2; // 业务错误码
+  string message = 3; // 友好提示信息
+}
 
 // TaskService 任务管理服务
 service TaskService {
@@ -110,6 +129,8 @@ service TaskService {
   rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
   // 获取任务
   rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
-  // 重试任务
-  rpc RetryTask(RetryTaskRequest) returns (RetryTaskResponse);
+  // 重试任务 (按ID)
+  rpc RetryTaskByID(RetryTaskByIDRequest) returns (RetryTaskResponse);
+  // 重试任务 (按名称)
+  rpc RetryTaskByName(RetryTaskByNameRequest) returns (RetryTaskResponse);
 }

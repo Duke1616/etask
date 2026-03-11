@@ -15,6 +15,8 @@ type TaskRepository interface {
 	Create(ctx context.Context, task domain.Task) (domain.Task, error)
 	// GetByID 根据ID获取任务
 	GetByID(ctx context.Context, id int64) (domain.Task, error)
+	// GetByName 根据名称获取任务
+	GetByName(ctx context.Context, name string) (domain.Task, error)
 	// SchedulableTasks 获取可调度的任务列表，preemptedTimeoutMs 表示处于 PREEMPTED 状态任务的超时时间（毫秒）
 	SchedulableTasks(ctx context.Context, preemptedTimeoutMs int64, limit int) ([]domain.Task, error)
 	// Acquire 抢占任务
@@ -65,6 +67,14 @@ func (r *taskRepository) Create(ctx context.Context, task domain.Task) (domain.T
 
 func (r *taskRepository) GetByID(ctx context.Context, id int64) (domain.Task, error) {
 	daoTask, err := r.dao.GetByID(ctx, id)
+	if err != nil {
+		return domain.Task{}, err
+	}
+	return r.toDomain(daoTask), nil
+}
+
+func (r *taskRepository) GetByName(ctx context.Context, name string) (domain.Task, error) {
+	daoTask, err := r.dao.GetByName(ctx, name)
 	if err != nil {
 		return domain.Task{}, err
 	}

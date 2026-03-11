@@ -2,13 +2,17 @@ package grpc
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
 	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 // TaskServer TaskService gRPC服务实现
@@ -33,21 +37,25 @@ func (s *TaskServer) CreateTask(ctx context.Context, req *taskv1.CreateTaskReque
 		elog.String("type", req.GetType().String()),
 		elog.String("cronExpr", req.GetCronExpr()))
 
+	response := &taskv1.CreateTaskResponse{}
 	// 将 protobuf 请求转换为 domain 对象
 	domainTask := s.toDomainTask(req)
 
 	// 调用业务服务创建任务
 	createdTask, err := s.taskSvc.Create(ctx, domainTask)
 	if err != nil {
-		s.logger.Error("创建任务失败",
-			elog.String("name", req.GetName()),
-			elog.FieldErr(err))
-		return nil, status.Error(codes.Internal, "创建任务失败")
+		if s.isSystemError(err) {
+			return nil, status.Errorf(codes.Internal, "系统错误: %v", err)
+		}
+		// 业务错误逻辑
+		response.Code = s.convertToTaskErrorCode(err)
+		response.Message = err.Error()
+		return response, nil
 	}
 
-	return &taskv1.CreateTaskResponse{
-		Id: createdTask.ID,
-	}, nil
+	response.Id = createdTask.ID
+	response.Code = taskv1.TaskErrorCode_SUCCESS
+	return response, nil
 }
 
 // toDomainTask 将 protobuf CreateTaskRequest 转换为 domain.Task
@@ -89,18 +97,42 @@ func (s *TaskServer) toDomainTaskType(t taskv1.TaskType) domain.TaskType {
 		return domain.TaskTypeRecurring
 	}
 }
-func (s *TaskServer) RetryTask(ctx context.Context, req *taskv1.RetryTaskRequest) (*taskv1.RetryTaskResponse, error) {
-	s.logger.Info("收到重试任务请求", elog.Int64("id", req.GetId()))
+func (s *TaskServer) RetryTaskByID(ctx context.Context, req *taskv1.RetryTaskByIDRequest) (*taskv1.RetryTaskResponse, error) {
+	s.logger.Info("收到按ID重试任务请求", elog.Int64("id", req.GetId()))
 
-	_, err := s.taskSvc.Retry(ctx, req.GetId())
+	response := &taskv1.RetryTaskResponse{}
+	retryTask, err := s.taskSvc.RetryByID(ctx, req.GetId())
 	if err != nil {
-		s.logger.Error("重试任务失败",
-			elog.Int64("id", req.GetId()),
-			elog.FieldErr(err))
-		return nil, status.Error(codes.Internal, "重试任务失败: "+err.Error())
+		if s.isSystemError(err) {
+			return nil, status.Errorf(codes.Internal, "重试失败: %v", err)
+		}
+		response.Code = s.convertToTaskErrorCode(err)
+		response.Message = err.Error()
+		return response, nil
 	}
 
-	return &taskv1.RetryTaskResponse{}, nil
+	response.Id = retryTask.ID
+	response.Code = taskv1.TaskErrorCode_SUCCESS
+	return response, nil
+}
+
+func (s *TaskServer) RetryTaskByName(ctx context.Context, req *taskv1.RetryTaskByNameRequest) (*taskv1.RetryTaskResponse, error) {
+	s.logger.Info("收到按名称重试任务请求", elog.String("name", req.GetName()))
+
+	response := &taskv1.RetryTaskResponse{}
+	retryTask, err := s.taskSvc.RetryByName(ctx, req.GetName())
+	if err != nil {
+		if s.isSystemError(err) {
+			return nil, status.Errorf(codes.Internal, "重试失败: %v", err)
+		}
+		response.Code = s.convertToTaskErrorCode(err)
+		response.Message = err.Error()
+		return response, nil
+	}
+
+	response.Id = retryTask.ID
+	response.Code = taskv1.TaskErrorCode_SUCCESS
+	return response, nil
 }
 
 // GetTask 获取任务
@@ -113,6 +145,27 @@ func (s *TaskServer) GetTask(ctx context.Context, req *taskv1.GetTaskRequest) (*
 	return &taskv1.GetTaskResponse{
 		Task: s.toProtoTask(t),
 	}, nil
+}
+
+// isSystemError 判断错误是否为系统错误
+func (s *TaskServer) isSystemError(err error) bool {
+	return errors.Is(err, errs.ErrTaskUpdateNextTimeFailed) ||
+		errors.Is(err, errs.ErrTaskUpdateStatusFailed) ||
+		errors.Is(err, errs.ErrTaskPreemptFailed)
+}
+
+// convertToTaskErrorCode 将错误映射为 gRPC 业务错误码
+func (s *TaskServer) convertToTaskErrorCode(err error) taskv1.TaskErrorCode {
+	switch {
+	case errors.Is(err, errs.ErrTaskNameDuplicate):
+		return taskv1.TaskErrorCode_DUPLICATE_NAME
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return taskv1.TaskErrorCode_TASK_NOT_FOUND
+	case strings.Contains(err.Error(), "运行中"):
+		return taskv1.TaskErrorCode_TASK_RUNNING
+	default:
+		return taskv1.TaskErrorCode_SYSTEM_ERROR
+	}
 }
 
 // toProtoTask 将 domain.Task 转换为 protobuf Task

@@ -31,4 +31,6 @@ var (
 
 	ErrInitPlanFailed = errors.New("plan和实际创建的任务不符")
 	ErrExceedLimit    = errors.New("抢资源超出限制")
+
+	ErrTaskNameDuplicate = errors.New("任务名称重复")
 )

@@ -20,10 +20,14 @@ type Service interface {
 	UpdateNextTime(ctx context.Context, id int64) (domain.Task, error)
 	// GetByID 根据ID获取task
 	GetByID(ctx context.Context, id int64) (domain.Task, error)
+	// GetByName 根据名称获取task
+	GetByName(ctx context.Context, name string) (domain.Task, error)
 	// UpdateScheduleParams 更新调度参数
 	UpdateScheduleParams(ctx context.Context, task domain.Task, params map[string]string) (domain.Task, error)
-	// Retry 手动重试任务
-	Retry(ctx context.Context, id int64) (domain.Task, error)
+	// RetryByID 根据 ID 重试任务
+	RetryByID(ctx context.Context, id int64) (domain.Task, error)
+	// RetryByName 根据名称重试任务
+	RetryByName(ctx context.Context, name string) (domain.Task, error)
 }
 
 type service struct {
@@ -88,17 +92,34 @@ func (s *service) GetByID(ctx context.Context, id int64) (domain.Task, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
+func (s *service) GetByName(ctx context.Context, name string) (domain.Task, error) {
+	return s.repo.GetByName(ctx, name)
+}
+
 func (s *service) UpdateScheduleParams(ctx context.Context, task domain.Task, params map[string]string) (domain.Task, error) {
 	task.UpdateScheduleParams(params)
 	return s.repo.UpdateScheduleParams(ctx, task.ID, task.Version, task.ScheduleParams)
 }
 
-func (s *service) Retry(ctx context.Context, id int64) (domain.Task, error) {
+func (s *service) RetryByID(ctx context.Context, id int64) (domain.Task, error) {
 	task, err := s.GetByID(ctx, id)
 	if err != nil {
 		return domain.Task{}, err
 	}
 
+	return s.retry(ctx, task)
+}
+
+func (s *service) RetryByName(ctx context.Context, name string) (domain.Task, error) {
+	task, err := s.GetByName(ctx, name)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	return s.retry(ctx, task)
+}
+
+func (s *service) retry(ctx context.Context, task domain.Task) (domain.Task, error) {
 	// 运行中的任务不允许重试，防止状态竞争
 	if task.Status == domain.TaskStatusPreempted {
 		return domain.Task{}, fmt.Errorf("任务正在运行中，请等结束后再重试")
