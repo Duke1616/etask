@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/Duke1616/etask/sdk/executor"
@@ -131,11 +132,17 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 	resultWriter.Close()
 
 	// 启动三个流式监听器：stdout 日志、stderr 日志、FD 3 结果数据
-	go streamOutput(ctx, stdoutPipe)
-	go streamOutput(ctx, stderrPipe)
-	go streamResult(ctx, resultReader)
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go streamOutput(ctx, stdoutPipe, &wg)
+	go streamOutput(ctx, stderrPipe, &wg)
+	go streamResult(ctx, resultReader, &wg)
 
-	if err = cmd.Wait(); err != nil {
+	err = cmd.Wait()
+	// 无论主进程执行成功还是失败，都必须等待所有流记录协程捕获完剩余数据
+	wg.Wait()
+
+	if err != nil {
 		// 将底层错误详细记录，防止上层误判为 Success
 		logger.Error("脚本执行进程返回非零状态码", elog.FieldErr(err))
 		return fmt.Errorf("脚本执行失败 (退出码非0): %w", err)
@@ -144,7 +151,8 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 	return nil
 }
 
-func streamOutput(ctx *executor.Context, reader io.Reader) {
+func streamOutput(ctx *executor.Context, reader io.Reader, wg *sync.WaitGroup) {
+	defer wg.Done()
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		ctx.Log(scanner.Text())
@@ -152,7 +160,8 @@ func streamOutput(ctx *executor.Context, reader io.Reader) {
 }
 
 // streamResult 核心方法：使用 json.Decoder 流式捕获并合并 NDJSON 结果
-func streamResult(ctx *executor.Context, reader io.Reader) {
+func streamResult(ctx *executor.Context, reader io.Reader, wg *sync.WaitGroup) {
+	defer wg.Done()
 	decoder := json.NewDecoder(reader)
 	for decoder.More() {
 		var partial map[string]any
