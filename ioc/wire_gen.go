@@ -18,7 +18,6 @@ import (
 	task2 "github.com/Duke1616/etask/internal/web/task"
 	"github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
-	"github.com/gotomicro/ego/server/egin"
 )
 
 // Injectors from wire.go:
@@ -108,7 +107,7 @@ func InitSchedulerServerModule(base *Base) *grpc.Server {
 }
 
 // InitWebModule 专门用于构造管理后台 Web 路由
-func InitWebModule(base *Base) *egin.Component {
+func InitWebModule(base *Base) *WebModule {
 	v := InitGinMiddlewares()
 	sdk := policy.NewSDK()
 	db := InitDB()
@@ -123,5 +122,11 @@ func InitWebModule(base *Base) *egin.Component {
 	webHandler := web.NewHandler(registry)
 	listener := InitListener()
 	component := InitGinWebServer(v, sdk, handler, executorHandler, webHandler, listener)
-	return component
+	clientConnInterface := InitECMDBGrpcClient(registry)
+	endpointServiceClient := InitEndpointServiceClient(clientConnInterface)
+	webModule := &WebModule{
+		Web:         component,
+		EndpointSvc: endpointServiceClient,
+	}
+	return webModule
 }

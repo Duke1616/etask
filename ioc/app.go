@@ -3,6 +3,7 @@ package ioc
 import (
 	"context"
 
+	endpointv1 "github.com/Duke1616/ecmdb/api/proto/gen/ecmdb/endpoint/v1"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
@@ -44,6 +45,12 @@ type Base struct {
 	Etcd     *clientv3.Client
 }
 
+// WebModule Web 模块资源
+type WebModule struct {
+	Web         *egin.Component
+	EndpointSvc endpointv1.EndpointServiceClient
+}
+
 // SchedulerModule 调度中心模块资源
 type SchedulerModule struct {
 	Svc   *scheduler.Scheduler
@@ -68,6 +75,8 @@ func (a *App) Load(m any) {
 	switch mod := m.(type) {
 	case *egin.Component:
 		a.Web = mod
+	case *WebModule:
+		a.Web = mod.Web
 	case *grpcpkg.Server:
 		a.Server = mod
 	case *scheduler.Scheduler:

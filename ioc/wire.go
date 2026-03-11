@@ -8,7 +8,6 @@ import (
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/google/wire"
-	"github.com/gotomicro/ego/server/egin"
 )
 
 // InitBase 初始化所有共享基础设施（建立连接，但不运行业务）
@@ -73,7 +72,7 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 }
 
 // InitWebModule 专门用于构造管理后台 Web 路由
-func InitWebModule(base *Base) *egin.Component {
+func InitWebModule(base *Base) *WebModule {
 	wire.Build(
 		TaskSet,
 		TaskExecutionSet,
@@ -83,6 +82,7 @@ func InitWebModule(base *Base) *egin.Component {
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
 		wire.FieldsOf(new(*Base), "Registry"),
+		wire.Struct(new(WebModule), "*"),
 	)
 	return nil
 }

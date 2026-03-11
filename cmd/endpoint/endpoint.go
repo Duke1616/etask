@@ -22,14 +22,13 @@ var Cmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// 1. 初始化共享基础设施
 		base := initIoc.InitBase()
-		app := &initIoc.App{Base: base}
 
 		// 2. 加载 Web 模块以获取路由信息
-		app.Load(initIoc.InitWebModule(base))
+		webMod := initIoc.InitWebModule(base)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		err := initEndpoint(ctx, app.Web, base.EndpointSvc)
+		err := initEndpoint(ctx, webMod.Web, webMod.EndpointSvc)
 		if err != nil {
 			panic(err)
 		}
