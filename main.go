@@ -60,8 +60,10 @@ func startServer() {
 		modeMap[m] = true
 	}
 
-	// 始终尝试加载 Web 模块（提供健康检查和管理 API）
-	app.Load(ioc.InitWebModule(base))
+	// 如果开启了相关模式，加载管理 Web 模块
+	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeScheduler] {
+		app.Load(ioc.InitWebModule(base))
+	}
 
 	// 根据具体模式“物理激活”相应模块
 	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeScheduler] {

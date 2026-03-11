@@ -14,7 +14,6 @@ import (
 	"github.com/gotomicro/ego/server"
 	"github.com/gotomicro/ego/server/egin"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"gorm.io/gorm"
 )
 
 const (
@@ -24,6 +23,17 @@ const (
 	ModeExecutor  = "executor"
 )
 
+// IsDBRequired 判断是否需要数据库连接
+func IsDBRequired(modes []string) bool {
+	for _, m := range modes {
+		// 只有 all 模式或明确的 scheduler 模式需要数据库
+		if m == ModeAll || m == ModeScheduler {
+			return true
+		}
+	}
+	return false
+}
+
 // Task 调度平台上的长任务 —— 各种补偿任务、消费者等
 type Task interface {
 	Start(ctx context.Context)
@@ -31,7 +41,6 @@ type Task interface {
 
 // Base 基础基础设施（共享连接、客户端等）
 type Base struct {
-	DB          *gorm.DB
 	Registry    registry.Registry
 	MQ          mq.MQ
 	Etcd        *clientv3.Client

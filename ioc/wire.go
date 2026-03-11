@@ -35,7 +35,7 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 		InitRunner,
 		InitInvoker,
 		// 从 Base 中提取基础资源
-		wire.FieldsOf(new(*Base), "DB", "Registry", "MQ"),
+		wire.FieldsOf(new(*Base), "Registry", "MQ"),
 		InitTasks,
 		wire.Struct(new(SchedulerModule), "Svc", "Tasks"),
 	)
@@ -69,7 +69,7 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 		AppSet,
 		ProducerSet,
 		// 从 Base 中提取依赖
-		wire.FieldsOf(new(*Base), "Registry", "DB", "MQ"),
+		wire.FieldsOf(new(*Base), "Registry", "MQ"),
 	)
 	return nil
 }
@@ -87,7 +87,7 @@ func InitWebModule(base *Base) *egin.Component {
 		policy.NewSDK,
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
-		wire.FieldsOf(new(*Base), "DB", "Registry", "Listener"),
+		wire.FieldsOf(new(*Base), "Registry", "Listener"),
 	)
 	return nil
 }

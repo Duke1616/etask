@@ -15,9 +15,6 @@ import (
 
 var (
 	BaseSet = wire.NewSet(
-		InitDB,
-		InitRedis,
-		InitDistributedLock,
 		InitEtcdClient,
 		InitMQ,
 		InitRegistry,
@@ -33,6 +30,7 @@ var (
 	)
 
 	TaskSet = wire.NewSet(
+		InitDB,
 		dao.NewGORMTaskDAO,
 		repository.NewTaskRepository,
 		taskSvc.NewService,
