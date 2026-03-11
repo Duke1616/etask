@@ -89,3 +89,111 @@ func (s *TaskServer) toDomainTaskType(t taskv1.TaskType) domain.TaskType {
 		return domain.TaskTypeRecurring
 	}
 }
+func (s *TaskServer) RetryTask(ctx context.Context, req *taskv1.RetryTaskRequest) (*taskv1.RetryTaskResponse, error) {
+	s.logger.Info("收到重试任务请求", elog.Int64("id", req.GetId()))
+
+	_, err := s.taskSvc.Retry(ctx, req.GetId())
+	if err != nil {
+		s.logger.Error("重试任务失败",
+			elog.Int64("id", req.GetId()),
+			elog.FieldErr(err))
+		return nil, status.Error(codes.Internal, "重试任务失败: "+err.Error())
+	}
+
+	return &taskv1.RetryTaskResponse{}, nil
+}
+
+// GetTask 获取任务
+func (s *TaskServer) GetTask(ctx context.Context, req *taskv1.GetTaskRequest) (*taskv1.GetTaskResponse, error) {
+	t, err := s.taskSvc.GetByID(ctx, req.GetId())
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "未找到该任务")
+	}
+
+	return &taskv1.GetTaskResponse{
+		Task: s.toProtoTask(t),
+	}, nil
+}
+
+// toProtoTask 将 domain.Task 转换为 protobuf Task
+func (s *TaskServer) toProtoTask(t domain.Task) *taskv1.Task {
+	return &taskv1.Task{
+		Id:                  t.ID,
+		Name:                t.Name,
+		Type:                s.toProtoTaskType(t.Type),
+		CronExpr:            t.CronExpr,
+		MaxExecutionSeconds: t.MaxExecutionSeconds,
+		ScheduleNodeId:      t.ScheduleNodeID,
+		ScheduleParams:      t.ScheduleParams,
+		NextTime:            t.NextTime,
+		Status:              s.toProtoTaskStatus(t.Status),
+		Version:             t.Version,
+		Ctime:               t.CTime,
+		Utime:               t.UTime,
+		ExecMode:            t.ExecMode.ToProto(),
+		GrpcConfig:          s.toProtoGrpcConfig(t.GrpcConfig),
+		HttpConfig:          s.toProtoHTTPConfig(t.HTTPConfig),
+		RetryConfig:         s.toProtoRetryConfig(t.RetryConfig),
+	}
+}
+
+func (s *TaskServer) toProtoGrpcConfig(cfg *domain.GrpcConfig) *taskv1.GrpcConfig {
+	if cfg == nil {
+		return nil
+	}
+	return &taskv1.GrpcConfig{
+		ServiceName: cfg.ServiceName,
+		AuthToken:   cfg.AuthToken,
+		HandlerName: cfg.HandlerName,
+		Params:      cfg.Params,
+	}
+}
+
+func (s *TaskServer) toProtoHTTPConfig(cfg *domain.HTTPConfig) *taskv1.HTTPConfig {
+	if cfg == nil {
+		return nil
+	}
+	return &taskv1.HTTPConfig{
+		Endpoint: cfg.Endpoint,
+		Params:   cfg.Params,
+	}
+}
+
+func (s *TaskServer) toProtoRetryConfig(cfg *domain.RetryConfig) *taskv1.RetryConfig {
+	if cfg == nil {
+		return nil
+	}
+	return &taskv1.RetryConfig{
+		MaxRetries:      cfg.MaxRetries,
+		InitialInterval: cfg.InitialInterval,
+		MaxInterval:     cfg.MaxInterval,
+	}
+}
+
+// toProtoTaskType 将 domain.TaskType 转换为 protobuf TaskType
+func (s *TaskServer) toProtoTaskType(t domain.TaskType) taskv1.TaskType {
+	switch t {
+	case domain.TaskTypeRecurring:
+		return taskv1.TaskType_RECURRING
+	case domain.TaskTypeOneTime:
+		return taskv1.TaskType_ONE_TIME
+	default:
+		return taskv1.TaskType_TASK_TYPE_UNSPECIFIED
+	}
+}
+
+// toProtoTaskStatus 将 domain.TaskStatus 转换为 protobuf TaskStatus
+func (s *TaskServer) toProtoTaskStatus(t domain.TaskStatus) taskv1.TaskStatus {
+	switch t {
+	case domain.TaskStatusActive:
+		return taskv1.TaskStatus_ACTIVE
+	case domain.TaskStatusPreempted:
+		return taskv1.TaskStatus_PREEMPTED
+	case domain.TaskStatusInactive:
+		return taskv1.TaskStatus_INACTIVE
+	case domain.TaskStatusCompleted:
+		return taskv1.TaskStatus_COMPLETED
+	default:
+		return taskv1.TaskStatus_TASK_STATUS_UNSPECIFIED
+	}
+}

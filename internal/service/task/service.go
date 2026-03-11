@@ -20,6 +20,10 @@ type Service interface {
 	UpdateNextTime(ctx context.Context, id int64) (domain.Task, error)
 	// GetByID 根据ID获取task
 	GetByID(ctx context.Context, id int64) (domain.Task, error)
+	// UpdateScheduleParams 更新调度参数
+	UpdateScheduleParams(ctx context.Context, task domain.Task, params map[string]string) (domain.Task, error)
+	// Retry 手动重试任务
+	Retry(ctx context.Context, id int64) (domain.Task, error)
 }
 
 type service struct {
@@ -56,10 +60,10 @@ func (s *service) UpdateNextTime(ctx context.Context, id int64) (domain.Task, er
 		return domain.Task{}, err
 	}
 
-	// 一次性任务：如果 NextTime 在过去，说明已执行完成，直接设置为 INACTIVE
-	// NOTE: 这样可以避免 CalculateNextTime 计算出下一次时间
+	// 一次性任务：如果 NextTime 在过去，说明已执行完成，直接设置为 COMPLETED
+	// 这样可以避免 CalculateNextTime 计算出下一次时间
 	if task.Type.IsOneTime() && task.NextTime > 0 && task.NextTime < time.Now().UnixMilli() {
-		return s.repo.UpdateStatus(ctx, id, domain.TaskStatusInactive)
+		return s.repo.UpdateStatus(ctx, id, domain.TaskStatusCompleted)
 	}
 
 	// 计算下次执行时间
@@ -87,4 +91,19 @@ func (s *service) GetByID(ctx context.Context, id int64) (domain.Task, error) {
 func (s *service) UpdateScheduleParams(ctx context.Context, task domain.Task, params map[string]string) (domain.Task, error) {
 	task.UpdateScheduleParams(params)
 	return s.repo.UpdateScheduleParams(ctx, task.ID, task.Version, task.ScheduleParams)
+}
+
+func (s *service) Retry(ctx context.Context, id int64) (domain.Task, error) {
+	task, err := s.GetByID(ctx, id)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	// 运行中的任务不允许重试，防止状态竞争
+	if task.Status == domain.TaskStatusPreempted {
+		return domain.Task{}, fmt.Errorf("任务正在运行中，请等结束后再重试")
+	}
+
+	// 重置为立即执行
+	return s.repo.Retry(ctx, task.ID, task.Version, time.Now().UnixMilli())
 }

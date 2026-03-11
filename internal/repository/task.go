@@ -33,6 +33,8 @@ type TaskRepository interface {
 	UpdateStatus(ctx context.Context, id int64, status domain.TaskStatus) (domain.Task, error)
 	// UpdateExecMode 更新任务的执行模式快照
 	UpdateExecMode(ctx context.Context, id int64, mode domain.ExecMode) error
+	// Retry 手动重试任务
+	Retry(ctx context.Context, id, version, nextTime int64) (domain.Task, error)
 }
 
 type taskRepository struct {
@@ -127,6 +129,14 @@ func (r *taskRepository) UpdateStatus(ctx context.Context, id int64, status doma
 // UpdateExecMode 更新任务的执行模式快照
 func (r *taskRepository) UpdateExecMode(ctx context.Context, id int64, mode domain.ExecMode) error {
 	return r.dao.UpdateExecMode(ctx, id, mode.String())
+}
+
+func (r *taskRepository) Retry(ctx context.Context, id, version, nextTime int64) (domain.Task, error) {
+	task, err := r.dao.Retry(ctx, id, version, nextTime)
+	if err != nil {
+		return domain.Task{}, err
+	}
+	return r.toDomain(task), nil
 }
 
 // toEntity 将领域模型转换为DAO模型

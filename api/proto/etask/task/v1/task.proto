@@ -17,6 +17,7 @@ enum TaskStatus {
   ACTIVE = 1; // 可调度
   PREEMPTED = 2; // 已抢占
   INACTIVE = 3; // 停止执行
+  COMPLETED = 4; // 已完成
 }
 
 // GrpcConfig gRPC配置
@@ -95,49 +96,13 @@ message GetTaskResponse {
   Task task = 1; // 任务信息
 }
 
-// UpdateTaskRequest 更新任务请求
-message UpdateTaskRequest {
-  int64 id = 1; // 任务ID
-  string name = 2; // 任务名称
-  TaskType type = 3; // 任务类型
-  string cron_expr = 4; // cron 表达式
-  GrpcConfig grpc_config = 5; // gRPC 配置
-  HTTPConfig http_config = 6; // HTTP 配置
-  RetryConfig retry_config = 7; // 重试配置
-  int64 max_execution_seconds = 8; // 最大执行秒数
-  map<string, string> schedule_params = 9; // 调度参数
-  TaskStatus status = 10; // 任务状态
-  ExecMode exec_mode = 11; // 执行模式
-}
-
-// UpdateTaskResponse 更新任务响应
-message UpdateTaskResponse {
-  bool success = 1; // 是否成功
-}
-
-// DeleteTaskRequest 删除任务请求
-message DeleteTaskRequest {
+// RetryTaskRequest 重试任务请求
+message RetryTaskRequest {
   int64 id = 1; // 任务ID
 }
 
-// DeleteTaskResponse 删除任务响应
-message DeleteTaskResponse {
-  bool success = 1; // 是否成功
-}
-
-// ListTasksRequest 列出任务请求
-message ListTasksRequest {
-  int32 page = 1; // 页码
-  int32 page_size = 2; // 每页数量
-  TaskStatus status = 3; // 按状态过滤(可选)
-  TaskType type = 4; // 按类型过滤(可选)
-}
-
-// ListTasksResponse 列出任务响应
-message ListTasksResponse {
-  repeated Task tasks = 1; // 任务列表
-  int64 total = 2; // 总数
-}
+// RetryTaskResponse 重试任务响应
+message RetryTaskResponse {}
 
 // TaskService 任务管理服务
 service TaskService {
@@ -145,10 +110,6 @@ service TaskService {
   rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
   // 获取任务
   rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
-  // 更新任务
-  rpc UpdateTask(UpdateTaskRequest) returns (UpdateTaskResponse);
-  // 删除任务
-  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse);
-  // 列出任务
-  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  // 重试任务
+  rpc RetryTask(RetryTaskRequest) returns (RetryTaskResponse);
 }

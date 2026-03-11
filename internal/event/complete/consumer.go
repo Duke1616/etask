@@ -58,6 +58,8 @@ func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
 	if err != nil {
 		return err
 	}
+
+	// 计算下次运行时间
 	t, err := c.taskSvc.UpdateNextTime(ctx, evt.TaskID)
 	if err != nil {
 		return err

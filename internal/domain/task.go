@@ -15,6 +15,7 @@ const (
 	TaskStatusActive    TaskStatus = "ACTIVE"    // 可调度
 	TaskStatusPreempted TaskStatus = "PREEMPTED" // 已抢占
 	TaskStatusInactive  TaskStatus = "INACTIVE"  // 停止执行
+	TaskStatusCompleted TaskStatus = "COMPLETED" // 已完成（针对一次性任务）
 )
 
 func (t TaskStatus) String() string {
@@ -141,8 +142,8 @@ type HTTPConfig struct {
 // - ONE_TIME 任务: 首次使用 cron 计算定时触发时间，执行后返回零值表示不再执行
 func (t *Task) CalculateNextTime() (time.Time, error) {
 	// 一次性任务：执行完成后不再计算下次时间
-	// NOTE: Service 层会在执行完成时将状态设置为 INACTIVE
-	if t.Type.IsOneTime() && t.Status == TaskStatusInactive {
+	// NOTE: Service 层会在执行完成时将状态设置为 COMPLETED
+	if t.Type.IsOneTime() && t.Status == TaskStatusCompleted {
 		return time.Time{}, nil
 	}
 

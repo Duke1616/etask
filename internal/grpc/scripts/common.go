@@ -136,7 +136,9 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 	go streamResult(ctx, resultReader)
 
 	if err = cmd.Wait(); err != nil {
-		return fmt.Errorf("execution failed: %w", err)
+		// 将底层错误详细记录，防止上层误判为 Success
+		logger.Error("脚本执行进程返回非零状态码", elog.FieldErr(err))
+		return fmt.Errorf("脚本执行失败 (退出码非0): %w", err)
 	}
 
 	return nil

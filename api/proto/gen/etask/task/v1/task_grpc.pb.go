@@ -21,9 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	TaskService_CreateTask_FullMethodName = "/etask.task.v1.TaskService/CreateTask"
 	TaskService_GetTask_FullMethodName    = "/etask.task.v1.TaskService/GetTask"
-	TaskService_UpdateTask_FullMethodName = "/etask.task.v1.TaskService/UpdateTask"
-	TaskService_DeleteTask_FullMethodName = "/etask.task.v1.TaskService/DeleteTask"
-	TaskService_ListTasks_FullMethodName  = "/etask.task.v1.TaskService/ListTasks"
+	TaskService_RetryTask_FullMethodName  = "/etask.task.v1.TaskService/RetryTask"
 )
 
 // TaskServiceClient is the client API for TaskService service.
@@ -36,12 +34,8 @@ type TaskServiceClient interface {
 	CreateTask(ctx context.Context, in *CreateTaskRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error)
 	// 获取任务
 	GetTask(ctx context.Context, in *GetTaskRequest, opts ...grpc.CallOption) (*GetTaskResponse, error)
-	// 更新任务
-	UpdateTask(ctx context.Context, in *UpdateTaskRequest, opts ...grpc.CallOption) (*UpdateTaskResponse, error)
-	// 删除任务
-	DeleteTask(ctx context.Context, in *DeleteTaskRequest, opts ...grpc.CallOption) (*DeleteTaskResponse, error)
-	// 列出任务
-	ListTasks(ctx context.Context, in *ListTasksRequest, opts ...grpc.CallOption) (*ListTasksResponse, error)
+	// 重试任务
+	RetryTask(ctx context.Context, in *RetryTaskRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error)
 }
 
 type taskServiceClient struct {
@@ -72,30 +66,10 @@ func (c *taskServiceClient) GetTask(ctx context.Context, in *GetTaskRequest, opt
 	return out, nil
 }
 
-func (c *taskServiceClient) UpdateTask(ctx context.Context, in *UpdateTaskRequest, opts ...grpc.CallOption) (*UpdateTaskResponse, error) {
+func (c *taskServiceClient) RetryTask(ctx context.Context, in *RetryTaskRequest, opts ...grpc.CallOption) (*RetryTaskResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateTaskResponse)
-	err := c.cc.Invoke(ctx, TaskService_UpdateTask_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *taskServiceClient) DeleteTask(ctx context.Context, in *DeleteTaskRequest, opts ...grpc.CallOption) (*DeleteTaskResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteTaskResponse)
-	err := c.cc.Invoke(ctx, TaskService_DeleteTask_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *taskServiceClient) ListTasks(ctx context.Context, in *ListTasksRequest, opts ...grpc.CallOption) (*ListTasksResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListTasksResponse)
-	err := c.cc.Invoke(ctx, TaskService_ListTasks_FullMethodName, in, out, cOpts...)
+	out := new(RetryTaskResponse)
+	err := c.cc.Invoke(ctx, TaskService_RetryTask_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +86,8 @@ type TaskServiceServer interface {
 	CreateTask(context.Context, *CreateTaskRequest) (*CreateTaskResponse, error)
 	// 获取任务
 	GetTask(context.Context, *GetTaskRequest) (*GetTaskResponse, error)
-	// 更新任务
-	UpdateTask(context.Context, *UpdateTaskRequest) (*UpdateTaskResponse, error)
-	// 删除任务
-	DeleteTask(context.Context, *DeleteTaskRequest) (*DeleteTaskResponse, error)
-	// 列出任务
-	ListTasks(context.Context, *ListTasksRequest) (*ListTasksResponse, error)
+	// 重试任务
+	RetryTask(context.Context, *RetryTaskRequest) (*RetryTaskResponse, error)
 	mustEmbedUnimplementedTaskServiceServer()
 }
 
@@ -134,14 +104,8 @@ func (UnimplementedTaskServiceServer) CreateTask(context.Context, *CreateTaskReq
 func (UnimplementedTaskServiceServer) GetTask(context.Context, *GetTaskRequest) (*GetTaskResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTask not implemented")
 }
-func (UnimplementedTaskServiceServer) UpdateTask(context.Context, *UpdateTaskRequest) (*UpdateTaskResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateTask not implemented")
-}
-func (UnimplementedTaskServiceServer) DeleteTask(context.Context, *DeleteTaskRequest) (*DeleteTaskResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeleteTask not implemented")
-}
-func (UnimplementedTaskServiceServer) ListTasks(context.Context, *ListTasksRequest) (*ListTasksResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListTasks not implemented")
+func (UnimplementedTaskServiceServer) RetryTask(context.Context, *RetryTaskRequest) (*RetryTaskResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetryTask not implemented")
 }
 func (UnimplementedTaskServiceServer) mustEmbedUnimplementedTaskServiceServer() {}
 func (UnimplementedTaskServiceServer) testEmbeddedByValue()                     {}
@@ -200,56 +164,20 @@ func _TaskService_GetTask_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TaskService_UpdateTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateTaskRequest)
+func _TaskService_RetryTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryTaskRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TaskServiceServer).UpdateTask(ctx, in)
+		return srv.(TaskServiceServer).RetryTask(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: TaskService_UpdateTask_FullMethodName,
+		FullMethod: TaskService_RetryTask_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskServiceServer).UpdateTask(ctx, req.(*UpdateTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _TaskService_DeleteTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TaskServiceServer).DeleteTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TaskService_DeleteTask_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskServiceServer).DeleteTask(ctx, req.(*DeleteTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _TaskService_ListTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListTasksRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TaskServiceServer).ListTasks(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TaskService_ListTasks_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskServiceServer).ListTasks(ctx, req.(*ListTasksRequest))
+		return srv.(TaskServiceServer).RetryTask(ctx, req.(*RetryTaskRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -270,16 +198,8 @@ var TaskService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TaskService_GetTask_Handler,
 		},
 		{
-			MethodName: "UpdateTask",
-			Handler:    _TaskService_UpdateTask_Handler,
-		},
-		{
-			MethodName: "DeleteTask",
-			Handler:    _TaskService_DeleteTask_Handler,
-		},
-		{
-			MethodName: "ListTasks",
-			Handler:    _TaskService_ListTasks_Handler,
+			MethodName: "RetryTask",
+			Handler:    _TaskService_RetryTask_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

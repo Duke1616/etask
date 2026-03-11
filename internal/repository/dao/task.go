@@ -16,6 +16,7 @@ const (
 	StatusActive    = "ACTIVE"
 	StatusPreempted = "PREEMPTED"
 	StatusInactive  = "INACTIVE"
+	StatusCompleted = "COMPLETED"
 )
 
 // Task 任务表DAO对象
@@ -32,7 +33,7 @@ type Task struct {
 	MaxExecutionSeconds int64                               `gorm:"type:bigint;not null;default:86400;comment:'最大执行秒数，默认24小时'"`
 	ScheduleNodeID      sql.NullString                      `gorm:"type:varchar(255);index:idx_schedule_node_id_status,priority:1;comment:'当前抢占的调度节点ID'"`
 	NextTime            int64                               `gorm:"type:bigint;not null;index:idx_next_time_status_utime,priority:1;comment:'下次执行时间'"`
-	Status              string                              `gorm:"type:ENUM('ACTIVE', 'PREEMPTED', 'INACTIVE');not null;default:'ACTIVE';index:idx_next_time_status_utime,priority:2;index:idx_schedule_node_id_status,priority:2;comment:'任务状态: ACTIVE-可调度, PREEMPTED-已抢占, INACTIVE-停止执行。处于INACTIVE也可以被再次 ACTIVE'"`
+	Status              string                              `gorm:"type:ENUM('ACTIVE', 'PREEMPTED', 'INACTIVE', 'COMPLETED');not null;default:'ACTIVE';index:idx_next_time_status_utime,priority:2;index:idx_schedule_node_id_status,priority:2;comment:'任务状态: ACTIVE-可调度, PREEMPTED-已抢占, INACTIVE-停止执行, COMPLETED-已完成。'"`
 	Version             int64                               `gorm:"type:bigint;not null;default:1;comment:'版本号，用于乐观锁'"`
 	Ctime               int64                               `gorm:"comment:'创建时间'"`
 	Utime               int64                               `gorm:"index:idx_next_time_status_utime,priority:3;comment:'更新时间'"`
@@ -68,6 +69,8 @@ type TaskDAO interface {
 	UpdateStatus(ctx context.Context, id int64, status string) (*Task, error)
 	// UpdateExecMode 更新执行模式快照（由调度器在选定 executor 节点后写入）
 	UpdateExecMode(ctx context.Context, id int64, mode string) error
+	// Retry 手动重试任务（针对一次性任务，将其状态重置为 ACTIVE 并设置下一次执行时间）
+	Retry(ctx context.Context, id, version, nextTime int64) (*Task, error)
 }
 
 type GORMTaskDAO struct {
@@ -304,4 +307,35 @@ func (g *GORMTaskDAO) UpdateExecMode(ctx context.Context, id int64, mode string)
 			"utime":     time.Now().UnixMilli(),
 		})
 	return result.Error
+}
+
+func (g *GORMTaskDAO) Retry(ctx context.Context, id, version, nextTime int64) (*Task, error) {
+	var updatedTask *Task
+	err := g.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&Task{}).
+			Where("id = ? AND version = ?", id, version).
+			Updates(map[string]any{
+				"status":           StatusActive,
+				"next_time":        nextTime,
+				"schedule_node_id": gorm.Expr("NULL"),
+				"version":          gorm.Expr("version + 1"),
+				"utime":            time.Now().UnixMilli(),
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errs.ErrTaskUpdateNextTimeFailed
+		}
+		var task Task
+		if err := tx.Where("id = ?", id).First(&task).Error; err != nil {
+			return err
+		}
+		updatedTask = &task
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return updatedTask, nil
 }
