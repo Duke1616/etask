@@ -2,9 +2,7 @@ package ioc
 
 import (
 	"context"
-	"net"
 
-	endpointv1 "github.com/Duke1616/ecmdb/api/proto/gen/ecmdb/endpoint/v1"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
@@ -41,11 +39,9 @@ type Task interface {
 
 // Base 基础基础设施（共享连接、客户端等）
 type Base struct {
-	Registry    registry.Registry
-	MQ          mq.MQ
-	Etcd        *clientv3.Client
-	Listener    net.Listener
-	EndpointSvc endpointv1.EndpointServiceClient
+	Registry registry.Registry
+	MQ       mq.MQ
+	Etcd     *clientv3.Client
 }
 
 // SchedulerModule 调度中心模块资源

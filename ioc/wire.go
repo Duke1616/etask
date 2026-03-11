@@ -4,7 +4,6 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
@@ -16,7 +15,6 @@ import (
 func InitBase() *Base {
 	wire.Build(
 		BaseSet,
-		WebSetup,
 		wire.Struct(new(Base), "*"),
 	)
 	return new(Base)
@@ -81,13 +79,10 @@ func InitWebModule(base *Base) *egin.Component {
 		TaskExecutionSet,
 		ExecutorSet,
 		AgentWebSet,
-		// 只保留 Web 处理器的构造逻辑，基础资源从 base 拿
-		InitGinWebServer,
-		InitGinMiddlewares,
-		policy.NewSDK,
+		WebSetup,
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
-		wire.FieldsOf(new(*Base), "Registry", "Listener"),
+		wire.FieldsOf(new(*Base), "Registry"),
 	)
 	return nil
 }
