@@ -81,7 +81,7 @@ func InitWebModule(base *Base) *WebModule {
 		WebSetup,
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
-		wire.FieldsOf(new(*Base), "Registry"),
+		wire.FieldsOf(new(*Base), "Registry", "Etcd"),
 		wire.Struct(new(WebModule), "*"),
 	)
 	return nil

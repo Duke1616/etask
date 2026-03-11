@@ -2,11 +2,14 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/Duke1616/etask/internal/agent/domain"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
+	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 var _ ginx.Handler = &Handler{}
@@ -18,9 +21,14 @@ type Handler struct {
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
 }
 
-func NewHandler(registry registry.Registry) *Handler {
+func NewHandler(etcdClient *clientv3.Client) *Handler {
+	reg, err := etcd.NewRegistryWithPrefix(etcdClient, "/etask/kafka")
+	if err != nil {
+		panic(err)
+	}
+
 	return &Handler{
-		registry: registry,
+		registry: reg,
 	}
 }
 
@@ -35,6 +43,8 @@ func (h *Handler) ListAgents(ctx *ginx.Context) (ginx.Result, error) {
 	if err != nil {
 		return systemErrorResult, err
 	}
+
+	fmt.Println("instance", instances)
 
 	return ginx.Result{
 		Data: h.groupExecutors(instances),

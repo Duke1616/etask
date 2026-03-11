@@ -28,7 +28,7 @@ func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
 	taskExecuteResultProducer := initExecuteProducer(q)
 	registry := InitRegistry(etcdClient)
 	executeConsumer := initExecuteConsumer(q, serviceService, taskExecuteResultProducer, registry)
-	handler := web.NewHandler(registry)
+	handler := web.NewHandler(etcdClient)
 	module := &Module{
 		Svc: serviceService,
 		C:   executeConsumer,
