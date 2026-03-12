@@ -45,7 +45,8 @@ func createShellCmd(codeFile, args, varsFile string) (*exec.Cmd, error) {
 	if _, err := exec.LookPath(shell); err != nil {
 		shell = "/bin/sh"
 	}
-	return exec.Command(shell, codeFile, args, varsFile), nil
+	// 使用 -e 开启 fail-fast 模式，确保脚本中任一命令失败即停止并返回非零退出码
+	return exec.Command(shell, "-e", codeFile, args, varsFile), nil
 }
 
 // prepareShellVars 将 JSON 变量转换为 KEY=VALUE 格式的临时文件
