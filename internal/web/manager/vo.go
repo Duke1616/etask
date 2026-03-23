@@ -1,4 +1,4 @@
-package task
+package manager
 
 type CreateTaskReq struct {
 	Name                string            `json:"name"`
@@ -40,14 +40,38 @@ type PageReq struct {
 	Limit  int `json:"limit"`
 }
 
+type IdReq struct {
+	ID int64 `json:"id"`
+}
+
+type UpdateTaskReq struct {
+	ID                  int64             `json:"id"`
+	Version             int64             `json:"version"`
+	Name                string            `json:"name"`
+	Type                string            `json:"type"`      // 任务类型: RECURRING-定时任务, ONE_TIME-一次性任务
+	CronExpr            string            `json:"cron_expr"` // cron 表达式（定时任务必填，一次性任务可选用于定时触发）
+	GrpcConfig          *GrpcConfig       `json:"grpc_config"`
+	HTTPConfig          *HTTPConfig       `json:"http_config"`
+	RetryConfig         *RetryConfig      `json:"retry_config"`
+	MaxExecutionSeconds int64             `json:"max_execution_seconds"` // 最大执行秒数，默认24小时
+	ScheduleParams      map[string]string `json:"schedule_params"`       // 调度参数
+}
+
 type TaskVO struct {
-	ID                  int64  `json:"id"`
-	Name                string `json:"name"`
-	Type                string `json:"type"`
-	CronExpr            string `json:"cron_expr"`
-	Status              string `json:"status"`
-	NextTime            int64  `json:"next_time"`
-	MaxExecutionSeconds int64  `json:"max_execution_seconds"`
+	ID                  int64             `json:"id"`
+	Version             int64             `json:"version"`
+	Name                string            `json:"name"`
+	Type                string            `json:"type"`
+	CronExpr            string            `json:"cron_expr"`
+	Status              string            `json:"status"`
+	NextTime            int64             `json:"next_time"`
+	MaxExecutionSeconds int64             `json:"max_execution_seconds"`
+	GrpcConfig          *GrpcConfig       `json:"grpc_config"`
+	HTTPConfig          *HTTPConfig       `json:"http_config"`
+	RetryConfig         *RetryConfig      `json:"retry_config"`
+	ScheduleParams      map[string]string `json:"schedule_params"`
+	CTime               int64             `json:"ctime"`
+	UTime               int64             `json:"utime"`
 }
 
 type ListTaskResp struct {

@@ -41,6 +41,10 @@ type TaskRepository interface {
 	List(ctx context.Context, offset, limit int) ([]domain.Task, error)
 	// Count 获取任务总数
 	Count(ctx context.Context) (int64, error)
+	// Update 更新任务配置
+	Update(ctx context.Context, task domain.Task) error
+	// Delete 删除任务
+	Delete(ctx context.Context, id int64) error
 }
 
 type taskRepository struct {
@@ -165,6 +169,14 @@ func (r *taskRepository) List(ctx context.Context, offset, limit int) ([]domain.
 
 func (r *taskRepository) Count(ctx context.Context) (int64, error) {
 	return r.dao.Count(ctx)
+}
+
+func (r *taskRepository) Update(ctx context.Context, task domain.Task) error {
+	return r.dao.Update(ctx, r.toEntity(task))
+}
+
+func (r *taskRepository) Delete(ctx context.Context, id int64) error {
+	return r.dao.Delete(ctx, id)
 }
 
 // toEntity 将领域模型转换为DAO模型

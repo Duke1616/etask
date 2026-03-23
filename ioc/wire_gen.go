@@ -15,7 +15,7 @@ import (
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/internal/service/task"
 	executor2 "github.com/Duke1616/etask/internal/web/executor"
-	task2 "github.com/Duke1616/etask/internal/web/task"
+	"github.com/Duke1616/etask/internal/web/manager"
 	"github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 )
@@ -116,7 +116,7 @@ func InitWebModule(base *Base) *WebModule {
 	service := task.NewService(taskRepository)
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
 	logService := task.NewLogService(taskExecutionLogDAO)
-	handler := task2.NewHandler(service, logService)
+	handler := manager.NewHandler(service, logService)
 	registry := base.Registry
 	executorHandler := executor2.NewHandler(registry)
 	client := base.Etcd

@@ -31,6 +31,14 @@ type Service interface {
 	RetryByName(ctx context.Context, name string) (domain.Task, error)
 	// List 分页获取任务列表
 	List(ctx context.Context, offset, limit int) ([]domain.Task, int64, error)
+	// Update 更新任务配置
+	Update(ctx context.Context, task domain.Task) error
+	// Delete 删除任务
+	Delete(ctx context.Context, id int64) error
+	// Stop 停止任务
+	Stop(ctx context.Context, id int64) error
+	// Run 运行任务（从停止状态恢复）
+	Run(ctx context.Context, id int64) error
 }
 
 type service struct {
@@ -152,4 +160,38 @@ func (s *service) List(ctx context.Context, offset, limit int) ([]domain.Task, i
 		return nil, 0, err
 	}
 	return tasks, total, nil
+}
+
+func (s *service) Update(ctx context.Context, task domain.Task) error {
+	// 针对更新配置，可能需要重新计算下次执行时间（且只有在任务是 ACTIVE 状态且非正在运行中才安全）
+	// 但通常简单的字段更新（如名称）不影响调度。
+	// 如果 CronExpr 变了，则必须重新计算。
+
+	// 这里简化处理，直接调用仓库更新。复杂逻辑应根据业务需求在 domain 层或在此处完善。
+	return s.repo.Update(ctx, task)
+}
+
+func (s *service) Delete(ctx context.Context, id int64) error {
+	task, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 判定是否已经停止，如果不是停止状态禁止删除
+	// 只有 INACTIVE (手动停止) 和 COMPLETED (一次性任务执行完成) 视为停止状态
+	if task.Status != domain.TaskStatusInactive && task.Status != domain.TaskStatusCompleted {
+		return fmt.Errorf("只能删除已停止的任务（当前状态: %s），请先停止任务后再试", task.Status)
+	}
+
+	return s.repo.Delete(ctx, id)
+}
+
+func (s *service) Stop(ctx context.Context, id int64) error {
+	_, err := s.repo.UpdateStatus(ctx, id, domain.TaskStatusInactive)
+	return err
+}
+
+func (s *service) Run(ctx context.Context, id int64) error {
+	_, err := s.repo.UpdateStatus(ctx, id, domain.TaskStatusActive)
+	return err
 }

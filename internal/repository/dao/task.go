@@ -80,6 +80,10 @@ type TaskDAO interface {
 	List(ctx context.Context, offset, limit int) ([]*Task, error)
 	// Count 获取任务总数
 	Count(ctx context.Context) (int64, error)
+	// Update 更新任务配置
+	Update(ctx context.Context, task Task) error
+	// Delete 删除任务
+	Delete(ctx context.Context, id int64) error
 }
 
 type GORMTaskDAO struct {
@@ -390,4 +394,35 @@ func (g *GORMTaskDAO) Count(ctx context.Context) (int64, error) {
 	var count int64
 	err := g.db.WithContext(ctx).Model(&Task{}).Where("biz_id = ?", 0).Count(&count).Error
 	return count, err
+}
+
+func (g *GORMTaskDAO) Update(ctx context.Context, task Task) error {
+	res := g.db.WithContext(ctx).
+		Model(&Task{}).
+		Where("id = ?", task.ID).
+		Updates(map[string]any{
+			"name":                  task.Name,
+			"type":                  task.Type,
+			"cron_expr":             task.CronExpr,
+			"grpc_config":           task.GrpcConfig,
+			"http_config":           task.HTTPConfig,
+			"retry_config":          task.RetryConfig,
+			"max_execution_seconds": task.MaxExecutionSeconds,
+			"version":               gorm.Expr("version + 1"),
+			"utime":                 time.Now().UnixMilli(),
+		})
+
+	if res.Error != nil {
+		return res.Error
+	}
+
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("更新失败：该任务不存在 (ID=%d)", task.ID)
+	}
+
+	return nil
+}
+
+func (g *GORMTaskDAO) Delete(ctx context.Context, id int64) error {
+	return g.db.WithContext(ctx).Delete(&Task{}, id).Error
 }

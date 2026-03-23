@@ -8,7 +8,7 @@ import (
 	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/internal/web/executor"
-	"github.com/Duke1616/etask/internal/web/task"
+	"github.com/Duke1616/etask/internal/web/manager"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gotomicro/ego/core/econf"
@@ -19,7 +19,7 @@ import (
 const Resource = "TASK"
 
 func InitGinWebServer(mdls []gin.HandlerFunc, sdk *policy.SDK,
-	taskHdl *task.Handler, executorHdl *executor.Handler, agentHdl *web.Handler, listener net.Listener) *egin.Component {
+	taskHdl *manager.Handler, executorHdl *executor.Handler, agentHdl *web.Handler, listener net.Listener) *egin.Component {
 
 	server := egin.Load("server.egin").Build(egin.WithListener(listener))
 	server.Use(mdls...)

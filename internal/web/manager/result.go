@@ -1,4 +1,4 @@
-package task
+package manager
 
 import "github.com/ecodeclub/ginx"
 

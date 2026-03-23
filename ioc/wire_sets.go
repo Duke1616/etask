@@ -9,7 +9,7 @@ import (
 	"github.com/Duke1616/etask/internal/repository/dao"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/internal/web/executor"
-	"github.com/Duke1616/etask/internal/web/task"
+	"github.com/Duke1616/etask/internal/web/manager"
 	"github.com/google/wire"
 )
 
@@ -35,7 +35,7 @@ var (
 		repository.NewTaskRepository,
 		taskSvc.NewService,
 		taskSvc.NewLogService,
-		task.NewHandler,
+		manager.NewHandler,
 	)
 
 	ExecutorSet = wire.NewSet(
