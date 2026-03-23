@@ -34,3 +34,23 @@ type GetLogsReq struct {
 	MinID       int64 `json:"min_id" form:"min_id"`
 	Limit       int   `json:"limit" form:"limit"`
 }
+
+type PageReq struct {
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
+}
+
+type TaskVO struct {
+	ID                  int64  `json:"id"`
+	Name                string `json:"name"`
+	Type                string `json:"type"`
+	CronExpr            string `json:"cron_expr"`
+	Status              string `json:"status"`
+	NextTime            int64  `json:"next_time"`
+	MaxExecutionSeconds int64  `json:"max_execution_seconds"`
+}
+
+type ListTaskResp struct {
+	Total int64    `json:"total"`
+	Tasks []TaskVO `json:"tasks"`
+}

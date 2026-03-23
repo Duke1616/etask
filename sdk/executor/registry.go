@@ -29,8 +29,9 @@ func (r *HandlerRegistry) ListMetas() []HandlerMeta {
 	metas := make([]HandlerMeta, 0, len(r.handlers))
 	for _, h := range r.handlers {
 		metas = append(metas, HandlerMeta{
-			Name: h.Name(),
-			Desc: h.Desc(),
+			Name:     h.Name(),
+			Desc:     h.Desc(),
+			Metadata: h.Metadata(),
 		})
 	}
 	return metas

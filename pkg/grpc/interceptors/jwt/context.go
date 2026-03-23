@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/grpc/metadata"
@@ -37,4 +38,17 @@ func ContextWithJWT(ctx context.Context, key string, defaultBizID int64) context
 		AuthorizationKey: BearerPrefix + tokenString,
 	})
 	return metadata.NewOutgoingContext(ctx, md)
+}
+
+// GetBizIDFromContext 从 context 中获取 biz_id，由 JwtAuthInterceptor 解码后注入
+func GetBizIDFromContext(ctx context.Context) (int64, error) {
+	v := ctx.Value(BizIDName)
+	if v == nil {
+		return 0, fmt.Errorf("context 中缺少 %s", BizIDName)
+	}
+	id, ok := v.(int64)
+	if !ok {
+		return 0, fmt.Errorf("%s 类型断言失败，实际类型: %T", BizIDName, v)
+	}
+	return id, nil
 }

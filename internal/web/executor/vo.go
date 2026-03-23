@@ -1,5 +1,7 @@
 package executor
 
+import "github.com/Duke1616/etask/sdk/executor"
+
 type Executor struct {
 	Name     string          `json:"name"`     // 分组的执行器服务名
 	Desc     string          `json:"desc"`     // 执行器的总体功能描述
@@ -14,6 +16,7 @@ type NodeDetail struct {
 }
 
 type HandlerDetail struct {
-	Name string `json:"name"`
-	Desc string `json:"desc"`
+	Name     string               `json:"name"`
+	Desc     string               `json:"desc"`
+	Metadata []executor.Parameter `json:"metadata"`
 }

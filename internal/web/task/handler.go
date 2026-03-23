@@ -28,6 +28,7 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/task")
 	g.POST("/create", ginx.B[CreateTaskReq](h.Create))
 	g.POST("/logs", ginx.B[GetLogsReq](h.GetLogs))
+	g.POST("/list", ginx.B[PageReq](h.List))
 }
 
 func (h *Handler) GetLogs(ctx *ginx.Context, req GetLogsReq) (ginx.Result, error) {
@@ -51,6 +52,39 @@ func (h *Handler) Create(ctx *ginx.Context, req CreateTaskReq) (ginx.Result, err
 		Data: create,
 		Msg:  "success",
 	}, nil
+}
+
+func (h *Handler) List(ctx *ginx.Context, req PageReq) (ginx.Result, error) {
+	tasks, total, err := h.svc.List(ctx, req.Offset, req.Limit)
+	if err != nil {
+		return systemErrorResult, err
+	}
+
+	return ginx.Result{
+		Data: ListTaskResp{
+			Total: total,
+			Tasks: sliceMap(tasks, func(src domain.Task) TaskVO {
+				return TaskVO{
+					ID:                  src.ID,
+					Name:                src.Name,
+					Type:                src.Type.String(),
+					CronExpr:            src.CronExpr,
+					Status:              src.Status.String(),
+					NextTime:            src.NextTime,
+					MaxExecutionSeconds: src.MaxExecutionSeconds,
+				}
+			}),
+		},
+		Msg: "success",
+	}, nil
+}
+
+func sliceMap[T, R any](data []T, f func(src T) R) []R {
+	res := make([]R, 0, len(data))
+	for _, v := range data {
+		res = append(res, f(v))
+	}
+	return res
 }
 
 func toDomain(req CreateTaskReq) domain.Task {

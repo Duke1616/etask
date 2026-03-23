@@ -15,20 +15,39 @@ type Variable struct {
 	Secret bool   `json:"secret"`
 }
 
+type BindingOption struct {
+	Label       string            `json:"label"`       // 展示给用户的选项名称，如 "手动输入"、"脚本库引用"
+	Placeholder string            `json:"placeholder"` // 占位符， 示例
+	Component   string            `json:"component"`   // UI 渲染控件提示: input, code-editor, codebook-picker, host-selector 等
+	Config      map[string]string `json:"config"`      // 扩展配置提示 (比如支持的语言, 展示风格等)
+}
+
+type Parameter struct {
+	Key      string                   `json:"key"`
+	Desc     string                   `json:"desc"`
+	Secret   bool                     `json:"secret"` // 是否是加密参数
+	Required bool                     `json:"required"`
+	Bindings map[string]BindingOption `json:"bindings"` // 支持的绑定能力及其详细 UI 配置: static, codebook, secret, variable 等
+	Default  string                   `json:"default"`  // 默认值
+}
+
 // TaskHandler 任务处理函数接口
 type TaskHandler interface {
 	// Name 处理器名称
 	Name() string
 	// Desc 处理器功能详情信息
 	Desc() string
+	// Metadata 处理器支持的参数列表
+	Metadata() []Parameter
 	// Run 处理器具体执行
 	Run(*Context) error
 }
 
 // HandlerMeta 处理器元数据 (用于序列化和展示)
 type HandlerMeta struct {
-	Name string `json:"name"`
-	Desc string `json:"desc"`
+	Name     string      `json:"name"`
+	Desc     string      `json:"desc"`
+	Metadata []Parameter `json:"metadata"`
 }
 
 // Context 任务执行上下文
@@ -206,6 +225,15 @@ func (c *Context) ReportProgress(progress int) error {
 
 	c.logger.Debug("进度上报", elog.Int("progress", progress))
 	return nil
+}
+
+// BindPayload 从 Params["payload"] 中解析 JSON 到 v (通常用于复杂对象)
+func (c *Context) BindPayload(v any) error {
+	val, ok := c.Params["payload"]
+	if !ok || val == "" {
+		return nil
+	}
+	return json.Unmarshal([]byte(val), v)
 }
 
 // Logger 获取日志组件

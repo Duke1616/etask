@@ -9,6 +9,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/gotomicro/ego/core/elog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,8 +39,15 @@ func (s *TaskServer) CreateTask(ctx context.Context, req *taskv1.CreateTaskReque
 		elog.String("cronExpr", req.GetCronExpr()))
 
 	response := &taskv1.CreateTaskResponse{}
+
+	// 从 context 中解析 JWT 中的 biz_id
+	bizID, err := jwt.GetBizIDFromContext(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	// 将 protobuf 请求转换为 domain 对象
-	domainTask := s.toDomainTask(req)
+	domainTask := s.toDomainTask(bizID, req)
 
 	// 调用业务服务创建任务
 	createdTask, err := s.taskSvc.Create(ctx, domainTask)
@@ -59,8 +67,9 @@ func (s *TaskServer) CreateTask(ctx context.Context, req *taskv1.CreateTaskReque
 }
 
 // toDomainTask 将 protobuf CreateTaskRequest 转换为 domain.Task
-func (s *TaskServer) toDomainTask(req *taskv1.CreateTaskRequest) domain.Task {
+func (s *TaskServer) toDomainTask(bizID int64, req *taskv1.CreateTaskRequest) domain.Task {
 	return domain.Task{
+		BizID:               bizID,
 		Name:                req.GetName(),
 		Type:                s.toDomainTaskType(req.GetType()),
 		CronExpr:            req.GetCronExpr(),

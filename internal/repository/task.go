@@ -37,6 +37,10 @@ type TaskRepository interface {
 	UpdateExecMode(ctx context.Context, id int64, mode domain.ExecMode) error
 	// Retry 手动重试任务
 	Retry(ctx context.Context, id, version, nextTime int64) (domain.Task, error)
+	// List 分页获取任务列表
+	List(ctx context.Context, offset, limit int) ([]domain.Task, error)
+	// Count 获取任务总数
+	Count(ctx context.Context) (int64, error)
 }
 
 type taskRepository struct {
@@ -149,6 +153,20 @@ func (r *taskRepository) Retry(ctx context.Context, id, version, nextTime int64)
 	return r.toDomain(task), nil
 }
 
+func (r *taskRepository) List(ctx context.Context, offset, limit int) ([]domain.Task, error) {
+	tasks, err := r.dao.List(ctx, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	return slice.Map(tasks, func(_ int, src *dao.Task) domain.Task {
+		return r.toDomain(src)
+	}), nil
+}
+
+func (r *taskRepository) Count(ctx context.Context) (int64, error) {
+	return r.dao.Count(ctx)
+}
+
 // toEntity 将领域模型转换为DAO模型
 func (r *taskRepository) toEntity(task domain.Task) dao.Task {
 	var scheduleNodeID sql.NullString
@@ -178,6 +196,8 @@ func (r *taskRepository) toEntity(task domain.Task) dao.Task {
 
 	return dao.Task{
 		ID:                  task.ID,
+		BizID:               task.BizID,
+		BizKey:              task.BizKey,
 		Name:                task.Name,
 		Type:                task.Type.String(),
 		CronExpr:            task.CronExpr,
@@ -225,6 +245,8 @@ func (r *taskRepository) toDomain(daoTask *dao.Task) domain.Task {
 
 	return domain.Task{
 		ID:                  daoTask.ID,
+		BizID:               daoTask.BizID,
+		BizKey:              daoTask.BizKey,
 		Name:                daoTask.Name,
 		Type:                domain.TaskType(daoTask.Type),
 		CronExpr:            daoTask.CronExpr,

@@ -25,6 +25,7 @@ const (
 type Task struct {
 	ID                  int64                               `gorm:"type:bigint;primaryKey;autoIncrement;"`
 	BizID               int64                               `gorm:"type:bigint unsigned;not null;default:0;comment:biz_id"`
+	BizKey              string                              `gorm:"type:varchar(255);not null;default:'';index:idx_biz;comment:'业务方唯一标识，如工单号'"`
 	Name                string                              `gorm:"type:varchar(255);not null;uniqueIndex:uniq_idx_name;comment:'任务名称'"`
 	Type                string                              `gorm:"type:ENUM('RECURRING', 'ONE_TIME');not null;default:'RECURRING';comment:'任务类型: RECURRING-定时任务(循环执行), ONE_TIME-一次性任务(执行一次后停止)'"`
 	CronExpr            string                              `gorm:"type:varchar(100);not null;comment:'cron表达式'"`
@@ -75,6 +76,10 @@ type TaskDAO interface {
 	UpdateExecMode(ctx context.Context, id int64, mode string) error
 	// Retry 手动重试任务（针对一次性任务，将其状态重置为 ACTIVE 并设置下一次执行时间）
 	Retry(ctx context.Context, id, version, nextTime int64) (*Task, error)
+	// List 分页获取任务列表
+	List(ctx context.Context, offset, limit int) ([]*Task, error)
+	// Count 获取任务总数
+	Count(ctx context.Context) (int64, error)
 }
 
 type GORMTaskDAO struct {
@@ -368,4 +373,21 @@ func (g *GORMTaskDAO) isUniqueConstraintError(err error) bool {
 	}
 	// 也可以兜底检查 GORM 的泛化错误
 	return errors.Is(err, gorm.ErrDuplicatedKey)
+}
+
+func (g *GORMTaskDAO) List(ctx context.Context, offset, limit int) ([]*Task, error) {
+	var tasks []*Task
+	err := g.db.WithContext(ctx).
+		Where("biz_id = ?", 0).
+		Order("id DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (g *GORMTaskDAO) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := g.db.WithContext(ctx).Model(&Task{}).Where("biz_id = ?", 0).Count(&count).Error
+	return count, err
 }

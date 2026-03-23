@@ -8,6 +8,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/repository"
+	"golang.org/x/sync/errgroup"
 )
 
 // Service 任务服务接口
@@ -28,6 +29,8 @@ type Service interface {
 	RetryByID(ctx context.Context, id int64) (domain.Task, error)
 	// RetryByName 根据名称重试任务
 	RetryByName(ctx context.Context, name string) (domain.Task, error)
+	// List 分页获取任务列表
+	List(ctx context.Context, offset, limit int) ([]domain.Task, int64, error)
 }
 
 type service struct {
@@ -127,4 +130,26 @@ func (s *service) retry(ctx context.Context, task domain.Task) (domain.Task, err
 
 	// 重置为立即执行
 	return s.repo.Retry(ctx, task.ID, task.Version, time.Now().UnixMilli())
+}
+
+func (s *service) List(ctx context.Context, offset, limit int) ([]domain.Task, int64, error) {
+	var (
+		tasks []domain.Task
+		total int64
+	)
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		var err error
+		tasks, err = s.repo.List(ctx, offset, limit)
+		return err
+	})
+	eg.Go(func() error {
+		var err error
+		total, err = s.repo.Count(ctx)
+		return err
+	})
+	if err := eg.Wait(); err != nil {
+		return nil, 0, err
+	}
+	return tasks, total, nil
 }

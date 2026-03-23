@@ -90,6 +90,7 @@ func (e *ScriptExecutor) Run(ctx *executor.Context) error {
 	}
 
 	// 3. 构建命令
+	// 将 args 当作一整个 JSON 字符串传递给脚本
 	cmd, err := e.cmdBuilder(codeFile, args, varsResource)
 	if err != nil {
 		return fmt.Errorf("create cmd failed: %w", err)
