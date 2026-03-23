@@ -40,6 +40,26 @@ func ContextWithJWT(ctx context.Context, key string, defaultBizID int64) context
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
+// SetBizID 将 biz_id 写入 context，供后续 ContextWithJWT 读取
+func SetBizID(ctx context.Context, bizID int64) context.Context {
+	return context.WithValue(ctx, BizIDName, bizID)
+}
+
+// SetAlertBizID 设置告警模块的 biz_id
+func SetAlertBizID(ctx context.Context) context.Context {
+	return SetBizID(ctx, BizTypeAlert)
+}
+
+// SetTicketBizID 设置工单模块的 biz_id
+func SetTicketBizID(ctx context.Context) context.Context {
+	return SetBizID(ctx, BizTypeTicket)
+}
+
+// SetTaskBizID 设置任务模块的 biz_id
+func SetTaskBizID(ctx context.Context) context.Context {
+	return SetBizID(ctx, BizTypeTask)
+}
+
 // GetBizIDFromContext 从 context 中获取 biz_id，由 JwtAuthInterceptor 解码后注入
 func GetBizIDFromContext(ctx context.Context) (int64, error) {
 	v := ctx.Value(BizIDName)
