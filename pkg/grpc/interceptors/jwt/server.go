@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 )
 
 const (
-	BizIDName         = "biz_id"
 	AuthorizationKey  = "Authorization"
 	BearerPrefix      = "Bearer "
 	DefaultIssuer     = "ework-runner"
@@ -94,7 +92,7 @@ func (b *InterceptorBuilder) JwtAuthInterceptor() grpc.UnaryServerInterceptor {
 		tokenStr := authHeaders[0]
 
 		// 使用现有JwtAuth解码验证
-		val, err := b.Decode(tokenStr)
+		_, err := b.Decode(tokenStr)
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
 				return nil, status.Error(codes.Unauthenticated, "token expired")
@@ -105,24 +103,7 @@ func (b *InterceptorBuilder) JwtAuthInterceptor() grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.Unauthenticated, "invalid token: "+err.Error())
 		}
 
-		// 断言类型
-		if v, exist := val[BizIDName]; exist {
-			var bizID int64
-			switch value := v.(type) {
-			case float64:
-				bizID = int64(value)
-			case int64:
-				bizID = value
-			case string:
-				bizID, _ = strconv.ParseInt(value, 10, 64)
-			}
-
-			// 只有转换出了有效的 ID 才注入 Context
-			if bizID > 0 {
-				ctx = context.WithValue(ctx, BizIDName, bizID)
-			}
-		}
-
+		// 认证通过，继续处理
 		return handler(ctx, req)
 	}
 }

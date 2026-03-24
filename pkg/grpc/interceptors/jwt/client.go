@@ -51,17 +51,8 @@ func (b *ClientInterceptorBuilder) injectJWTContext(ctx context.Context) context
 	// 使用项目已有的JWT包创建令牌
 	jwtAuth := NewJwtAuth(b.jwtKey)
 
-	// NOTE: 从 context 中动态获取 biz_id,而不是使用固定值
-	bizID := int64(0)
-	if v := ctx.Value(BizIDName); v != nil {
-		if id, ok := v.(int64); ok {
-			bizID = id
-		}
-	}
-
-	claims := jwt.MapClaims{
-		BizIDName: float64(bizID),
-	}
+	// 创建空的 JWT claims 或者其他默认信息
+	claims := jwt.MapClaims{}
 
 	// 使用JWT认证包的Encode方法生成令牌
 	tokenString, err := jwtAuth.Encode(claims)

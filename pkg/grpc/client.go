@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Duke1616/etask/pkg/grpc/balancer"
+	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
 	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"google.golang.org/grpc"
@@ -61,10 +62,14 @@ func WithDialOption(opts ...grpc.DialOption) ClientOption {
 func buildDialOptions(options *clientOptions) []grpc.DialOption {
 	var dialOpts []grpc.DialOption
 
-	// 添加 JWT 认证拦截器
+	// 默认添加 biz 拦截器，使用 Chain 模式
+	dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(bizid.UnaryClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithChainStreamInterceptor(bizid.StreamClientInterceptor()))
+
+	// 此时若配有 JWT 认证，则追加 JWT 拦截器
 	if options.authToken != "" {
 		jwtInterceptor := jwtinterceptor.NewClientInterceptorBuilder(options.authToken)
-		dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(jwtInterceptor.UnaryClientInterceptor()))
+		dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(jwtInterceptor.UnaryClientInterceptor()))
 	}
 
 	// 默认使用 insecure credentials

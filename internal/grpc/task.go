@@ -9,7 +9,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/service/task"
-	"github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
+	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
 	"github.com/gotomicro/ego/core/elog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,8 +40,8 @@ func (s *TaskServer) CreateTask(ctx context.Context, req *taskv1.CreateTaskReque
 
 	response := &taskv1.CreateTaskResponse{}
 
-	// 从 context 中解析 JWT 中的 biz_id
-	bizID, err := jwt.GetBizIDFromContext(ctx)
+	// 从 context 中解析 biz_id
+	bizID, err := bizid.FromContext(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}

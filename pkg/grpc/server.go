@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
 	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/netx"
@@ -64,13 +65,7 @@ type ServerOption func(*Server)
 // 如果 authToken 为空,则不启用认证
 func WithJWTAuth(authToken string) ServerOption {
 	return func(s *Server) {
-		if authToken != "" {
-			jwtAuth := jwtinterceptor.NewJwtAuth(authToken)
-			// 重新创建带 JWT interceptor 的 gRPC Server
-			s.Server = grpc.NewServer(
-				grpc.UnaryInterceptor(jwtAuth.JwtAuthInterceptor()),
-			)
-		}
+		s.config.AuthToken = authToken
 	}
 }
 
@@ -84,7 +79,7 @@ func WithMetadata(metadata map[string]any) ServerOption {
 // NewServer 创建 gRPC Server 实例
 func NewServer(cfg ServerConfig, reg registry.Registry, opts ...ServerOption) *Server {
 	s := &Server{
-		Server:        grpc.NewServer(),
+		config:        cfg,
 		registry:      reg,
 		serviceID:     cfg.ServiceId,
 		ServiceName:   cfg.ServiceName,
@@ -97,6 +92,27 @@ func NewServer(cfg ServerConfig, reg registry.Registry, opts ...ServerOption) *S
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	// 统一组装拦截器
+	unaryInterceptors := []grpc.UnaryServerInterceptor{
+		bizid.UnaryServerInterceptor(),
+	}
+	streamInterceptors := []grpc.StreamServerInterceptor{
+		bizid.StreamServerInterceptor(),
+	}
+
+	// 如果配置了 JWT 认证
+	if s.config.AuthToken != "" {
+		jwtAuth := jwtinterceptor.NewJwtAuth(s.config.AuthToken)
+		// 将 JWT 拦截器追加到链中（biz 拦截器在前，JWT 在后）
+		unaryInterceptors = append(unaryInterceptors, jwtAuth.JwtAuthInterceptor())
+	}
+
+	// 最终创建包含所有拦截器链的 Server
+	s.Server = grpc.NewServer(
+		grpc.ChainUnaryInterceptor(unaryInterceptors...),
+		grpc.ChainStreamInterceptor(streamInterceptors...),
+	)
 
 	return s
 }
