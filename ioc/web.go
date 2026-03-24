@@ -2,7 +2,6 @@ package ioc
 
 import (
 	"net"
-	"strings"
 	"time"
 
 	"github.com/Duke1616/ecmdb/pkg/policy"
@@ -54,16 +53,12 @@ func InitGinMiddlewares() []gin.HandlerFunc {
 
 func corsHdl() gin.HandlerFunc {
 	return cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"x-jwt-token", "x-refresh-token"},
 		AllowCredentials: true,
-		AllowOriginFunc: func(origin string) bool {
-			if strings.HasPrefix(origin, "http://localhost") {
-				return true
-			}
-			return strings.Contains(origin, "your_domain.com")
-		},
-		MaxAge: 12 * time.Hour,
+		MaxAge:           12 * time.Hour,
 	})
 }
 
