@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -104,10 +105,21 @@ func (b *InterceptorBuilder) JwtAuthInterceptor() grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.Unauthenticated, "invalid token: "+err.Error())
 		}
 
-		// NOTE: 安全的类型断言,避免 panic
-		if v, ok := val[BizIDName]; ok {
-			if bizID, ok := v.(float64); ok {
-				ctx = context.WithValue(ctx, BizIDName, int64(bizID))
+		// 断言类型
+		if v, exist := val[BizIDName]; exist {
+			var bizID int64
+			switch value := v.(type) {
+			case float64:
+				bizID = int64(value)
+			case int64:
+				bizID = value
+			case string:
+				bizID, _ = strconv.ParseInt(value, 10, 64)
+			}
+
+			// 只有转换出了有效的 ID 才注入 Context
+			if bizID > 0 {
+				ctx = context.WithValue(ctx, BizIDName, bizID)
 			}
 		}
 
