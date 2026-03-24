@@ -3,6 +3,7 @@ package manager
 import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
 )
@@ -148,7 +149,7 @@ func (h *Handler) Create(ctx *ginx.Context, req CreateTaskReq) (ginx.Result, err
 }
 
 func (h *Handler) List(ctx *ginx.Context, req PageReq) (ginx.Result, error) {
-	tasks, total, err := h.svc.List(ctx, req.Offset, req.Limit)
+	tasks, total, err := h.svc.List(ctx, bizid.Task, req.Offset, req.Limit)
 	if err != nil {
 		return systemErrorResult, err
 	}
@@ -222,6 +223,7 @@ func toDomain(req CreateTaskReq) domain.Task {
 		ScheduleParams:      req.ScheduleParams,
 		Status:              domain.TaskStatusActive,
 		Version:             1,
+		BizID:               bizid.Task,
 	}
 
 	if req.GrpcConfig != nil {
@@ -259,6 +261,7 @@ func toUpdateDomain(req UpdateTaskReq) domain.Task {
 		CronExpr:            req.CronExpr,
 		MaxExecutionSeconds: req.MaxExecutionSeconds,
 		ScheduleParams:      req.ScheduleParams,
+		BizID:               bizid.Task,
 	}
 
 	if req.GrpcConfig != nil {

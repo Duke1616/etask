@@ -30,7 +30,7 @@ type Service interface {
 	// RetryByName 根据名称重试任务
 	RetryByName(ctx context.Context, name string) (domain.Task, error)
 	// List 分页获取任务列表
-	List(ctx context.Context, offset, limit int) ([]domain.Task, int64, error)
+	List(ctx context.Context, bizID int64, offset, limit int) ([]domain.Task, int64, error)
 	// Update 更新任务配置
 	Update(ctx context.Context, task domain.Task) error
 	// Delete 删除任务
@@ -140,7 +140,7 @@ func (s *service) retry(ctx context.Context, task domain.Task) (domain.Task, err
 	return s.repo.Retry(ctx, task.ID, task.Version, time.Now().UnixMilli())
 }
 
-func (s *service) List(ctx context.Context, offset, limit int) ([]domain.Task, int64, error) {
+func (s *service) List(ctx context.Context, bizID int64, offset, limit int) ([]domain.Task, int64, error) {
 	var (
 		tasks []domain.Task
 		total int64
@@ -148,12 +148,12 @@ func (s *service) List(ctx context.Context, offset, limit int) ([]domain.Task, i
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		var err error
-		tasks, err = s.repo.List(ctx, offset, limit)
+		tasks, err = s.repo.List(ctx, bizID, offset, limit)
 		return err
 	})
 	eg.Go(func() error {
 		var err error
-		total, err = s.repo.Count(ctx)
+		total, err = s.repo.Count(ctx, bizID)
 		return err
 	})
 	if err := eg.Wait(); err != nil {

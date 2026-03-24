@@ -77,9 +77,9 @@ type TaskDAO interface {
 	// Retry 手动重试任务（针对一次性任务，将其状态重置为 ACTIVE 并设置下一次执行时间）
 	Retry(ctx context.Context, id, version, nextTime int64) (*Task, error)
 	// List 分页获取任务列表
-	List(ctx context.Context, offset, limit int) ([]*Task, error)
+	List(ctx context.Context, bizID int64, offset, limit int) ([]*Task, error)
 	// Count 获取任务总数
-	Count(ctx context.Context) (int64, error)
+	Count(ctx context.Context, bizID int64) (int64, error)
 	// Update 更新任务配置
 	Update(ctx context.Context, task Task) error
 	// Delete 删除任务
@@ -379,10 +379,10 @@ func (g *GORMTaskDAO) isUniqueConstraintError(err error) bool {
 	return errors.Is(err, gorm.ErrDuplicatedKey)
 }
 
-func (g *GORMTaskDAO) List(ctx context.Context, offset, limit int) ([]*Task, error) {
+func (g *GORMTaskDAO) List(ctx context.Context, bizID int64, offset, limit int) ([]*Task, error) {
 	var tasks []*Task
 	err := g.db.WithContext(ctx).
-		Where("biz_id = ?", 0).
+		Where("biz_id = ?", bizID).
 		Order("id DESC").
 		Offset(offset).
 		Limit(limit).
@@ -390,9 +390,9 @@ func (g *GORMTaskDAO) List(ctx context.Context, offset, limit int) ([]*Task, err
 	return tasks, err
 }
 
-func (g *GORMTaskDAO) Count(ctx context.Context) (int64, error) {
+func (g *GORMTaskDAO) Count(ctx context.Context, bizID int64) (int64, error) {
 	var count int64
-	err := g.db.WithContext(ctx).Model(&Task{}).Where("biz_id = ?", 0).Count(&count).Error
+	err := g.db.WithContext(ctx).Model(&Task{}).Where("biz_id = ?", bizID).Count(&count).Error
 	return count, err
 }
 
