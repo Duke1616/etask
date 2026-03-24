@@ -77,7 +77,6 @@ func (s *TaskServer) toDomainTask(bizID int64, req *taskv1.CreateTaskRequest) do
 		ScheduleParams:      req.GetScheduleParams(),
 		GrpcConfig: &domain.GrpcConfig{
 			ServiceName: req.GrpcConfig.GetServiceName(),
-			AuthToken:   req.GrpcConfig.GetAuthToken(),
 			HandlerName: req.GrpcConfig.GetHandlerName(),
 			Params:      req.GrpcConfig.GetParams(),
 		},
@@ -205,7 +204,6 @@ func (s *TaskServer) toProtoGrpcConfig(cfg *domain.GrpcConfig) *taskv1.GrpcConfi
 	}
 	return &taskv1.GrpcConfig{
 		ServiceName: cfg.ServiceName,
-		AuthToken:   cfg.AuthToken,
 		HandlerName: cfg.HandlerName,
 		Params:      cfg.Params,
 	}

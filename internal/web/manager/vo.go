@@ -13,7 +13,6 @@ type CreateTaskReq struct {
 
 type GrpcConfig struct {
 	ServiceName string            `json:"service_name"` // 服务名称
-	AuthToken   string            `json:"auth_token"`   // 认证 token
 	HandlerName string            `json:"handler_name"` // 执行节点支持的方法名称， 如 shell、python、demo
 	Params      map[string]string `json:"params"`       // 传递参数
 }

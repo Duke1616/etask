@@ -35,7 +35,7 @@ func (r *GRPCInvoker) Name() string {
 
 func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domain.ExecutionState, error) {
 	// 获取 client
-	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName, exec.Task.GrpcConfig.AuthToken)
+	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName)
 
 	// 设置调用超时(30秒), 防止无 executor 节点时无限等待
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -57,7 +57,7 @@ func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 }
 
 func (r *GRPCInvoker) Prepare(ctx context.Context, exec domain.TaskExecution) (map[string]string, error) {
-	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName, exec.Task.GrpcConfig.AuthToken)
+	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName)
 
 	// 设置调用超时(30秒), 防止无 executor 节点时无限等待
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)

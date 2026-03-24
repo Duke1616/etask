@@ -190,7 +190,6 @@ func toVO(src domain.Task) TaskVO {
 	if src.GrpcConfig != nil {
 		vo.GrpcConfig = &GrpcConfig{
 			ServiceName: src.GrpcConfig.ServiceName,
-			AuthToken:   src.GrpcConfig.AuthToken,
 			HandlerName: src.GrpcConfig.HandlerName,
 			Params:      src.GrpcConfig.Params,
 		}
@@ -228,7 +227,6 @@ func toDomain(req CreateTaskReq) domain.Task {
 	if req.GrpcConfig != nil {
 		t.GrpcConfig = &domain.GrpcConfig{
 			ServiceName: req.GrpcConfig.ServiceName,
-			AuthToken:   req.GrpcConfig.AuthToken,
 			HandlerName: req.GrpcConfig.HandlerName,
 			Params:      req.GrpcConfig.Params,
 		}
@@ -266,7 +264,6 @@ func toUpdateDomain(req UpdateTaskReq) domain.Task {
 	if req.GrpcConfig != nil {
 		t.GrpcConfig = &domain.GrpcConfig{
 			ServiceName: req.GrpcConfig.ServiceName,
-			AuthToken:   req.GrpcConfig.AuthToken,
 			HandlerName: req.GrpcConfig.HandlerName,
 			Params:      req.GrpcConfig.Params,
 		}

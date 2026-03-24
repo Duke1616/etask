@@ -128,7 +128,6 @@ func (r *RetryConfig) ToRetryComponentConfig() retry.Config {
 // GrpcConfig gRPC配置
 type GrpcConfig struct {
 	ServiceName string            `json:"serviceName"` // 服务名称
-	AuthToken   string            `json:"authToken"`   // 认证 token
 	HandlerName string            `json:"handlerName"` // 执行节点支持的方法名称， 如 shell、python、demo
 	Params      map[string]string `json:"params"`      // 传递参数
 }

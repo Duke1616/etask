@@ -72,9 +72,15 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 
 func InitExecutorServiceGRPCClients(reg registrysdk.Registry) *pool.Clients[executorv1.ExecutorServiceClient] {
 	const defaultTimeout = time.Second
+	var cfg grpcpkg.ClientConfig
+	if err := viper.UnmarshalKey("grpc.client.executor", &cfg); err != nil {
+		panic(err)
+	}
+
 	return pool.NewClients(
 		reg,
 		defaultTimeout,
+		cfg.AuthToken,
 		func(conn *grpc.ClientConn) executorv1.ExecutorServiceClient {
 			return executorv1.NewExecutorServiceClient(conn)
 		})
