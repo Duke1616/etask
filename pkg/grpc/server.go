@@ -25,7 +25,7 @@ type ServerConfig struct {
 	ServiceName   string `mapstructure:"name"`           // 必填:服务名
 	ListenAddr    string `mapstructure:"listen_addr"`    // 必填:绑定地址
 	AdvertiseAddr string `mapstructure:"advertise_addr"` // 可选:手动指定注册到etcd的地址
-	AuthToken     string `mapstructure:"auto_token"`     // 可选:认证令牌，如果需要认证就传递
+	AuthToken     string `mapstructure:"auth_token"`     // 可选:认证令牌，如果需要认证就传递
 }
 
 // Validate 验证配置
