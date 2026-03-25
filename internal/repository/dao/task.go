@@ -407,7 +407,9 @@ func (g *GORMTaskDAO) Update(ctx context.Context, task Task) error {
 			"grpc_config":           task.GrpcConfig,
 			"http_config":           task.HTTPConfig,
 			"retry_config":          task.RetryConfig,
+			"schedule_params":       task.ScheduleParams,
 			"max_execution_seconds": task.MaxExecutionSeconds,
+			"next_time":             task.NextTime,
 			"version":               gorm.Expr("version + 1"),
 			"utime":                 time.Now().UnixMilli(),
 		})

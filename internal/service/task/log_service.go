@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"github.com/Duke1616/etask/internal/domain"
-	"github.com/Duke1616/etask/internal/repository/dao"
+	"github.com/Duke1616/etask/internal/repository"
+	"golang.org/x/sync/errgroup"
 )
 
 // LogService 任务日志服务接口
@@ -13,61 +14,46 @@ type LogService interface {
 	AddLog(ctx context.Context, log domain.TaskExecutionLog) error
 	// BatchAddLogs 批量添加日志
 	BatchAddLogs(ctx context.Context, logs []domain.TaskExecutionLog) error
-	// GetLogs 获取任务日志
-	GetLogs(ctx context.Context, executionID int64, minID int64, limit int) ([]domain.TaskExecutionLog, error)
+	// GetLogs 获取执行任务日志和总数
+	GetLogs(ctx context.Context, executionID int64, minID int64, limit int) ([]domain.TaskExecutionLog, int64, error)
 }
 
 type logService struct {
-	dao dao.TaskExecutionLogDAO
+	repo repository.TaskExecutionLogRepository
 }
 
-func NewLogService(dao dao.TaskExecutionLogDAO) LogService {
+func NewLogService(repo repository.TaskExecutionLogRepository) LogService {
 	return &logService{
-		dao: dao,
+		repo: repo,
 	}
 }
 
 func (s *logService) AddLog(ctx context.Context, log domain.TaskExecutionLog) error {
-	return s.dao.Create(ctx, s.toDAO(log))
+	return s.repo.Create(ctx, log)
 }
 
 func (s *logService) BatchAddLogs(ctx context.Context, logs []domain.TaskExecutionLog) error {
-	if len(logs) == 0 {
-		return nil
-	}
-	daoLogs := make([]dao.TaskExecutionLog, len(logs))
-	for i, log := range logs {
-		daoLogs[i] = s.toDAO(log)
-	}
-	return s.dao.BatchCreate(ctx, daoLogs)
+	return s.repo.BatchCreate(ctx, logs)
 }
 
-func (s *logService) GetLogs(ctx context.Context, executionID int64, minID int64, limit int) ([]domain.TaskExecutionLog, error) {
-	daoLogs, err := s.dao.GetLogsByExecutionID(ctx, executionID, minID, limit)
-	if err != nil {
-		return nil, err
+func (s *logService) GetLogs(ctx context.Context, executionID int64, minID int64, limit int) ([]domain.TaskExecutionLog, int64, error) {
+	var (
+		logs  []domain.TaskExecutionLog
+		total int64
+	)
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		var err error
+		logs, err = s.repo.GetLogsByExecutionID(ctx, executionID, minID, limit)
+		return err
+	})
+	eg.Go(func() error {
+		var err error
+		total, err = s.repo.CountByExecutionID(ctx, executionID)
+		return err
+	})
+	if err := eg.Wait(); err != nil {
+		return nil, 0, err
 	}
-	logs := make([]domain.TaskExecutionLog, len(daoLogs))
-	for i, log := range daoLogs {
-		logs[i] = s.toDomain(log)
-	}
-	return logs, nil
-}
-
-func (s *logService) toDAO(log domain.TaskExecutionLog) dao.TaskExecutionLog {
-	return dao.TaskExecutionLog{
-		ID:          log.ID,
-		ExecutionID: log.ExecutionID,
-		Content:     log.Content,
-		Ctime:       log.CTime,
-	}
-}
-
-func (s *logService) toDomain(log dao.TaskExecutionLog) domain.TaskExecutionLog {
-	return domain.TaskExecutionLog{
-		ID:          log.ID,
-		ExecutionID: log.ExecutionID,
-		Content:     log.Content,
-		CTime:       log.Ctime,
-	}
+	return logs, total, nil
 }

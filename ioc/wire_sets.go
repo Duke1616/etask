@@ -33,6 +33,7 @@ var (
 		InitDB,
 		dao.NewGORMTaskDAO,
 		repository.NewTaskRepository,
+		repository.NewTaskExecutionLogRepository,
 		taskSvc.NewService,
 		taskSvc.NewLogService,
 		manager.NewHandler,

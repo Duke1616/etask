@@ -109,7 +109,7 @@ func (s *AgentServer) ListTaskExecutions(ctx context.Context, req *executorv1.Li
 
 // GetExecutionLogs 获取执行日志
 func (s *AgentServer) GetExecutionLogs(ctx context.Context, req *executorv1.GetExecutionLogsRequest) (*executorv1.GetExecutionLogsResponse, error) {
-	logs, err := s.logSvc.GetLogs(ctx, req.GetExecutionId(), req.GetMinId(), int(req.GetLimit()))
+	logs, _, err := s.logSvc.GetLogs(ctx, req.GetExecutionId(), req.GetMinId(), int(req.GetLimit()))
 	if err != nil {
 		s.logger.Error("获取日志失败", elog.Int64("executionID", req.GetExecutionId()), elog.FieldErr(err))
 		return nil, err

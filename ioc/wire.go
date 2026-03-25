@@ -71,7 +71,6 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 	return nil
 }
 
-// InitWebModule 专门用于构造管理后台 Web 路由
 func InitWebModule(base *Base) *WebModule {
 	wire.Build(
 		TaskSet,
@@ -79,9 +78,11 @@ func InitWebModule(base *Base) *WebModule {
 		ExecutorSet,
 		AgentWebSet,
 		WebSetup,
+		ProducerSet,
+		InitNodeID,
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
-		wire.FieldsOf(new(*Base), "Registry", "Etcd"),
+		wire.FieldsOf(new(*Base), "Registry", "Etcd", "MQ"),
 		wire.Struct(new(WebModule), "*"),
 	)
 	return nil

@@ -28,12 +28,6 @@ type RetryConfig struct {
 	MaxInterval     int64 `json:"max_interval"`     // 毫秒
 }
 
-type GetLogsReq struct {
-	ExecutionID int64 `json:"execution_id" form:"execution_id"`
-	MinID       int64 `json:"min_id" form:"min_id"`
-	Limit       int   `json:"limit" form:"limit"`
-}
-
 type PageReq struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -76,4 +70,46 @@ type TaskVO struct {
 type ListTaskResp struct {
 	Total int64    `json:"total"`
 	Tasks []TaskVO `json:"tasks"`
+}
+
+type GetLogsReq struct {
+	ExecutionID int64 `json:"execution_id" form:"execution_id"`
+	MinID       int64 `json:"min_id" form:"min_id"`
+	Limit       int   `json:"limit" form:"limit"`
+}
+
+type ListExecutionsReq struct {
+	TaskID int64 `json:"task_id" form:"task_id"`
+	Offset int   `json:"offset" form:"offset"`
+	Limit  int   `json:"limit" form:"limit"`
+}
+
+type TaskLogVO struct {
+	ID          int64  `json:"id"`
+	TaskID      int64  `json:"task_id"`
+	ExecutionID int64  `json:"execution_id"`
+	Content     string `json:"content"`
+	CTime       int64  `json:"ctime"`
+}
+
+type ListLogResp struct {
+	Total int64       `json:"total"`
+	Logs  []TaskLogVO `json:"logs"`
+}
+type TaskExecutionVO struct {
+	ID              int64  `json:"id"`
+	TaskID          int64  `json:"task_id"`
+	TaskName        string `json:"task_name"`
+	StartTime       int64  `json:"start_time"`
+	EndTime         int64  `json:"end_time"`
+	Status          string `json:"status"`
+	RunningProgress int32  `json:"running_progress"`
+	ExecutorNodeId  string `json:"executor_node_id"`
+	TaskResult      string `json:"task_result"`
+	CTime           int64  `json:"ctime"`
+}
+
+type ListExecutionResp struct {
+	Total      int64             `json:"total"`
+	Executions []TaskExecutionVO `json:"executions"`
 }

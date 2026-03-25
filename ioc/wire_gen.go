@@ -45,7 +45,8 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
-	logService := task.NewLogService(taskExecutionLogDAO)
+	taskExecutionLogRepository := repository.NewTaskExecutionLogRepository(taskExecutionLogDAO)
+	logService := task.NewLogService(taskExecutionLogRepository)
 	mq := base.MQ
 	completeProducer := InitCompleteProducer(mq)
 	registry := base.Registry
@@ -95,7 +96,8 @@ func InitSchedulerServerModule(base *Base) *grpc.Server {
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
 	service := task.NewService(taskRepository)
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
-	logService := task.NewLogService(taskExecutionLogDAO)
+	taskExecutionLogRepository := repository.NewTaskExecutionLogRepository(taskExecutionLogDAO)
+	logService := task.NewLogService(taskExecutionLogRepository)
 	mq := base.MQ
 	completeProducer := InitCompleteProducer(mq)
 	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
@@ -106,7 +108,6 @@ func InitSchedulerServerModule(base *Base) *grpc.Server {
 	return server
 }
 
-// InitWebModule 专门用于构造管理后台 Web 路由
 func InitWebModule(base *Base) *WebModule {
 	v := InitGinMiddlewares()
 	sdk := policy.NewSDK()
@@ -115,9 +116,16 @@ func InitWebModule(base *Base) *WebModule {
 	taskRepository := repository.NewTaskRepository(taskDAO)
 	service := task.NewService(taskRepository)
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
-	logService := task.NewLogService(taskExecutionLogDAO)
-	handler := manager.NewHandler(service, logService)
+	taskExecutionLogRepository := repository.NewTaskExecutionLogRepository(taskExecutionLogDAO)
+	logService := task.NewLogService(taskExecutionLogRepository)
+	string2 := InitNodeID()
+	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
+	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
+	mq := base.MQ
+	completeProducer := InitCompleteProducer(mq)
 	registry := base.Registry
+	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
+	handler := manager.NewHandler(service, logService, executionService)
 	executorHandler := executor2.NewHandler(registry)
 	client := base.Etcd
 	webHandler := web.NewHandler(client)

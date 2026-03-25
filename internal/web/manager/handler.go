@@ -4,6 +4,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
+	"github.com/ecodeclub/ekit/slice"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
 )
@@ -11,17 +12,19 @@ import (
 var _ ginx.Handler = &Handler{}
 
 type Handler struct {
-	svc    task.Service
-	logSvc task.LogService
+	svc     task.Service
+	logSvc  task.LogService
+	execSvc task.ExecutionService
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
 }
 
-func NewHandler(svc task.Service, logSvc task.LogService) *Handler {
+func NewHandler(svc task.Service, logSvc task.LogService, execSvc task.ExecutionService) *Handler {
 	return &Handler{
-		svc:    svc,
-		logSvc: logSvc,
+		svc:     svc,
+		logSvc:  logSvc,
+		execSvc: execSvc,
 	}
 }
 
@@ -29,6 +32,7 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/manager")
 	g.POST("/create", ginx.B[CreateTaskReq](h.Create))
 	g.POST("/logs", ginx.B[GetLogsReq](h.GetLogs))
+	g.POST("/executions", ginx.B[ListExecutionsReq](h.ListExecutions))
 	g.POST("/list", ginx.B[PageReq](h.List))
 	g.GET("/detail/:id", ginx.W(h.Detail))
 	g.DELETE("/delete/:id", ginx.W(h.Delete))
@@ -126,13 +130,52 @@ func (h *Handler) Update(ctx *ginx.Context, req UpdateTaskReq) (ginx.Result, err
 }
 
 func (h *Handler) GetLogs(ctx *ginx.Context, req GetLogsReq) (ginx.Result, error) {
-	logs, err := h.logSvc.GetLogs(ctx, req.ExecutionID, req.MinID, req.Limit)
+	logs, total, err := h.logSvc.GetLogs(ctx, req.ExecutionID, req.MinID, req.Limit)
 	if err != nil {
 		return systemErrorResult, err
 	}
 	return ginx.Result{
-		Data: logs,
-		Msg:  "success",
+		Data: ListLogResp{
+			Total: total,
+			Logs: slice.Map(logs, func(_ int, src domain.TaskExecutionLog) TaskLogVO {
+				return TaskLogVO{
+					ID:          src.ID,
+					TaskID:      src.TaskID,
+					ExecutionID: src.ExecutionID,
+					Content:     src.Content,
+					CTime:       src.CTime,
+				}
+			}),
+		},
+		Msg: "success",
+	}, nil
+}
+
+func (h *Handler) ListExecutions(ctx *ginx.Context, req ListExecutionsReq) (ginx.Result, error) {
+	executions, total, err := h.execSvc.ListByTaskID(ctx, req.TaskID, req.Offset, req.Limit)
+	if err != nil {
+		return systemErrorResult, err
+	}
+
+	return ginx.Result{
+		Data: ListExecutionResp{
+			Total: total,
+			Executions: slice.Map(executions, func(_ int, src domain.TaskExecution) TaskExecutionVO {
+				return TaskExecutionVO{
+					ID:              src.ID,
+					TaskID:          src.Task.ID,
+					TaskName:        src.Task.Name,
+					StartTime:       src.StartTime,
+					EndTime:         src.EndTime,
+					Status:          src.Status.String(),
+					RunningProgress: src.RunningProgress,
+					ExecutorNodeId:  src.ExecutorNodeID,
+					TaskResult:      src.TaskResult,
+					CTime:           src.CTime,
+				}
+			}),
+		},
+		Msg: "success",
 	}, nil
 }
 

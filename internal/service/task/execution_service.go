@@ -46,6 +46,8 @@ type ExecutionService interface {
 	HandleReports(ctx context.Context, reports []*domain.Report) error
 	// UpdateState 更新执行节点上报的执行状态
 	UpdateState(ctx context.Context, state domain.ExecutionState) error
+	// ListByTaskID 分页查找执行记录
+	ListByTaskID(ctx context.Context, taskID int64, offset, limit int) ([]domain.TaskExecution, int64, error)
 }
 
 type executionService struct {
@@ -138,6 +140,7 @@ func (s *executionService) HandleReports(ctx context.Context, reports []*domain.
 		if len(report.LogChunks) > 0 {
 			log := domain.TaskExecutionLog{
 				ExecutionID: report.ExecutionState.ID,
+				TaskID:      report.ExecutionState.TaskID,
 				Content:     strings.Join(report.LogChunks, "\n"),
 				CTime:       time.Now().UnixMilli(),
 			}
@@ -348,4 +351,8 @@ func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.
 	if err != nil {
 		s.logger.Error("发送完成事件失败", elog.Int64("taskID", execution.Task.ID), elog.FieldErr(err))
 	}
+}
+
+func (s *executionService) ListByTaskID(ctx context.Context, taskID int64, offset, limit int) ([]domain.TaskExecution, int64, error) {
+	return s.repo.ListByTaskID(ctx, taskID, offset, limit)
 }
