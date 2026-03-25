@@ -231,6 +231,11 @@ func (e *Executor) executeTask(runCtx context.Context, taskCtx *Context, eid int
 	// 获取任务结果
 	taskResult := taskCtx.GetResultJson()
 
+	// 如果执行失败且没有设置结果，则自动将错误信息作为结果上报
+	if err != nil && taskResult == "" {
+		taskResult = err.Error()
+	}
+
 	// 更新并上报最终状态
 	e.reportFinalResult(eid, finalStatus, taskResult)
 }

@@ -118,8 +118,6 @@ func (s *NormalTaskRunner) handleNormalTask(ctx context.Context, task domain.Tas
 
 			// 释放任务,允许重新调度
 			s.releaseTask(ctx, execution.Task)
-			s.logger.Info("任务已释放,可重新调度",
-				elog.Int64("task_id", execution.Task.ID))
 			return
 		}
 
