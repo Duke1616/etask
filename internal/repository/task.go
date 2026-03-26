@@ -206,6 +206,11 @@ func (r *taskRepository) toEntity(task domain.Task) dao.Task {
 		scheduleParams = sqlx.JSONColumn[map[string]string]{Val: task.ScheduleParams, Valid: true}
 	}
 
+	var metadata sqlx.JSONColumn[map[string]string]
+	if task.Metadata != nil {
+		metadata = sqlx.JSONColumn[map[string]string]{Val: task.Metadata, Valid: true}
+	}
+
 	return dao.Task{
 		ID:                  task.ID,
 		BizID:               task.BizID,
@@ -225,6 +230,7 @@ func (r *taskRepository) toEntity(task domain.Task) dao.Task {
 		Ctime:               task.CTime,
 		Utime:               task.UTime,
 		ExecMode:            task.ExecMode.String(),
+		Metadata:            metadata,
 	}
 }
 
@@ -255,6 +261,11 @@ func (r *taskRepository) toDomain(daoTask *dao.Task) domain.Task {
 		scheduleParams = daoTask.ScheduleParams.Val
 	}
 
+	var metadata map[string]string
+	if daoTask.Metadata.Valid {
+		metadata = daoTask.Metadata.Val
+	}
+
 	return domain.Task{
 		ID:                  daoTask.ID,
 		BizID:               daoTask.BizID,
@@ -274,5 +285,6 @@ func (r *taskRepository) toDomain(daoTask *dao.Task) domain.Task {
 		UTime:               daoTask.Utime,
 		CTime:               daoTask.Ctime,
 		ExecMode:            domain.ExecMode(daoTask.ExecMode),
+		Metadata:            metadata,
 	}
 }

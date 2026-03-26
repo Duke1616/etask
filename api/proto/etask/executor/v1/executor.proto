@@ -61,6 +61,7 @@ message ExecuteRequest {
   // 2. 另外一部分是我们调度用的，比如说 offset, limit
   // 即包含了业务参数和调度参数 (e.g., offset, limit)
   map<string, string> params = 5;
+  map<string, string> metadata = 6;
 }
 
 message ExecuteResponse {
@@ -93,6 +94,7 @@ message PrepareRequest {
   // 2. 另外一部分是我们调度用的，比如说 offset, limit
   // 即包含了业务参数和调度参数 (e.g., offset, limit)
   map<string, string> params = 4;
+  map<string, string> metadata = 5;
 }
 
 message PrepareResponse {

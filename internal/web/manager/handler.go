@@ -219,7 +219,6 @@ func sliceMap[T, R any](data []T, f func(src T) R) []R {
 func toVO(src domain.Task) TaskVO {
 	vo := TaskVO{
 		ID:                  src.ID,
-		Version:             src.Version,
 		Name:                src.Name,
 		Type:                src.Type.String(),
 		CronExpr:            src.CronExpr,
@@ -227,6 +226,7 @@ func toVO(src domain.Task) TaskVO {
 		NextTime:            src.NextTime,
 		MaxExecutionSeconds: src.MaxExecutionSeconds,
 		ScheduleParams:      src.ScheduleParams,
+		Metadata:            src.Metadata,
 		CTime:               src.CTime,
 		UTime:               src.UTime,
 	}
@@ -265,8 +265,8 @@ func toDomain(req CreateTaskReq) domain.Task {
 		MaxExecutionSeconds: req.MaxExecutionSeconds,
 		ScheduleParams:      req.ScheduleParams,
 		Status:              domain.TaskStatusActive,
-		Version:             1,
 		BizID:               bizid.Task,
+		Metadata:            req.Metadata,
 	}
 
 	if req.GrpcConfig != nil {
@@ -298,13 +298,13 @@ func toDomain(req CreateTaskReq) domain.Task {
 func toUpdateDomain(req UpdateTaskReq) domain.Task {
 	t := domain.Task{
 		ID:                  req.ID,
-		Version:             req.Version,
 		Name:                req.Name,
 		Type:                domain.TaskType(req.Type),
 		CronExpr:            req.CronExpr,
 		MaxExecutionSeconds: req.MaxExecutionSeconds,
 		ScheduleParams:      req.ScheduleParams,
 		BizID:               bizid.Task,
+		Metadata:            req.Metadata,
 	}
 
 	if req.GrpcConfig != nil {

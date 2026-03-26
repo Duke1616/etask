@@ -179,9 +179,16 @@ func (e *Executor) Execute(ctx context.Context, req *executorv1.ExecuteRequest) 
 	}
 	e.states.Store(eid, state)
 
+	// 查找处理函数
+	handler, exists := e.hr.Get(req.GetTaskHandlerName())
+	var params []Parameter
+	if exists {
+		params = handler.Metadata()
+	}
+
 	// 创建任务上下文
 	taskCtx := NewContext(eid, req.GetTaskId(), req.GetTaskName(), req.GetTaskHandlerName(),
-		req.GetParams(), e.reporterClient, e.logger)
+		req.GetParams(), req.GetMetadata(), params, e.reporterClient, e.logger)
 
 	//创建可取消上下文
 	runCtx, cancel := context.WithCancel(context.Background())

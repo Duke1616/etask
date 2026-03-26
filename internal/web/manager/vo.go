@@ -9,6 +9,7 @@ type CreateTaskReq struct {
 	RetryConfig         *RetryConfig      `json:"retry_config"`
 	MaxExecutionSeconds int64             `json:"max_execution_seconds"` // 最大执行秒数，默认24小时
 	ScheduleParams      map[string]string `json:"schedule_params"`       // 调度参数（如分页偏移量、处理进度等）
+	Metadata            map[string]string `json:"metadata"`              // 任务参数元数据
 }
 
 type GrpcConfig struct {
@@ -39,7 +40,6 @@ type IdReq struct {
 
 type UpdateTaskReq struct {
 	ID                  int64             `json:"id"`
-	Version             int64             `json:"version"`
 	Name                string            `json:"name"`
 	Type                string            `json:"type"`      // 任务类型: RECURRING-定时任务, ONE_TIME-一次性任务
 	CronExpr            string            `json:"cron_expr"` // cron 表达式（定时任务必填，一次性任务可选用于定时触发）
@@ -48,11 +48,11 @@ type UpdateTaskReq struct {
 	RetryConfig         *RetryConfig      `json:"retry_config"`
 	MaxExecutionSeconds int64             `json:"max_execution_seconds"` // 最大执行秒数，默认24小时
 	ScheduleParams      map[string]string `json:"schedule_params"`       // 调度参数
+	Metadata            map[string]string `json:"metadata"`              // 任务参数元数据
 }
 
 type TaskVO struct {
 	ID                  int64             `json:"id"`
-	Version             int64             `json:"version"`
 	Name                string            `json:"name"`
 	Type                string            `json:"type"`
 	CronExpr            string            `json:"cron_expr"`
@@ -65,6 +65,7 @@ type TaskVO struct {
 	ScheduleParams      map[string]string `json:"schedule_params"`
 	CTime               int64             `json:"ctime"`
 	UTime               int64             `json:"utime"`
+	Metadata            map[string]string `json:"metadata"`
 }
 
 type ListTaskResp struct {

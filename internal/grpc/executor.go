@@ -26,8 +26,8 @@ func (h *DemoTaskHandler) Metadata() []executor.Parameter {
 			Desc:     "模拟任务开始值",
 			Required: false,
 			Default:  "0",
-			Bindings: map[string]executor.BindingOption{
-				"static": {
+			Bindings: map[string]executor.Binding{
+				"static": &executor.BindingOption{
 					Label:       "固定数值",
 					Placeholder: "请输入开始数值",
 					Component:   "number-input",
@@ -38,8 +38,8 @@ func (h *DemoTaskHandler) Metadata() []executor.Parameter {
 			Key:      "end",
 			Desc:     "模拟任务结束值 (必须大于0)",
 			Required: true,
-			Bindings: map[string]executor.BindingOption{
-				"static": {
+			Bindings: map[string]executor.Binding{
+				"static": &executor.BindingOption{
 					Label:       "固定数值",
 					Placeholder: "请输入结束数值",
 					Component:   "number-input",

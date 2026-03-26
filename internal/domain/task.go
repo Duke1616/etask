@@ -63,6 +63,7 @@ type Task struct {
 	CTime               int64             // 创建时间戳
 	UTime               int64             // 更新时间戳
 	ExecMode            ExecMode          // 执行模式：PUSH 或 PULL
+	Metadata            map[string]string // 任务参数元数据 (存储绑定关系或模式)
 }
 
 // ExecMode 执行模式

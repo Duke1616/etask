@@ -47,6 +47,7 @@ func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 		TaskName:        exec.Task.Name,
 		TaskHandlerName: exec.Task.GrpcConfig.HandlerName,
 		Params:          exec.GRPCParams(),
+		Metadata:        exec.Task.Metadata,
 	})
 
 	if err != nil {
@@ -69,6 +70,7 @@ func (r *GRPCInvoker) Prepare(ctx context.Context, exec domain.TaskExecution) (m
 		TaskId:   exec.Task.ID,
 		TaskName: exec.Task.Name,
 		Params:   exec.GRPCParams(),
+		Metadata: exec.Task.Metadata,
 	})
 
 	if err != nil {

@@ -41,6 +41,7 @@ type Task struct {
 	Ctime               int64                               `gorm:"comment:'创建时间'"`
 	Utime               int64                               `gorm:"index:idx_next_time_status_utime,priority:3;comment:'更新时间'"`
 	ExecMode            string                              `gorm:"type:ENUM('PUSH', 'PULL');not null;default:'PUSH';comment:'本次调度采用的执行模式，由 scheduler 选节点时写入'"`
+	Metadata            sqlx.JSONColumn[map[string]string]  `gorm:"type:json;comment:'任务参数元数据'"`
 }
 
 // TableName 指定表名
@@ -412,6 +413,7 @@ func (g *GORMTaskDAO) Update(ctx context.Context, task Task) error {
 			"next_time":             task.NextTime,
 			"version":               gorm.Expr("version + 1"),
 			"utime":                 time.Now().UnixMilli(),
+			"metadata":              task.Metadata,
 		})
 
 	if res.Error != nil {
