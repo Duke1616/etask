@@ -95,8 +95,7 @@ type Context struct {
 
 // NewContext 创建上下文 (供 gRPC 模式使用)
 func NewContext(eid, taskID int64, taskName, handlerName string, params map[string]string,
-	metadata map[string]string, parameters []Parameter,
-	reporter reporterv1.ReporterServiceClient, logger *elog.Component) *Context {
+	parameters []Parameter, reporter reporterv1.ReporterServiceClient, logger *elog.Component) *Context {
 
 	var masks []string
 	if variablesStr := params["variables"]; variablesStr != "" {
@@ -116,7 +115,6 @@ func NewContext(eid, taskID int64, taskName, handlerName string, params map[stri
 		TaskName:    taskName,
 		HandlerName: handlerName,
 		Params:      params,
-		Metadata:    metadata,
 		parameters:  parameters,
 		results:     make(map[string]any),
 		reporter:    reporter,

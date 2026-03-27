@@ -188,7 +188,7 @@ func (e *Executor) Execute(ctx context.Context, req *executorv1.ExecuteRequest) 
 
 	// 创建任务上下文
 	taskCtx := NewContext(eid, req.GetTaskId(), req.GetTaskName(), req.GetTaskHandlerName(),
-		req.GetParams(), req.GetMetadata(), params, e.reporterClient, e.logger)
+		req.GetParams(), params, e.reporterClient, e.logger)
 
 	//创建可取消上下文
 	runCtx, cancel := context.WithCancel(context.Background())

@@ -212,7 +212,6 @@ type ExecuteRequest struct {
 	// 2. 另外一部分是我们调度用的，比如说 offset, limit
 	// 即包含了业务参数和调度参数 (e.g., offset, limit)
 	Params        map[string]string `protobuf:"bytes,5,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Metadata      map[string]string `protobuf:"bytes,6,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -278,13 +277,6 @@ func (x *ExecuteRequest) GetTaskHandlerName() string {
 func (x *ExecuteRequest) GetParams() map[string]string {
 	if x != nil {
 		return x.Params
-	}
-	return nil
-}
-
-func (x *ExecuteRequest) GetMetadata() map[string]string {
-	if x != nil {
-		return x.Metadata
 	}
 	return nil
 }
@@ -1273,18 +1265,14 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"taskResult\x1aD\n" +
 	"\x16RescheduledParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x90\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x02\n" +
 	"\x0eExecuteRequest\x12\x10\n" +
 	"\x03eid\x18\x01 \x01(\x03R\x03eid\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x1b\n" +
 	"\ttask_name\x18\x03 \x01(\tR\btaskName\x12*\n" +
 	"\x11task_handler_name\x18\x04 \x01(\tR\x0ftaskHandlerName\x12E\n" +
-	"\x06params\x18\x05 \x03(\v2-.etask.executor.v1.ExecuteRequest.ParamsEntryR\x06params\x12K\n" +
-	"\bmetadata\x18\x06 \x03(\v2/.etask.executor.v1.ExecuteRequest.MetadataEntryR\bmetadata\x1a9\n" +
+	"\x06params\x18\x05 \x03(\v2-.etask.executor.v1.ExecuteRequest.ParamsEntryR\x06params\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
-	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"]\n" +
 	"\x0fExecuteResponse\x12J\n" +
@@ -1396,7 +1384,7 @@ func file_etask_executor_v1_executor_proto_rawDescGZIP() []byte {
 }
 
 var file_etask_executor_v1_executor_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_etask_executor_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_etask_executor_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_etask_executor_v1_executor_proto_goTypes = []any{
 	(ExecutionStatus)(0),                    // 0: etask.executor.v1.ExecutionStatus
 	(*ExecutionState)(nil),                  // 1: etask.executor.v1.ExecutionState
@@ -1421,51 +1409,49 @@ var file_etask_executor_v1_executor_proto_goTypes = []any{
 	(*GetExecutionLogsResponse)(nil),        // 20: etask.executor.v1.GetExecutionLogsResponse
 	nil,                                     // 21: etask.executor.v1.ExecutionState.RescheduledParamsEntry
 	nil,                                     // 22: etask.executor.v1.ExecuteRequest.ParamsEntry
-	nil,                                     // 23: etask.executor.v1.ExecuteRequest.MetadataEntry
-	nil,                                     // 24: etask.executor.v1.PrepareRequest.ParamsEntry
-	nil,                                     // 25: etask.executor.v1.PrepareRequest.MetadataEntry
-	nil,                                     // 26: etask.executor.v1.PrepareResponse.ParamsEntry
-	nil,                                     // 27: etask.executor.v1.BatchListTaskExecutionsResponse.ResultsEntry
+	nil,                                     // 23: etask.executor.v1.PrepareRequest.ParamsEntry
+	nil,                                     // 24: etask.executor.v1.PrepareRequest.MetadataEntry
+	nil,                                     // 25: etask.executor.v1.PrepareResponse.ParamsEntry
+	nil,                                     // 26: etask.executor.v1.BatchListTaskExecutionsResponse.ResultsEntry
 }
 var file_etask_executor_v1_executor_proto_depIdxs = []int32{
 	0,  // 0: etask.executor.v1.ExecutionState.status:type_name -> etask.executor.v1.ExecutionStatus
 	21, // 1: etask.executor.v1.ExecutionState.rescheduled_params:type_name -> etask.executor.v1.ExecutionState.RescheduledParamsEntry
 	22, // 2: etask.executor.v1.ExecuteRequest.params:type_name -> etask.executor.v1.ExecuteRequest.ParamsEntry
-	23, // 3: etask.executor.v1.ExecuteRequest.metadata:type_name -> etask.executor.v1.ExecuteRequest.MetadataEntry
-	1,  // 4: etask.executor.v1.ExecuteResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
-	1,  // 5: etask.executor.v1.InterruptResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
-	1,  // 6: etask.executor.v1.QueryResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
-	24, // 7: etask.executor.v1.PrepareRequest.params:type_name -> etask.executor.v1.PrepareRequest.ParamsEntry
-	25, // 8: etask.executor.v1.PrepareRequest.metadata:type_name -> etask.executor.v1.PrepareRequest.MetadataEntry
-	26, // 9: etask.executor.v1.PrepareResponse.params:type_name -> etask.executor.v1.PrepareResponse.ParamsEntry
-	2,  // 10: etask.executor.v1.PullTaskResponse.task_req:type_name -> etask.executor.v1.ExecuteRequest
-	0,  // 11: etask.executor.v1.TaskExecution.status:type_name -> etask.executor.v1.ExecutionStatus
-	14, // 12: etask.executor.v1.ListTaskExecutionsResponse.executions:type_name -> etask.executor.v1.TaskExecution
-	14, // 13: etask.executor.v1.TaskExecutionList.executions:type_name -> etask.executor.v1.TaskExecution
-	27, // 14: etask.executor.v1.BatchListTaskExecutionsResponse.results:type_name -> etask.executor.v1.BatchListTaskExecutionsResponse.ResultsEntry
-	19, // 15: etask.executor.v1.GetExecutionLogsResponse.logs:type_name -> etask.executor.v1.ExecutionLog
-	16, // 16: etask.executor.v1.BatchListTaskExecutionsResponse.ResultsEntry.value:type_name -> etask.executor.v1.TaskExecutionList
-	2,  // 17: etask.executor.v1.ExecutorService.Execute:input_type -> etask.executor.v1.ExecuteRequest
-	4,  // 18: etask.executor.v1.ExecutorService.Interrupt:input_type -> etask.executor.v1.InterruptRequest
-	6,  // 19: etask.executor.v1.ExecutorService.Query:input_type -> etask.executor.v1.QueryRequest
-	8,  // 20: etask.executor.v1.ExecutorService.Prepare:input_type -> etask.executor.v1.PrepareRequest
-	10, // 21: etask.executor.v1.AgentService.PullTask:input_type -> etask.executor.v1.PullTaskRequest
-	12, // 22: etask.executor.v1.TaskExecutionService.ListTaskExecutions:input_type -> etask.executor.v1.ListTaskExecutionsRequest
-	18, // 23: etask.executor.v1.TaskExecutionService.GetExecutionLogs:input_type -> etask.executor.v1.GetExecutionLogsRequest
-	13, // 24: etask.executor.v1.TaskExecutionService.BatchListTaskExecutions:input_type -> etask.executor.v1.BatchListTaskExecutionsRequest
-	3,  // 25: etask.executor.v1.ExecutorService.Execute:output_type -> etask.executor.v1.ExecuteResponse
-	5,  // 26: etask.executor.v1.ExecutorService.Interrupt:output_type -> etask.executor.v1.InterruptResponse
-	7,  // 27: etask.executor.v1.ExecutorService.Query:output_type -> etask.executor.v1.QueryResponse
-	9,  // 28: etask.executor.v1.ExecutorService.Prepare:output_type -> etask.executor.v1.PrepareResponse
-	11, // 29: etask.executor.v1.AgentService.PullTask:output_type -> etask.executor.v1.PullTaskResponse
-	15, // 30: etask.executor.v1.TaskExecutionService.ListTaskExecutions:output_type -> etask.executor.v1.ListTaskExecutionsResponse
-	20, // 31: etask.executor.v1.TaskExecutionService.GetExecutionLogs:output_type -> etask.executor.v1.GetExecutionLogsResponse
-	17, // 32: etask.executor.v1.TaskExecutionService.BatchListTaskExecutions:output_type -> etask.executor.v1.BatchListTaskExecutionsResponse
-	25, // [25:33] is the sub-list for method output_type
-	17, // [17:25] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	1,  // 3: etask.executor.v1.ExecuteResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
+	1,  // 4: etask.executor.v1.InterruptResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
+	1,  // 5: etask.executor.v1.QueryResponse.execution_state:type_name -> etask.executor.v1.ExecutionState
+	23, // 6: etask.executor.v1.PrepareRequest.params:type_name -> etask.executor.v1.PrepareRequest.ParamsEntry
+	24, // 7: etask.executor.v1.PrepareRequest.metadata:type_name -> etask.executor.v1.PrepareRequest.MetadataEntry
+	25, // 8: etask.executor.v1.PrepareResponse.params:type_name -> etask.executor.v1.PrepareResponse.ParamsEntry
+	2,  // 9: etask.executor.v1.PullTaskResponse.task_req:type_name -> etask.executor.v1.ExecuteRequest
+	0,  // 10: etask.executor.v1.TaskExecution.status:type_name -> etask.executor.v1.ExecutionStatus
+	14, // 11: etask.executor.v1.ListTaskExecutionsResponse.executions:type_name -> etask.executor.v1.TaskExecution
+	14, // 12: etask.executor.v1.TaskExecutionList.executions:type_name -> etask.executor.v1.TaskExecution
+	26, // 13: etask.executor.v1.BatchListTaskExecutionsResponse.results:type_name -> etask.executor.v1.BatchListTaskExecutionsResponse.ResultsEntry
+	19, // 14: etask.executor.v1.GetExecutionLogsResponse.logs:type_name -> etask.executor.v1.ExecutionLog
+	16, // 15: etask.executor.v1.BatchListTaskExecutionsResponse.ResultsEntry.value:type_name -> etask.executor.v1.TaskExecutionList
+	2,  // 16: etask.executor.v1.ExecutorService.Execute:input_type -> etask.executor.v1.ExecuteRequest
+	4,  // 17: etask.executor.v1.ExecutorService.Interrupt:input_type -> etask.executor.v1.InterruptRequest
+	6,  // 18: etask.executor.v1.ExecutorService.Query:input_type -> etask.executor.v1.QueryRequest
+	8,  // 19: etask.executor.v1.ExecutorService.Prepare:input_type -> etask.executor.v1.PrepareRequest
+	10, // 20: etask.executor.v1.AgentService.PullTask:input_type -> etask.executor.v1.PullTaskRequest
+	12, // 21: etask.executor.v1.TaskExecutionService.ListTaskExecutions:input_type -> etask.executor.v1.ListTaskExecutionsRequest
+	18, // 22: etask.executor.v1.TaskExecutionService.GetExecutionLogs:input_type -> etask.executor.v1.GetExecutionLogsRequest
+	13, // 23: etask.executor.v1.TaskExecutionService.BatchListTaskExecutions:input_type -> etask.executor.v1.BatchListTaskExecutionsRequest
+	3,  // 24: etask.executor.v1.ExecutorService.Execute:output_type -> etask.executor.v1.ExecuteResponse
+	5,  // 25: etask.executor.v1.ExecutorService.Interrupt:output_type -> etask.executor.v1.InterruptResponse
+	7,  // 26: etask.executor.v1.ExecutorService.Query:output_type -> etask.executor.v1.QueryResponse
+	9,  // 27: etask.executor.v1.ExecutorService.Prepare:output_type -> etask.executor.v1.PrepareResponse
+	11, // 28: etask.executor.v1.AgentService.PullTask:output_type -> etask.executor.v1.PullTaskResponse
+	15, // 29: etask.executor.v1.TaskExecutionService.ListTaskExecutions:output_type -> etask.executor.v1.ListTaskExecutionsResponse
+	20, // 30: etask.executor.v1.TaskExecutionService.GetExecutionLogs:output_type -> etask.executor.v1.GetExecutionLogsResponse
+	17, // 31: etask.executor.v1.TaskExecutionService.BatchListTaskExecutions:output_type -> etask.executor.v1.BatchListTaskExecutionsResponse
+	24, // [24:32] is the sub-list for method output_type
+	16, // [16:24] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_etask_executor_v1_executor_proto_init() }
@@ -1479,7 +1465,7 @@ func file_etask_executor_v1_executor_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_etask_executor_v1_executor_proto_rawDesc), len(file_etask_executor_v1_executor_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   27,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

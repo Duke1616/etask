@@ -47,7 +47,6 @@ func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 		TaskName:        exec.Task.Name,
 		TaskHandlerName: exec.Task.GrpcConfig.HandlerName,
 		Params:          exec.GRPCParams(),
-		Metadata:        exec.Task.Metadata,
 	})
 
 	if err != nil {
