@@ -242,6 +242,7 @@ func toVO(src domain.Task) TaskVO {
 	if src.HTTPConfig != nil {
 		vo.HTTPConfig = &HTTPConfig{
 			Endpoint: src.HTTPConfig.Endpoint,
+			Headers:  src.HTTPConfig.Headers,
 			Params:   src.HTTPConfig.Params,
 		}
 	}
@@ -280,6 +281,7 @@ func toDomain(req CreateTaskReq) domain.Task {
 	if req.HTTPConfig != nil {
 		t.HTTPConfig = &domain.HTTPConfig{
 			Endpoint: req.HTTPConfig.Endpoint,
+			Headers:  req.HTTPConfig.Headers,
 			Params:   req.HTTPConfig.Params,
 		}
 	}
@@ -318,6 +320,7 @@ func toUpdateDomain(req UpdateTaskReq) domain.Task {
 	if req.HTTPConfig != nil {
 		t.HTTPConfig = &domain.HTTPConfig{
 			Endpoint: req.HTTPConfig.Endpoint,
+			Headers:  req.HTTPConfig.Headers,
 			Params:   req.HTTPConfig.Params,
 		}
 	}

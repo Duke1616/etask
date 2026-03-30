@@ -136,6 +136,7 @@ type GrpcConfig struct {
 // HTTPConfig HTTP配置
 type HTTPConfig struct {
 	Endpoint string            `json:"endpoint"`
+	Headers  map[string]string `json:"headers"`
 	Params   map[string]string `json:"params"`
 }
 

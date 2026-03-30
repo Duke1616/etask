@@ -40,7 +40,8 @@ message GrpcConfig {
 // HTTPConfig HTTP配置
 message HTTPConfig {
   string endpoint = 1; // HTTP 端点
-  map<string, string> params = 2; // 传递参数
+  map<string, string> headers = 2; // 传递 header
+  map<string, string> params = 3; // 传递参数
 }
 
 // RetryConfig 重试配置

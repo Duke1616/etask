@@ -1,12 +1,12 @@
 package invoker
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Duke1616/etask/internal/domain"
@@ -55,23 +55,42 @@ func (i *HTTPInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 	}
 
 	// 创建带有context的HTTP请求
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, exec.Task.HTTPConfig.Endpoint, strings.NewReader(string(jsonBytes)))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		exec.Task.HTTPConfig.Endpoint,
+		bytes.NewReader(jsonBytes),
+	)
 	if err != nil {
 		return domain.ExecutionState{}, fmt.Errorf("创建HTTP请求失败: %w", err)
 	}
+
+	// 默认 header
 	req.Header.Set("Content-Type", "application/json")
 
-	// 发送POST请求到执行节点
+	// 自定义 header（覆盖默认）
+	for k, v := range exec.Task.HTTPConfig.Headers {
+		req.Header.Set(k, v)
+	}
+
 	resp, err := i.client.Do(req)
 	if err != nil {
 		return domain.ExecutionState{}, fmt.Errorf("发送HTTP请求失败: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return domain.ExecutionState{}, fmt.Errorf("读取HTTP响应失败: %w", err)
+	}
+
+	// 状态码判断
+	if resp.StatusCode >= 400 {
+		return domain.ExecutionState{}, fmt.Errorf(
+			"HTTP请求失败 status=%d body=%s",
+			resp.StatusCode,
+			string(body),
+		)
 	}
 
 	i.logger.Info("收到HTTP执行节点响应",

@@ -20,6 +20,7 @@ type GrpcConfig struct {
 
 type HTTPConfig struct {
 	Endpoint string            `json:"endpoint"`
+	Headers  map[string]string `json:"headers"`
 	Params   map[string]string `json:"params"`
 }
 

@@ -82,6 +82,7 @@ func (s *TaskServer) toDomainTask(bizID int64, req *taskv1.CreateTaskRequest) do
 		},
 		HTTPConfig: &domain.HTTPConfig{
 			Endpoint: req.HttpConfig.GetEndpoint(),
+			Headers:  req.HttpConfig.GetHeaders(),
 			Params:   req.HttpConfig.GetParams(),
 		},
 		RetryConfig: &domain.RetryConfig{
@@ -215,6 +216,7 @@ func (s *TaskServer) toProtoHTTPConfig(cfg *domain.HTTPConfig) *taskv1.HTTPConfi
 	}
 	return &taskv1.HTTPConfig{
 		Endpoint: cfg.Endpoint,
+		Headers:  cfg.Headers,
 		Params:   cfg.Params,
 	}
 }
