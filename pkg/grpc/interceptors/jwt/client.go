@@ -46,24 +46,14 @@ func (b *ClientInterceptorBuilder) hasJWTInContext(ctx context.Context) bool {
 	return len(authHeaders) > 0
 }
 
-// injectJWTContext 注入 JWT context
+// injectJWTContext 注入 jwt context
 func (b *ClientInterceptorBuilder) injectJWTContext(ctx context.Context) context.Context {
-	// 使用项目已有的JWT包创建令牌
 	jwtAuth := NewJwtAuth(b.jwtKey)
-
-	// 创建空的 JWT claims 或者其他默认信息
-	claims := jwt.MapClaims{}
-
-	// 使用JWT认证包的Encode方法生成令牌
-	tokenString, err := jwtAuth.Encode(claims)
+	tokenString, err := jwtAuth.Encode(jwt.MapClaims{})
 	if err != nil {
-		// NOTE: 如果生成失败,返回原始 context
 		return ctx
 	}
 
-	// 创建带有授权信息的元数据
-	md := metadata.New(map[string]string{
-		AuthorizationKey: BearerPrefix + tokenString,
-	})
-	return metadata.NewOutgoingContext(ctx, md)
+	// 追加， 不可以是覆盖
+	return metadata.AppendToOutgoingContext(ctx, AuthorizationKey, BearerPrefix+tokenString)
 }
