@@ -2,9 +2,8 @@ package bizid
 
 import (
 	"context"
-	"strconv"
-
 	"encoding/json"
+	"strconv"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
