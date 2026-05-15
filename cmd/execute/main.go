@@ -18,13 +18,11 @@ func main() {
 	base := ioc.InitBase()
 	app := &ioc.App{Base: base}
 
-	// 2. 物理加载 Executor 模块
-	app.Load(ioc.InitExecutorModule(base))
+	// 2. 按模式加载 Executor 模块
+	app.LoadByModes(base, []string{ioc.ModeExecutor})
 
-	// 3. 获取并启动服务
-	servers := app.GetServers([]string{ioc.ModeExecutor})
-	egoApp := ego.New()
-	if err := egoApp.Serve(servers...).Run(); err != nil {
+	// 3. 启动服务
+	if err := ego.New().Serve(app.GetServers()...).Run(); err != nil {
 		elog.Panic("startup", elog.FieldErr(err))
 	}
 }

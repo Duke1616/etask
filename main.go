@@ -54,37 +54,14 @@ func startServer() {
 	base := ioc.InitBase()
 	app := &ioc.App{Base: base}
 
-	// 2. 动态装配模式
-	modeMap := make(map[string]bool)
-	for _, m := range modes {
-		modeMap[m] = true
-	}
+	// 2. 根据运行模式自动加载所需模块（表驱动，新增模式无需改此函数）
+	app.LoadByModes(base, modes)
 
-	// 如果开启了相关模式，加载管理 Web 模块
-	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeScheduler] {
-		app.Load(ioc.InitWebModule(base))
-	}
+	// 3. 启动已加载模块的服务和后台任务
+	ctx := context.Background()
+	app.StartBackgroundTasks(ctx)
 
-	// 根据具体模式“物理激活”相应模块
-	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeScheduler] {
-		app.Load(ioc.InitSchedulerModule(base))
-		app.Load(ioc.InitSchedulerServerModule(base))
-	}
-
-	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeExecutor] {
-		app.Load(ioc.InitExecutorModule(base))
-	}
-
-	if modeMap[ioc.ModeAll] || modeMap[ioc.ModeAgent] {
-		app.Load(ioc.InitAgentModule(base))
-	}
-
-	// 此时 app 中的某些字段（如 app.Server 或 app.Executor）可能为 nil
-	// GetServers 已经做了 nil 检查，不会导致 panic
-	servers := app.GetServers(modes)
-	app.StartBackgroundTasks(context.Background(), modes)
-
-	if err := ego.New().Serve(servers...).Run(); err != nil {
+	if err := ego.New().Serve(app.GetServers()...).Run(); err != nil {
 		elog.Panic("app_run_error", elog.FieldErr(err))
 	}
 }
