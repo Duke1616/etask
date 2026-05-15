@@ -38,7 +38,7 @@ func SetTask(ctx context.Context) context.Context {
 func FromContext(ctx context.Context) (int64, error) {
 	v := ctx.Value(ContextKey)
 	if v == nil {
-		return 0, fmt.Errorf("context 中缺少 %s", ContextKey)
+		return 0, fmt.Errorf("context 中缺少 biz_id")
 	}
 
 	switch val := v.(type) {
