@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Duke1616/eiam/pkg/web/capability"
 	"github.com/Duke1616/etask/internal/agent/domain"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
@@ -16,6 +17,7 @@ var _ ginx.Handler = &Handler{}
 
 type Handler struct {
 	registry registry.Registry
+	capability.IRegistry
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
@@ -28,13 +30,18 @@ func NewHandler(etcdClient *clientv3.Client) *Handler {
 	}
 
 	return &Handler{
-		registry: reg,
+		registry:  reg,
+		IRegistry: capability.NewRegistry("task", "agent", "代理管理"),
 	}
 }
 
 func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/agent")
-	g.GET("/list", ginx.W(h.ListAgents))
+
+	// --- 代理管理 ---
+	g.GET("/list", h.Capability("查看代理列表", "view").
+		Handle(ginx.W(h.ListAgents)),
+	)
 }
 
 func (h *Handler) ListAgents(ctx *ginx.Context) (ginx.Result, error) {

@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"github.com/Duke1616/eiam/pkg/web/capability"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
@@ -15,6 +16,7 @@ type Handler struct {
 	svc     task.Service
 	logSvc  task.LogService
 	execSvc task.ExecutionService
+	capability.IRegistry
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
@@ -22,23 +24,48 @@ func (h *Handler) PublicRoutes(_ *gin.Engine) {
 
 func NewHandler(svc task.Service, logSvc task.LogService, execSvc task.ExecutionService) *Handler {
 	return &Handler{
-		svc:     svc,
-		logSvc:  logSvc,
-		execSvc: execSvc,
+		svc:       svc,
+		logSvc:    logSvc,
+		execSvc:   execSvc,
+		IRegistry: capability.NewRegistry("task", "manager", "任务管理"),
 	}
 }
 
 func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/manager")
-	g.POST("/create", ginx.B[CreateTaskReq](h.Create))
-	g.POST("/logs", ginx.B[GetLogsReq](h.GetLogs))
-	g.POST("/executions", ginx.B[ListExecutionsReq](h.ListExecutions))
-	g.POST("/list", ginx.B[PageReq](h.List))
-	g.GET("/detail/:id", ginx.W(h.Detail))
-	g.DELETE("/delete/:id", ginx.W(h.Delete))
-	g.POST("/update", ginx.B[UpdateTaskReq](h.Update))
-	g.POST("/stop/:id", ginx.W(h.Stop))
-	g.POST("/run/:id", ginx.W(h.Run))
+
+	// --- 任务管理 ---
+	g.POST("/create", h.Capability("创建任务", "create").
+		Handle(ginx.B[CreateTaskReq](h.Create)),
+	)
+	g.POST("/list", h.Capability("查看任务列表", "view").
+		Handle(ginx.B[PageReq](h.List)),
+	)
+	g.GET("/detail/:id", h.Capability("查看任务详情", "detail").
+		Handle(ginx.W(h.Detail)),
+	)
+	g.POST("/update", h.Capability("更新任务", "update").
+		Handle(ginx.B[UpdateTaskReq](h.Update)),
+	)
+	g.DELETE("/delete/:id", h.Capability("删除任务", "delete").
+		Handle(ginx.W(h.Delete)),
+	)
+
+	// --- 执行监控 ---
+	g.POST("/logs", h.Capability("查看日志", "logs").
+		Handle(ginx.B[GetLogsReq](h.GetLogs)),
+	)
+	g.POST("/executions", h.Capability("查看执行历史", "executions").
+		Handle(ginx.B[ListExecutionsReq](h.ListExecutions)),
+	)
+
+	// --- 任务控制 ---
+	g.POST("/stop/:id", h.Capability("停止任务", "stop").
+		Handle(ginx.W(h.Stop)),
+	)
+	g.POST("/run/:id", h.Capability("运行任务", "run").
+		Handle(ginx.W(h.Run)),
+	)
 }
 
 func (h *Handler) Detail(ctx *ginx.Context) (ginx.Result, error) {

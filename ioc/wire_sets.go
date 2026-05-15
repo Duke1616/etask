@@ -1,7 +1,6 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ecmdb/pkg/policy"
 	agentSvc "github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/internal/grpc"
@@ -23,7 +22,9 @@ var (
 	WebSetup = wire.NewSet(
 		InitECMDBGrpcClient,
 		InitEndpointServiceClient,
-		policy.NewSDK,
+		InitPolicySDK,
+		InitPermSyncer,
+		InitProviders,
 		InitListener,
 		InitGinMiddlewares,
 		InitGinWebServer,

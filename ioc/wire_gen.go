@@ -7,7 +7,6 @@
 package ioc
 
 import (
-	"github.com/Duke1616/ecmdb/pkg/policy"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/agent/web"
 	grpc2 "github.com/Duke1616/etask/internal/grpc"
@@ -110,7 +109,9 @@ func InitSchedulerServerModule(base *Base) *grpc.Server {
 
 func InitWebModule(base *Base) *WebModule {
 	v := InitGinMiddlewares()
-	sdk := policy.NewSDK()
+	sdk := InitPolicySDK()
+	syncer := InitPermSyncer()
+	v2 := InitProviders()
 	db := InitDB()
 	taskDAO := dao.NewGORMTaskDAO(db)
 	taskRepository := repository.NewTaskRepository(taskDAO)
@@ -130,7 +131,7 @@ func InitWebModule(base *Base) *WebModule {
 	client := base.Etcd
 	webHandler := web.NewHandler(client)
 	listener := InitListener()
-	component := InitGinWebServer(v, sdk, handler, executorHandler, webHandler, listener)
+	component := InitGinWebServer(v, sdk, syncer, v2, handler, executorHandler, webHandler, listener)
 	clientConnInterface := InitECMDBGrpcClient(registry)
 	endpointServiceClient := InitEndpointServiceClient(clientConnInterface)
 	webModule := &WebModule{

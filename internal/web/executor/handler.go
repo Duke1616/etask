@@ -3,6 +3,7 @@ package executor
 import (
 	"encoding/json"
 
+	"github.com/Duke1616/eiam/pkg/web/capability"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/ecodeclub/ginx"
@@ -13,6 +14,7 @@ var _ ginx.Handler = &Handler{}
 
 type Handler struct {
 	registry registry.Registry
+	capability.IRegistry
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
@@ -20,13 +22,18 @@ func (h *Handler) PublicRoutes(_ *gin.Engine) {
 
 func NewHandler(reg registry.Registry) *Handler {
 	return &Handler{
-		registry: reg,
+		registry:  reg,
+		IRegistry: capability.NewRegistry("task", "executor", "执行器管理"),
 	}
 }
 
 func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/executor")
-	g.GET("/list", ginx.W(h.ListExecutors))
+
+	// --- 执行器管理 ---
+	g.GET("/list", h.Capability("查看执行器列表", "view").
+		Handle(ginx.W(h.ListExecutors)),
+	)
 }
 
 func (h *Handler) ListExecutors(ctx *ginx.Context) (ginx.Result, error) {

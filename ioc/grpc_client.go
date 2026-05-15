@@ -27,7 +27,6 @@ func InitECMDBGrpcClient(reg registry.Registry) grpc.ClientConnInterface {
 	return cc
 }
 
-
 // InitEndpointServiceClient 初始化 Endpoint 服务客户端
 func InitEndpointServiceClient(cc grpc.ClientConnInterface) endpointv1.EndpointServiceClient {
 	return endpointv1.NewEndpointServiceClient(cc)
