@@ -22,10 +22,12 @@ const (
 	ModeExecutor  = "executor"
 )
 
-// Module 模块接口，所有可加载模块必须实现 Register 方法
-// 替代原来的 any + type switch，让每个模块自己知道如何注册到 App 容器
+// Module 模块接口，所有可加载模块必须实现 Register 和 Servers 方法
+// Register: 将模块资源注册到 App 容器
+// Servers: 返回该模块需要启动的 server.Server 列表
 type Module interface {
 	Register(app *App)
+	Servers() []server.Server
 }
 
 // ModuleInitFunc 模块初始化函数，接收共享基础设施，返回 Module 实例
@@ -56,18 +58,38 @@ type grpcServerModule struct {
 }
 
 func (m *grpcServerModule) Register(app *App) { app.Server = m.server }
+func (m *grpcServerModule) Servers() []server.Server {
+	if m.server != nil {
+		return []server.Server{m.server}
+	}
+	return nil
+}
 
 type agentModuleWrapper struct {
 	module *agent.Module
 }
 
 func (m *agentModuleWrapper) Register(app *App) { app.Agent = m.module }
+func (m *agentModuleWrapper) Servers() []server.Server {
+	if m.module != nil {
+		return []server.Server{m.module}
+	}
+	return nil
+}
 
 type executorModuleWrapper struct {
 	exec *executor.Executor
 }
 
 func (m *executorModuleWrapper) Register(app *App) { app.Executor = m.exec }
+func (m *executorModuleWrapper) Servers() []server.Server {
+	if m.exec != nil {
+		if s := m.exec.Server(); s != nil {
+			return []server.Server{s}
+		}
+	}
+	return nil
+}
 
 func wrapGRPCServer(fn func(base *Base) *grpcpkg.Server) ModuleInitFunc {
 	return func(base *Base) Module { return &grpcServerModule{server: fn(base)} }
@@ -125,6 +147,8 @@ type App struct {
 	Executor  *executor.Executor
 	Tasks     []Task
 
+	modules []Module // 已加载模块列表，用于 GetServers 遍历
+
 	// 共享基础资源
 	Base *Base
 }
@@ -132,35 +156,42 @@ type App struct {
 // Register 让 WebModule 自己注册到 App 容器
 func (m *WebModule) Register(app *App) { app.Web = m.Web }
 
+// Servers 让 WebModule 自己提供需要启动的服务
+func (m *WebModule) Servers() []server.Server {
+	if m.Web != nil {
+		return []server.Server{m.Web}
+	}
+	return nil
+}
+
 // Register 让 SchedulerModule 自己注册到 App 容器
 func (m *SchedulerModule) Register(app *App) {
 	app.Scheduler = m.Svc
 	app.Tasks = append(app.Tasks, m.Tasks...)
 }
 
+// Servers 让 SchedulerModule 自己提供需要启动的服务
+func (m *SchedulerModule) Servers() []server.Server {
+	if m.Svc != nil {
+		return []server.Server{m.Svc}
+	}
+	return nil
+}
+
 // Load 加载模块到容器（通过 Module 接口，无需 any 和 type switch）
 func (a *App) Load(m Module) {
 	m.Register(a)
+	a.modules = append(a.modules, m)
 }
 
 // LoadByModes 根据运行模式自动加载所需模块
 // "all" 模式会加载所有模式的模块；其它模式仅加载对应模块
 func (a *App) LoadByModes(base *Base, modes []string) {
 	modeMap := a.resolveModes(modes)
+	includeAll := modeMap[ModeAll]
 
-	// "all" 模式：加载全部
-	if modeMap[ModeAll] {
-		for _, initFuncs := range modeModules {
-			for _, fn := range initFuncs {
-				a.Load(fn(base))
-			}
-		}
-		return
-	}
-
-	// 指定模式：仅加载对应的模块
 	for mode, initFuncs := range modeModules {
-		if modeMap[mode] {
+		if includeAll || modeMap[mode] {
 			for _, fn := range initFuncs {
 				a.Load(fn(base))
 			}
@@ -169,28 +200,12 @@ func (a *App) LoadByModes(base *Base, modes []string) {
 }
 
 // GetServers 获取所有已加载模块的服务列表
-// 由于 LoadByModes 只加载了当前模式需要的模块，未加载的模块为 nil，无需再做 mode 过滤
+// 每个 Module 自己通过 Servers() 方法提供需要启动的服务，无需手动列举 App 字段
 func (a *App) GetServers() []server.Server {
 	var res []server.Server
-
-	if a.Web != nil {
-		res = append(res, a.Web)
+	for _, m := range a.modules {
+		res = append(res, m.Servers()...)
 	}
-	if a.Server != nil {
-		res = append(res, a.Server)
-	}
-	if a.Scheduler != nil {
-		res = append(res, a.Scheduler)
-	}
-	if a.Agent != nil {
-		res = append(res, a.Agent)
-	}
-	if a.Executor != nil {
-		if s := a.Executor.Server(); s != nil {
-			res = append(res, s)
-		}
-	}
-
 	return res
 }
 
