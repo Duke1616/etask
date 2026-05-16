@@ -2,16 +2,15 @@ package ioc
 
 import (
 	"github.com/Duke1616/eiam/pkg/web/capability"
-	"github.com/Duke1616/eiam/pkg/web/middleware"
+	"github.com/Duke1616/eiam/pkg/web/sdk"
 )
 
-func InitPolicySDK() *middleware.SDK {
-	return middleware.NewSDK()
+func InitPolicySDK() *sdk.SDK {
+	return sdk.NewSDK()
 }
 
 func InitPermSyncer() capability.Syncer {
-	registry := capability.NewHttpRegistry()
-	return capability.NewSyncer("etask", registry)
+	return capability.NewSyncer(capability.NewHttpRegistry())
 }
 
 // InitProviders 注册逻辑权限供应源。

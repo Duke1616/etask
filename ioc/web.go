@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Duke1616/eiam/pkg/web/capability"
-	"github.com/Duke1616/eiam/pkg/web/middleware"
+	"github.com/Duke1616/eiam/pkg/web/sdk"
 	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
@@ -19,11 +19,13 @@ import (
 
 const Resource = "TASK"
 
-func InitGinWebServer(mdls []gin.HandlerFunc, sdk *middleware.SDK,
+func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	syncer capability.Syncer, providers []capability.PermissionProvider,
 	taskHdl *manager.Handler, executorHdl *executor.Handler, agentHdl *web.Handler, listener net.Listener) *egin.Component {
 
 	server := egin.Load("server.egin").Build(egin.WithListener(listener))
+	// 开启 ContextWithFallback：使 ctx.Context.Value() 自动 fallback 到 ctx.Request.Context().Value()
+	server.Engine.ContextWithFallback = true
 	server.Use(mdls...)
 
 	// 注册公开路由
@@ -35,7 +37,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *middleware.SDK,
 	server.Use(sdk.CheckLogin())
 
 	// 权限策略检查
-	server.Use(sdk.CheckPolicy(Resource))
+	server.Use(sdk.CheckPolicy())
 
 	// 注册私有路由
 	taskHdl.PrivateRoutes(server.Engine)
