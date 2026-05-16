@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/Duke1616/ecmdb v1.11.0
-	github.com/Duke1616/eiam v0.0.2-0.20260515144712-c59de603f418
+	github.com/Duke1616/eiam v0.0.3
 	github.com/ecodeclub/ekit v0.0.10
 	github.com/ecodeclub/ginx v0.0.3-0.20250724125208-2ec06fc61450
 	github.com/ecodeclub/mq-api v0.0.0-20240508035004-fd7de3346cfe
