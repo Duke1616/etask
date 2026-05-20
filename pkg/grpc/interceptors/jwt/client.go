@@ -3,6 +3,7 @@ package jwt
 import (
 	"context"
 
+	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -49,7 +50,17 @@ func (b *ClientInterceptorBuilder) hasJWTInContext(ctx context.Context) bool {
 // injectJWTContext 注入 jwt context
 func (b *ClientInterceptorBuilder) injectJWTContext(ctx context.Context) context.Context {
 	jwtAuth := NewJwtAuth(b.jwtKey)
-	tokenString, err := jwtAuth.Encode(jwt.MapClaims{})
+
+	// 自动将当前上下文的租户 ID 和用户 ID 注入到服务间自签发的 JWT Claims 中，实现透明透传
+	claims := jwt.MapClaims{}
+	if tid := ctxutil.GetTenantID(ctx); tid > 0 {
+		claims["tenant_id"] = tid
+	}
+	if uid := ctxutil.GetUserID(ctx); uid > 0 {
+		claims["user_id"] = uid
+	}
+
+	tokenString, err := jwtAuth.Encode(claims)
 	if err != nil {
 		return ctx
 	}

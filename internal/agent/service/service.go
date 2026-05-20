@@ -70,6 +70,7 @@ func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (strin
 
 	// 4. 创建 Context
 	taskCtx := executor.NewContextWithLogger(
+		ctx,
 		0, // Kafka 模式下暂无 ExecutionID
 		req.TaskId,
 		"kafka_task", // 任务名称

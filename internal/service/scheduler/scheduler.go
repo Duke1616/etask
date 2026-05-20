@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/service/acquirer"
 	"github.com/Duke1616/etask/internal/service/picker"
@@ -158,8 +159,13 @@ func (s *Scheduler) scheduleOnce(task domain.Task) error {
 	}
 
 	ctx := s.ctx
+	// 注入租户上下文：让后续 DAO 操作（创建 TaskExecution 等）能被 TenantPlugin 自动填充
+	if task.TenantID > 0 {
+		ctx = ctxutil.WithTenantID(ctx, task.TenantID)
+		ctx = ctxutil.WithOriginTenantID(ctx, task.TenantID)
+	}
 	if nodeID != "" {
-		ctx = balancer.WithSpecificNodeID(s.ctx, nodeID)
+		ctx = balancer.WithSpecificNodeID(ctx, nodeID)
 	}
 	return s.runner.Run(ctx, task)
 }

@@ -61,6 +61,7 @@ message ExecuteRequest {
   // 2. 另外一部分是我们调度用的，比如说 offset, limit
   // 即包含了业务参数和调度参数 (e.g., offset, limit)
   map<string, string> params = 5;
+  int64 tenant_id = 6; // 租户ID，用于多租户上下文透传
 }
 
 message ExecuteResponse {

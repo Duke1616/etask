@@ -6,8 +6,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
-	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
+	"github.com/Duke1616/etask/pkg/grpc/interceptors"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/netx"
 	"github.com/gotomicro/ego/core/constant"
@@ -88,33 +87,27 @@ func NewServer(cfg ServerConfig, reg registry.Registry, opts ...ServerOption) *S
 		logger:        elog.DefaultLogger.With(elog.FieldComponentName(ComponentName)),
 	}
 
-	// 应用选项
+	// 1. 应用自定义配置选项
 	for _, opt := range opts {
 		opt(s)
 	}
 
-	// 统一组装拦截器
-	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		bizid.UnaryServerInterceptor(),
-	}
-	streamInterceptors := []grpc.StreamServerInterceptor{
-		bizid.StreamServerInterceptor(),
-	}
+	// 2. 管道化构建一元及流式拦截器链
+	unaryInterceptors, streamInterceptors := s.buildInterceptors()
 
-	// 如果配置了 JWT 认证
-	if s.config.AuthToken != "" {
-		jwtAuth := jwtinterceptor.NewJwtAuth(s.config.AuthToken)
-		// 将 JWT 拦截器追加到链中（biz 拦截器在前，JWT 在后）
-		unaryInterceptors = append(unaryInterceptors, jwtAuth.JwtAuthInterceptor())
-	}
-
-	// 最终创建包含所有拦截器链的 Server
+	// 3. 最终创建包含所有拦截器链的 gRPC Server
 	s.Server = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(unaryInterceptors...),
 		grpc.ChainStreamInterceptor(streamInterceptors...),
 	)
 
 	return s
+}
+
+// buildInterceptors 管道化组装服务端拦截器链，通过统一的门面 (Facade) 管道进行有序构建
+func (s *Server) buildInterceptors() ([]grpc.UnaryServerInterceptor, []grpc.StreamServerInterceptor) {
+	pipeline := interceptors.NewServerPipeline(s.config.AuthToken)
+	return pipeline.Build()
 }
 
 // resolveAdvertiseAddress 解析服务注册地址

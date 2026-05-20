@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Duke1616/eiam/pkg/ctxutil"
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	"github.com/Duke1616/etask/pkg/grpc/interceptors/tenant"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/ecodeclub/ekit/syncx"
 	"github.com/gotomicro/ego/core/elog"
@@ -186,12 +188,26 @@ func (e *Executor) Execute(ctx context.Context, req *executorv1.ExecuteRequest) 
 		params = handler.Metadata()
 	}
 
-	// 创建任务上下文
-	taskCtx := NewContext(eid, req.GetTaskId(), req.GetTaskName(), req.GetTaskHandlerName(),
+	// 多租户上下文还原策略：
+	// 1. PUSH 模式：调度中心主动推送，租户 ID 自动通过 gRPC Client/Server 拦截器在 Metadata 链路头中透传，直接通过 ctxutil.GetTenantID 获取。
+	// 2. PULL 模式：Agent 主动长轮询，属于无租户的系统级调用，因此只能从 ExecuteRequest 消息 Payload 中反向提取并下发。
+	tid := ctxutil.GetTenantID(ctx).Int64()
+	if tid == 0 {
+		tid = req.GetTenantId()
+	}
+
+	// 构造带有租户信息的异步执行原生 context
+	runCtx := context.Background()
+	if tid > 0 {
+		runCtx = tenant.Set(runCtx, tid)
+	}
+
+	// 创建任务上下文，将带有多租户的原生 runCtx 注入其中
+	taskCtx := NewContext(runCtx, eid, req.GetTaskId(), req.GetTaskName(), req.GetTaskHandlerName(),
 		req.GetParams(), params, e.reporterClient, e.logger)
 
-	//创建可取消上下文
-	runCtx, cancel := context.WithCancel(context.Background())
+	// 创建可取消上下文
+	runCtx, cancel := context.WithCancel(runCtx)
 	e.cancels.Store(eid, cancel)
 
 	e.logger.Info("启动异步任务执行", elog.Int64("eid", eid))
@@ -243,12 +259,12 @@ func (e *Executor) executeTask(runCtx context.Context, taskCtx *Context, eid int
 		taskResult = err.Error()
 	}
 
-	// 更新并上报最终状态
-	e.reportFinalResult(eid, finalStatus, taskResult)
+	// 更新并上报最终状态，传入包含多租户的原生 runCtx
+	e.reportFinalResult(runCtx, eid, finalStatus, taskResult)
 }
 
 // reportFinalResult 上报最终结果
-func (e *Executor) reportFinalResult(eid int64, status executorv1.ExecutionStatus, taskResult string) {
+func (e *Executor) reportFinalResult(ctx context.Context, eid int64, status executorv1.ExecutionStatus, taskResult string) {
 	state, exists := e.states.Load(eid)
 	if exists {
 		state.Status = status
@@ -259,8 +275,8 @@ func (e *Executor) reportFinalResult(eid int64, status executorv1.ExecutionStatu
 		state.TaskResult = taskResult
 		e.states.Store(eid, state)
 
-		// 上报给 Reporter
-		_, err := e.reporterClient.Report(context.Background(), &reporterv1.ReportRequest{
+		// 完美复用已注入多租户上下文的 ctx 进行上报
+		_, err := e.reporterClient.Report(ctx, &reporterv1.ReportRequest{
 			ExecutionState: state,
 		})
 		if err != nil {

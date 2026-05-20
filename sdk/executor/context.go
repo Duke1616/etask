@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 	"sync"
@@ -71,6 +72,7 @@ type HandlerMeta struct {
 
 // Context 任务执行上下文
 type Context struct {
+	ctx         context.Context // 任务执行的原生上下文，承载多租户及业务 ID
 	ExecutionID int64
 	TaskID      int64
 	TaskName    string
@@ -93,8 +95,16 @@ type Context struct {
 	taskLogger TaskLogger
 }
 
+// Context 返回原生的 context.Context，完美透传了多租户和业务 ID
+func (c *Context) Context() context.Context {
+	if c.ctx == nil {
+		return context.Background()
+	}
+	return c.ctx
+}
+
 // NewContext 创建上下文 (供 gRPC 模式使用)
-func NewContext(eid, taskID int64, taskName, handlerName string, params map[string]string,
+func NewContext(ctx context.Context, eid int64, taskID int64, taskName, handlerName string, params map[string]string,
 	parameters []Parameter, reporter reporterv1.ReporterServiceClient, logger *elog.Component) *Context {
 
 	var masks []string
@@ -110,6 +120,7 @@ func NewContext(eid, taskID int64, taskName, handlerName string, params map[stri
 	}
 
 	return &Context{
+		ctx:         ctx,
 		ExecutionID: eid,
 		TaskID:      taskID,
 		TaskName:    taskName,
@@ -119,14 +130,15 @@ func NewContext(eid, taskID int64, taskName, handlerName string, params map[stri
 		results:     make(map[string]any),
 		reporter:    reporter,
 		logger:      logger,
-		taskLogger:  newTaskLogger(eid, reporter, logger, masks),
+		taskLogger:  newTaskLogger(ctx, eid, reporter, logger, masks),
 	}
 }
 
 // NewContextWithLogger 创建带有指定 Logger 的上下文 (供 Kafka 等非 gRPC 模式使用)
-func NewContextWithLogger(eid, taskID int64, taskName, handlerName string, params map[string]string,
+func NewContextWithLogger(ctx context.Context, eid, taskID int64, taskName, handlerName string, params map[string]string,
 	logger *elog.Component, taskLogger TaskLogger) *Context {
 	return &Context{
+		ctx:         ctx,
 		ExecutionID: eid,
 		TaskID:      taskID,
 		TaskName:    taskName,

@@ -11,6 +11,7 @@ import (
 // TaskExecutionLog 任务执行日志DAO对象
 type TaskExecutionLog struct {
 	ID          int64  `gorm:"primaryKey;autoIncrement"`
+	TenantID    int64  `gorm:"type:bigint unsigned;not null;default:0;index;comment:租户ID"`
 	TaskID      int64  `gorm:"index;not null;comment:'任务ID'"`
 	ExecutionID int64  `gorm:"index;not null;comment:'任务执行ID'"`
 	Content     string `gorm:"type:text;comment:'日志内容'"`

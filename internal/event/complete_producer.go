@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/Duke1616/etask/pkg/mpx"
 	"github.com/ecodeclub/mq-api"
 )
 
@@ -26,8 +27,13 @@ func (c *completeProducer) Produce(ctx context.Context, evt Event) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.producer.Produce(ctx, &mq.Message{
+	
+	msg := &mq.Message{
 		Value: val,
-	})
+	}
+	// 自动注入多租户与业务上下文，完成异步消息的隔离闭环
+	mqx.InjectContext(ctx, msg)
+
+	_, err = c.producer.Produce(ctx, msg)
 	return err
 }

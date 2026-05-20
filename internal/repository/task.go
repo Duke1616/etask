@@ -213,6 +213,7 @@ func (r *taskRepository) toEntity(task domain.Task) dao.Task {
 
 	return dao.Task{
 		ID:                  task.ID,
+		TenantID:            task.TenantID,
 		BizID:               task.BizID,
 		BizKey:              task.BizKey,
 		Name:                task.Name,
@@ -268,6 +269,7 @@ func (r *taskRepository) toDomain(daoTask *dao.Task) domain.Task {
 
 	return domain.Task{
 		ID:                  daoTask.ID,
+		TenantID:            daoTask.TenantID,
 		BizID:               daoTask.BizID,
 		BizKey:              daoTask.BizKey,
 		Name:                daoTask.Name,

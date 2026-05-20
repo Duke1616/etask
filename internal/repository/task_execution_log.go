@@ -68,6 +68,7 @@ func (r *taskExecutionLogRepository) CountByExecutionID(ctx context.Context, exe
 func (r *taskExecutionLogRepository) toEntity(log domain.TaskExecutionLog) dao.TaskExecutionLog {
 	return dao.TaskExecutionLog{
 		ID:          log.ID,
+		TenantID:    log.TenantID,
 		TaskID:      log.TaskID,
 		ExecutionID: log.ExecutionID,
 		Content:     log.Content,
@@ -78,6 +79,7 @@ func (r *taskExecutionLogRepository) toEntity(log domain.TaskExecutionLog) dao.T
 func (r *taskExecutionLogRepository) toDomain(log dao.TaskExecutionLog) domain.TaskExecutionLog {
 	return domain.TaskExecutionLog{
 		ID:          log.ID,
+		TenantID:    log.TenantID,
 		TaskID:      log.TaskID,
 		ExecutionID: log.ExecutionID,
 		Content:     log.Content,

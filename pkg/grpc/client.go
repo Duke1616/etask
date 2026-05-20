@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/Duke1616/etask/pkg/grpc/balancer"
-	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
-	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
+	"github.com/Duke1616/etask/pkg/grpc/interceptors"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -60,26 +59,19 @@ func WithDialOption(opts ...grpc.DialOption) ClientOption {
 
 // buildDialOptions 构建通用的 dial options
 func buildDialOptions(options *clientOptions) []grpc.DialOption {
-	var dialOpts []grpc.DialOption
+	// 1. 通过统一的拦截器门面 (Facade) 管道构建客户端拦截器链
+	pipeline := interceptors.NewClientPipeline(options.authToken)
+	unaryInterceptors, streamInterceptors := pipeline.Build()
 
-	// 默认添加 biz 拦截器，使用 Chain 模式
-	dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(bizid.UnaryClientInterceptor()))
-	dialOpts = append(dialOpts, grpc.WithChainStreamInterceptor(bizid.StreamClientInterceptor()))
-
-	// 此时若配有 JWT 认证，则追加 JWT 拦截器
-	if options.authToken != "" {
-		jwtInterceptor := jwtinterceptor.NewClientInterceptorBuilder(options.authToken)
-		dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(jwtInterceptor.UnaryClientInterceptor()))
+	// 2. 统一打包组装 DialOption 选项 (默认使用非安全通道)
+	dialOpts := []grpc.DialOption{
+		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
+		grpc.WithChainStreamInterceptor(streamInterceptors...),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	// 默认使用 insecure credentials
-	// 如果需要 TLS,用户可以通过 WithDialOption 传递 grpc.WithTransportCredentials
-	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-	// 添加自定义的 DialOption
-	dialOpts = append(dialOpts, options.dialOptions...)
-
-	return dialOpts
+	// 3. 追加用户自定义的原生 grpc.DialOption
+	return append(dialOpts, options.dialOptions...)
 }
 
 // NewClientConn 创建 gRPC Client 连接

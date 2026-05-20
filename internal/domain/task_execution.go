@@ -86,6 +86,7 @@ func (t TaskExecutionStatus) IsTerminalStatus() bool {
 // TaskExecution 任务执行记录
 type TaskExecution struct {
 	ID              int64
+	TenantID        int64               // 租户ID，多租户隔离
 	Deadline        int64               // 任务执行截止时间（毫秒时间戳）
 	ExecutorNodeID  string              // 执行节点的 nodeID，用于记录是哪个节点处理了任务
 	StartTime       int64               // 开始时间

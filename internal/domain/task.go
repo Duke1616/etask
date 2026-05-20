@@ -46,6 +46,7 @@ func (tt TaskType) IsRecurring() bool {
 
 type Task struct {
 	ID                  int64
+	TenantID            int64  // 租户ID，多租户隔离
 	BizID               int64  // 业务模块 ID，0 表示独立任务，>0 表示由业务系统创建
 	BizKey              string // 业务方唯一标识，如工单号 "order_1448"
 	Name                string

@@ -130,9 +130,13 @@ func (r *taskExecutionRepository) Create(ctx context.Context, execution domain.T
 	if err != nil {
 		return domain.TaskExecution{}, fmt.Errorf("获取Task信息失败: %w", err)
 	}
-	// 创建TaskExecution
 
 	execution.Task = completeTask
+	// 自动继承 Task 的 TenantID（后台调度等无租户上下文的场景）
+	if execution.TenantID == 0 {
+		execution.TenantID = completeTask.TenantID
+	}
+
 	created, err := r.dao.Create(ctx, r.toEntity(execution))
 	if err != nil {
 		return domain.TaskExecution{}, err
@@ -234,7 +238,8 @@ func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.T
 	}
 
 	return dao.TaskExecution{
-		ID: execution.ID,
+		ID:       execution.ID,
+		TenantID: execution.TenantID,
 		// 从Task展开的冗余字段
 		TaskID:                  execution.Task.ID,
 		TaskName:                execution.Task.Name,
@@ -290,7 +295,8 @@ func (r *taskExecutionRepository) toDomain(daoExecution dao.TaskExecution) domai
 	}
 
 	return domain.TaskExecution{
-		ID: daoExecution.ID,
+		ID:       daoExecution.ID,
+		TenantID: daoExecution.TenantID,
 		Task: domain.Task{
 			ID:                  daoExecution.TaskID,
 			Name:                daoExecution.TaskName,

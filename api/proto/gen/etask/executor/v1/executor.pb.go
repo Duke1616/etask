@@ -212,6 +212,7 @@ type ExecuteRequest struct {
 	// 2. 另外一部分是我们调度用的，比如说 offset, limit
 	// 即包含了业务参数和调度参数 (e.g., offset, limit)
 	Params        map[string]string `protobuf:"bytes,5,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	TenantId      int64             `protobuf:"varint,6,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"` // 租户ID，用于多租户上下文透传
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -279,6 +280,13 @@ func (x *ExecuteRequest) GetParams() map[string]string {
 		return x.Params
 	}
 	return nil
+}
+
+func (x *ExecuteRequest) GetTenantId() int64 {
+	if x != nil {
+		return x.TenantId
+	}
+	return 0
 }
 
 type ExecuteResponse struct {
@@ -1265,13 +1273,14 @@ const file_etask_executor_v1_executor_proto_rawDesc = "" +
 	"taskResult\x1aD\n" +
 	"\x16RescheduledParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa3\x02\n" +
 	"\x0eExecuteRequest\x12\x10\n" +
 	"\x03eid\x18\x01 \x01(\x03R\x03eid\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x1b\n" +
 	"\ttask_name\x18\x03 \x01(\tR\btaskName\x12*\n" +
 	"\x11task_handler_name\x18\x04 \x01(\tR\x0ftaskHandlerName\x12E\n" +
-	"\x06params\x18\x05 \x03(\v2-.etask.executor.v1.ExecuteRequest.ParamsEntryR\x06params\x1a9\n" +
+	"\x06params\x18\x05 \x03(\v2-.etask.executor.v1.ExecuteRequest.ParamsEntryR\x06params\x12\x1b\n" +
+	"\ttenant_id\x18\x06 \x01(\x03R\btenantId\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"]\n" +

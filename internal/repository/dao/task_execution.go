@@ -25,7 +25,8 @@ const (
 
 // TaskExecution 任务执行记录表DAO对象
 type TaskExecution struct {
-	ID int64 `gorm:"type:bigint;primaryKey;autoIncrement;"`
+	ID       int64 `gorm:"type:bigint;primaryKey;autoIncrement;"`
+	TenantID int64 `gorm:"type:bigint unsigned;not null;default:0;index;comment:租户ID"`
 	// 下面都是创建当前 TaskExecution 时从对应的Task直接拷贝过来的冗余信息
 	TaskID                  int64                               `gorm:"type:bigint;not null;comment:'任务ID'"`
 	TaskName                string                              `gorm:"type:varchar(255);not null;comment:'任务名称'"`
