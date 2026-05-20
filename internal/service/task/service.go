@@ -70,9 +70,9 @@ func (s *service) UpdateNextTime(ctx context.Context, id int64) (domain.Task, er
 		return domain.Task{}, err
 	}
 
-	// 一次性任务：如果 NextTime 在过去，说明已执行完成，直接设置为 COMPLETED
+	// 一次性任务：如果 NextTime 在过去（或为0表示立即执行），说明已执行完成，直接设置为 COMPLETED
 	// 这样可以避免 CalculateNextTime 计算出下一次时间
-	if task.Type.IsOneTime() && task.NextTime > 0 && task.NextTime < time.Now().UnixMilli() {
+	if task.Type.IsOneTime() && task.NextTime >= 0 && task.NextTime < time.Now().UnixMilli() {
 		return s.repo.UpdateStatus(ctx, id, domain.TaskStatusCompleted)
 	}
 
