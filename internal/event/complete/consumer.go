@@ -10,6 +10,7 @@ import (
 	"github.com/Duke1616/etask/internal/event"
 	"github.com/Duke1616/etask/internal/service/acquirer"
 	"github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/internal/sse"
 	"github.com/ecodeclub/mq-api"
 )
 
@@ -64,6 +65,13 @@ func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
 	if err != nil {
 		return err
 	}
+
+	// 广播事件：实时刷新任务列表状态和下一次触发时间
+	sse.GetSSEHub().Broadcast(sse.TaskStatusEvent{
+		TaskID:   t.ID,
+		Status:   t.Status.String(),
+		NextTime: t.NextTime,
+	})
 
 	// 只有状态还是 PREEMPTED 的任务才需要释放
 	// 一次性任务已经变为 INACTIVE，不需要释放

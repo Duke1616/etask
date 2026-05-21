@@ -1,9 +1,12 @@
 package manager
 
 import (
+	"time"
+
 	"github.com/Duke1616/eiam/pkg/web/capability"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/internal/sse"
 	"github.com/Duke1616/etask/pkg/grpc/interceptors/bizid"
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/ecodeclub/ginx"
@@ -20,6 +23,19 @@ type Handler struct {
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
+
+}
+
+func (h *Handler) IdentifyRoutes(server *gin.Engine) {
+	g := server.Group("/api/manager")
+	// 实时推送系统全局任务状态变更事件流（例如任务启动、停止、下发成功）
+	g.GET("/task-events/stream", ginx.W(h.StreamEvents))
+
+	// 实时流式增量推送指定执行实例（ExecutionID）的执行日志，多终端独立订阅，零轮询零冗余广播
+	g.GET("/executions/:id/logs/stream", ginx.W(h.StreamExecutionLogs))
+
+	// 实时流式推送特定任务（TaskID）下新增/更新的执行记录（Executions）以及实时的进度条变更事件
+	g.GET("/tasks/:id/executions/stream", ginx.W(h.StreamTaskExecutions))
 }
 
 func NewHandler(svc task.Service, logSvc task.LogService, execSvc task.ExecutionService) *Handler {
@@ -118,6 +134,15 @@ func (h *Handler) Stop(ctx *ginx.Context) (ginx.Result, error) {
 		}, err
 	}
 
+	// 停止成功后，主动拉取最新任务状态并广播
+	if t, errGet := h.svc.GetByID(ctx, id); errGet == nil {
+		sse.GetSSEHub().Broadcast(sse.TaskStatusEvent{
+			TaskID:   t.ID,
+			Status:   t.Status.String(),
+			NextTime: t.NextTime,
+		})
+	}
+
 	return ginx.Result{
 		Msg: "success",
 	}, nil
@@ -137,9 +162,44 @@ func (h *Handler) Run(ctx *ginx.Context) (ginx.Result, error) {
 		}, err
 	}
 
+	// 启动成功后，主动拉取最新任务状态并广播
+	if t, errGet := h.svc.GetByID(ctx, id); errGet == nil {
+		sse.GetSSEHub().Broadcast(sse.TaskStatusEvent{
+			TaskID:   t.ID,
+			Status:   t.Status.String(),
+			NextTime: t.NextTime,
+		})
+	}
+
 	return ginx.Result{
 		Msg: "success",
 	}, nil
+}
+
+// StreamEvents 实时向前端推送任务状态变更事件流的 SSE 接口
+func (h *Handler) StreamEvents(ctx *ginx.Context) (ginx.Result, error) {
+	sse.GetSSEHub().Stream(ctx, sse.TASK_STATUS_CHANGE_EVENT, 20*time.Second)
+	return ginx.Result{}, nil
+}
+
+// StreamExecutionLogs 实时推送特定执行记录的日志流的 SSE 接口
+func (h *Handler) StreamExecutionLogs(ctx *ginx.Context) (ginx.Result, error) {
+	id, err := ctx.Param("id").AsInt64()
+	if err != nil {
+		return systemErrorResult, err
+	}
+	sse.GetExecutionLogsHub().Stream(ctx, id, sse.TASK_LOG_EVENT, 20*time.Second)
+	return ginx.Result{}, nil
+}
+
+// StreamTaskExecutions 实时推送特定任务的执行记录及进度流的 SSE 接口
+func (h *Handler) StreamTaskExecutions(ctx *ginx.Context) (ginx.Result, error) {
+	id, err := ctx.Param("id").AsInt64()
+	if err != nil {
+		return systemErrorResult, err
+	}
+	sse.GetTaskExecutionsHub().Stream(ctx, id, sse.TASK_EXECUTION_EVENT, 20*time.Second)
+	return ginx.Result{}, nil
 }
 
 func (h *Handler) Update(ctx *ginx.Context, req UpdateTaskReq) (ginx.Result, error) {

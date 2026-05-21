@@ -12,6 +12,7 @@ import (
 	"github.com/Duke1616/etask/internal/event"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/service/acquirer"
+	"github.com/Duke1616/etask/internal/sse"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/retry"
 	"github.com/gotomicro/ego/core/elog"
@@ -82,7 +83,13 @@ func NewExecutionService(
 }
 
 func (s *executionService) Create(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error) {
-	return s.repo.Create(ctx, execution)
+	created, err := s.repo.Create(ctx, execution)
+	if err != nil {
+		return created, err
+	}
+
+	s.broadcastExecutionEvent(created.ID)
+	return created, nil
 }
 
 func (s *executionService) FindByID(ctx context.Context, id int64) (domain.TaskExecution, error) {
@@ -106,19 +113,39 @@ func (s *executionService) FindTimeoutExecutions(ctx context.Context, limit int)
 }
 
 func (s *executionService) SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error {
-	return s.repo.SetRunningState(ctx, id, progress, executorNodeID)
+	err := s.repo.SetRunningState(ctx, id, progress, executorNodeID)
+	if err != nil {
+		return err
+	}
+	s.broadcastExecutionEvent(id)
+	return nil
 }
 
 func (s *executionService) UpdateRunningProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error {
-	return s.repo.UpdateRunningProgress(ctx, id, progress, executorNodeID)
+	err := s.repo.UpdateRunningProgress(ctx, id, progress, executorNodeID)
+	if err != nil {
+		return err
+	}
+	s.broadcastExecutionEvent(id)
+	return nil
 }
 
 func (s *executionService) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {
-	return s.repo.UpdateRetryResult(ctx, id, retryCount, nextRetryTime, status, progress, endTime, scheduleParams, executorNodeID)
+	err := s.repo.UpdateRetryResult(ctx, id, retryCount, nextRetryTime, status, progress, endTime, scheduleParams, executorNodeID)
+	if err != nil {
+		return err
+	}
+	s.broadcastExecutionEvent(id)
+	return nil
 }
 
 func (s *executionService) UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error {
-	return s.repo.UpdateScheduleResult(ctx, id, status, progress, endTime, scheduleParams, executorNodeID, taskResult)
+	err := s.repo.UpdateScheduleResult(ctx, id, status, progress, endTime, scheduleParams, executorNodeID, taskResult)
+	if err != nil {
+		return err
+	}
+	s.broadcastExecutionEvent(id)
+	return nil
 }
 
 func (s *executionService) HandleReports(ctx context.Context, reports []*domain.Report) error {
@@ -147,6 +174,14 @@ func (s *executionService) HandleReports(ctx context.Context, reports []*domain.
 			if logErr := s.logSvc.AddLog(ctx, log); logErr != nil {
 				// 日志保存失败不影响状态更新，记录错误即可
 				s.logger.Error("保存任务日志失败", elog.Int64("execID", report.ExecutionState.ID), elog.FieldErr(logErr))
+			} else {
+				// 成功保存日志后，通过 SSE 广播给对应的 Execution 订阅者
+				sse.GetExecutionLogsHub().Broadcast(log.ExecutionID, sse.TaskLogEvent{
+					TaskID:      log.TaskID,
+					ExecutionID: log.ExecutionID,
+					Content:     log.Content,
+					CTime:       log.CTime,
+				})
 			}
 		}
 
@@ -355,4 +390,34 @@ func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.
 
 func (s *executionService) ListByTaskID(ctx context.Context, taskID int64, offset, limit int) ([]domain.TaskExecution, int64, error) {
 	return s.repo.ListByTaskID(ctx, taskID, offset, limit)
+}
+
+// broadcastExecutionEvent 异步获取最新执行记录并广播
+func (s *executionService) broadcastExecutionEvent(id int64) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		exec, err := s.FindByID(ctx, id)
+		if err != nil {
+			s.logger.Error("广播执行事件时获取记录失败", elog.Int64("id", id), elog.FieldErr(err))
+			return
+		}
+
+		evt := sse.TaskExecutionEvent{
+			ID:              exec.ID,
+			TaskID:          exec.Task.ID,
+			TaskName:        exec.Task.Name,
+			StartTime:       exec.StartTime,
+			EndTime:         exec.EndTime,
+			Status:          exec.Status.String(),
+			RunningProgress: exec.RunningProgress,
+			ExecutorNodeId:  exec.ExecutorNodeID,
+			TaskResult:      exec.TaskResult,
+			CTime:           exec.CTime,
+		}
+
+		// 广播给该任务的特定订阅者
+		sse.GetTaskExecutionsHub().Broadcast(exec.Task.ID, evt)
+	}()
 }

@@ -35,6 +35,9 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	// 登录检查
 	server.Use(sdk.CheckLogin())
 
+	// 需要登陆校验的接口
+	taskHdl.IdentifyRoutes(server.Engine)
+
 	// 权限策略检查
 	server.Use(sdk.CheckPolicy())
 
