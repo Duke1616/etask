@@ -10,7 +10,7 @@ func InitPolicySDK() *sdk.SDK {
 }
 
 func InitPermSyncer() capability.Syncer {
-	return capability.NewSyncer(capability.NewHttpRegistry())
+	return capability.NewSyncer(capability.NewHttpReporter())
 }
 
 // InitProviders 注册逻辑权限供应源。

@@ -51,16 +51,16 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/manager")
 
 	// --- 任务管理 ---
-	g.POST("/create", h.Capability("创建任务", "create").
+	g.POST("/create", h.Capability("创建任务", "add").
 		Handle(ginx.B[CreateTaskReq](h.Create)),
 	)
 	g.POST("/list", h.Capability("查看任务列表", "view").
 		Handle(ginx.B[PageReq](h.List)),
 	)
-	g.GET("/detail/:id", h.Capability("查看任务详情", "detail").
+	g.GET("/detail/:id", h.Capability("查看任务详情", "get").
 		Handle(ginx.W(h.Detail)),
 	)
-	g.POST("/update", h.Capability("更新任务", "update").
+	g.POST("/update", h.Capability("更新任务", "edit").
 		Handle(ginx.B[UpdateTaskReq](h.Update)),
 	)
 	g.DELETE("/delete/:id", h.Capability("删除任务", "delete").
@@ -71,7 +71,7 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.POST("/logs", h.Capability("查看日志", "logs").
 		Handle(ginx.B[GetLogsReq](h.GetLogs)),
 	)
-	g.POST("/executions", h.Capability("查看执行历史", "executions").
+	g.POST("/executions", h.Capability("查看执行记录", "executions").
 		Handle(ginx.B[ListExecutionsReq](h.ListExecutions)),
 	)
 
@@ -79,7 +79,7 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.POST("/stop/:id", h.Capability("停止任务", "stop").
 		Handle(ginx.W(h.Stop)),
 	)
-	g.POST("/run/:id", h.Capability("运行任务", "run").
+	g.POST("/run/:id", h.Capability("运行任务", "start").
 		Handle(ginx.W(h.Run)),
 	)
 }
