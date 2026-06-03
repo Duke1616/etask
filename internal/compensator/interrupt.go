@@ -2,6 +2,7 @@ package compensator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/service/task"
+	"github.com/Duke1616/etask/pkg/grpc/balancer"
 	"github.com/Duke1616/etask/pkg/grpc/pool"
 	"github.com/gotomicro/ego/core/elog"
 )
@@ -96,6 +98,24 @@ func (t *InterruptCompensator) interruptTimeoutTasks(ctx context.Context) error 
 				elog.Int64("executionId", executions[i].ID),
 				elog.String("taskName", executions[i].Task.Name),
 				elog.FieldErr(err))
+			// 如果是执行器明确返回中断任务执行失败（说明执行器内存中已无该任务，如重启导致内存丢失）
+			// 此时为了打破死循环，调度中心应强制将任务状态标记为失败（终结状态）
+			if errors.Is(err, errs.ErrInterruptTaskExecutionFailed) {
+				t.logger.Warn("执行器已无该任务，强制标记执行状态为失败以终结死循环",
+					elog.Int64("executionId", executions[i].ID))
+				updateErr := t.execSvc.UpdateState(ctx, domain.ExecutionState{
+					ID:         executions[i].ID,
+					TaskID:     executions[i].Task.ID,
+					TaskName:   executions[i].Task.Name,
+					Status:     domain.TaskExecutionStatusFailed,
+					TaskResult: "中断超时任务失败：执行器已无该任务记录(可能重启导致内存丢失)",
+				})
+				if updateErr != nil {
+					t.logger.Error("强制标记超时任务状态为失败失败",
+						elog.Int64("executionId", executions[i].ID),
+						elog.FieldErr(updateErr))
+				}
+			}
 			continue
 		}
 		t.logger.Info("成功中断超时任务",
@@ -110,6 +130,7 @@ func (t *InterruptCompensator) interruptTaskExecution(ctx context.Context, execu
 		return fmt.Errorf("未找到GPRC配置，无法执行中断任务")
 	}
 	client := t.grpcClients.Get(execution.Task.GrpcConfig.ServiceName)
+	ctx = balancer.WithSpecificNodeID(ctx, execution.ExecutorNodeID)
 	resp, err := client.Interrupt(ctx, &executorv1.InterruptRequest{
 		Eid: execution.ID,
 	})
