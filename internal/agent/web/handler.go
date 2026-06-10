@@ -39,7 +39,8 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/agent")
 
 	// --- 代理管理 ---
-	g.GET("/list", h.Capability("查看代理列表", "view").
+	g.GET("/list", h.Capability("代理列表", "view").
+		NoSync().
 		Handle(ginx.W(h.ListAgents)),
 	)
 }

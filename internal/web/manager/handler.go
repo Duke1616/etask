@@ -52,26 +52,28 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 
 	// --- 任务管理 ---
 	g.POST("/create", h.Capability("创建任务", "add").
+		Needs("ticket:codebook:view", "ticket:runner:view", "ticket:executor:view").
 		Handle(ginx.B[CreateTaskReq](h.Create)),
 	)
-	g.POST("/list", h.Capability("查看任务列表", "view").
+	g.POST("/update", h.Capability("更新任务", "edit").
+		Needs("ticket:codebook:view", "ticket:runner:view", "ticket:executor:view").
+		Handle(ginx.B[UpdateTaskReq](h.Update)),
+	)
+	g.POST("/list", h.Capability("任务列表", "view").
 		Handle(ginx.B[PageReq](h.List)),
 	)
-	g.GET("/detail/:id", h.Capability("查看任务详情", "get").
+	g.GET("/detail/:id", h.Capability("任务详情", "get").
 		Handle(ginx.W(h.Detail)),
-	)
-	g.POST("/update", h.Capability("更新任务", "edit").
-		Handle(ginx.B[UpdateTaskReq](h.Update)),
 	)
 	g.DELETE("/delete/:id", h.Capability("删除任务", "delete").
 		Handle(ginx.W(h.Delete)),
 	)
 
 	// --- 执行监控 ---
-	g.POST("/logs", h.Capability("查看日志", "logs").
+	g.POST("/logs", h.Capability("任务日志", "logs").
 		Handle(ginx.B[GetLogsReq](h.GetLogs)),
 	)
-	g.POST("/executions", h.Capability("查看执行记录", "executions").
+	g.POST("/executions", h.Capability("执行记录", "executions").
 		Handle(ginx.B[ListExecutionsReq](h.ListExecutions)),
 	)
 

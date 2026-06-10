@@ -23,7 +23,7 @@ func (h *Handler) PublicRoutes(_ *gin.Engine) {
 func NewHandler(reg registry.Registry) *Handler {
 	return &Handler{
 		registry:  reg,
-		IRegistry: capability.NewRegistry("task", "executor", "执行器管理"),
+		IRegistry: capability.NewRegistry("task", "executor", "执行节点"),
 	}
 }
 
@@ -31,7 +31,8 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g := server.Group("/api/executor")
 
 	// --- 执行器管理 ---
-	g.GET("/list", h.Capability("查看执行器列表", "view").
+	g.GET("/list", h.Capability("执行节点列表", "view").
+		Needs("task:agent:view").
 		Handle(ginx.W(h.ListExecutors)),
 	)
 }
