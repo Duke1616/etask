@@ -141,13 +141,22 @@ func (s *AgentServer) GetExecutionLogs(ctx context.Context, req *executorv1.GetE
 // BatchListTaskExecutions 批量列出任务执行记录
 func (s *AgentServer) BatchListTaskExecutions(ctx context.Context, req *executorv1.BatchListTaskExecutionsRequest) (*executorv1.BatchListTaskExecutionsResponse, error) {
 	taskIDs := req.GetTaskIds()
-	if len(taskIDs) == 0 {
+
+	// 过滤掉无效的 task_id (如 0 或负数)，防止数据库产生无意义的扫描
+	validTaskIDs := make([]int64, 0, len(taskIDs))
+	for _, id := range taskIDs {
+		if id > 0 {
+			validTaskIDs = append(validTaskIDs, id)
+		}
+	}
+
+	if len(validTaskIDs) == 0 {
 		return &executorv1.BatchListTaskExecutionsResponse{
 			Results: make(map[int64]*executorv1.TaskExecutionList),
 		}, nil
 	}
 
-	executions, err := s.execRepo.FindByTaskIDs(ctx, taskIDs)
+	executions, err := s.execRepo.FindByTaskIDs(ctx, validTaskIDs)
 	if err != nil {
 		s.logger.Error("批量获取执行记录失败", elog.Any("taskIDs", taskIDs), elog.FieldErr(err))
 		return nil, err

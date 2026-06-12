@@ -115,7 +115,12 @@ func (g *GORMTaskExecutionDAO) FindExecutionByTaskIDAndPlanExecID(ctx context.Co
 
 func (g *GORMTaskExecutionDAO) FindByTaskID(ctx context.Context, taskID int64) ([]TaskExecution, error) {
 	var executions []TaskExecution
-	err := g.db.WithContext(ctx).Where("task_id = ?", taskID).Order("ctime DESC").Find(&executions).Error
+	// 显式 Select 展现所需的字段，排除不必要的超大 JSON 配置字段，提升大记录下的读取性能
+	err := g.db.WithContext(ctx).
+		Select("id", "tenant_id", "task_id", "task_name", "task_type", "task_cron_expr", "task_max_execution_seconds", "task_version", "task_schedule_node_id", "deadline", "executor_node_id", "stime", "etime", "retry_count", "next_retry_time", "running_progress", "status", "exec_mode", "task_result", "ctime", "utime").
+		Where("task_id = ?", taskID).
+		Order("ctime DESC").
+		Find(&executions).Error
 	if err != nil {
 		return nil, fmt.Errorf("查询任务 %d 的执行记录失败: %w", taskID, err)
 	}
@@ -150,7 +155,12 @@ func (g *GORMTaskExecutionDAO) CountByTaskID(ctx context.Context, taskID int64) 
 
 func (g *GORMTaskExecutionDAO) FindByTaskIDs(ctx context.Context, taskIDs []int64) ([]TaskExecution, error) {
 	var executions []TaskExecution
-	err := g.db.WithContext(ctx).Where("task_id IN ?", taskIDs).Order("ctime DESC").Find(&executions).Error
+	// 批量查询排除大字段 task_result，防止大量历史数据排序和传输导致超时
+	err := g.db.WithContext(ctx).
+		Select("id", "tenant_id", "task_id", "task_name", "task_type", "task_cron_expr", "task_max_execution_seconds", "task_version", "task_schedule_node_id", "deadline", "executor_node_id", "stime", "etime", "retry_count", "next_retry_time", "running_progress", "status", "exec_mode", "ctime", "utime").
+		Where("task_id IN ?", taskIDs).
+		Order("ctime DESC").
+		Find(&executions).Error
 	if err != nil {
 		return nil, fmt.Errorf("批量查询任务执行记录失败: %w", err)
 	}
