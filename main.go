@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Duke1616/etask/cmd/endpoint"
+	"github.com/Duke1616/etask/cmd/migrate"
 	"github.com/Duke1616/etask/ioc"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gotomicro/ego"
@@ -42,7 +42,7 @@ func main() {
 	serverCmd.Flags().StringSliceVar(&modes, "mode", []string{"all"}, "启动模式 (all | scheduler | agent | executor)")
 
 	rootCmd.AddCommand(serverCmd)
-	rootCmd.AddCommand(endpoint.Cmd)
+	rootCmd.AddCommand(migrate.NewCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

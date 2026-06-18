@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package etask.runner.v1;
+
+option go_package = "etask/runner/v1;runner";
+
+message Variable {
+  string key = 1;
+  string value = 2;
+  bool secret = 3;
+}
+
+message Runner {
+  int64 id = 1;
+  string name = 2;
+  string codebook_uid = 3;
+  string codebook_secret = 4;
+  string kind = 5;
+  string target = 6;
+  string handler = 7;
+  repeated string tags = 8;
+  uint32 action = 9;
+  string desc = 10;
+  repeated Variable variables = 11;
+  int64 ctime = 12;
+  int64 utime = 13;
+}
+
+message FindRunnerByCodebookUidAndTagRequest {
+  string codebook_uid = 1;
+  string tag = 2;
+}
+
+message FindRunnerByCodebookUidAndTagResponse {
+  Runner runner = 1;
+}
+
+service RunnerService {
+  rpc FindRunnerByCodebookUidAndTag(FindRunnerByCodebookUidAndTagRequest) returns (FindRunnerByCodebookUidAndTagResponse);
+}

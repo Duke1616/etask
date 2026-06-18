@@ -3,6 +3,7 @@ package errs
 import "errors"
 
 var (
+	ErrInvalidParameter             = errors.New("参数非法")
 	ErrTaskPreemptFailed              = errors.New("任务抢占失败")
 	ErrTaskRenewFailed                = errors.New("任务续约失败")
 	ErrTaskReleaseFailed              = errors.New("任务释放失败")

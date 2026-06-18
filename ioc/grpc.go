@@ -5,8 +5,10 @@ import (
 	"os"
 	"time"
 
+	codebookv1 "github.com/Duke1616/etask/api/proto/gen/etask/codebook/v1"
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
+	runnerv1 "github.com/Duke1616/etask/api/proto/gen/etask/runner/v1"
 	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
 	grpcapi "github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/grpc/scripts"
@@ -55,7 +57,8 @@ func InitExecutor(reg registrysdk.Registry) *executor.Executor {
 
 // InitSchedulerNodeGRPCServer 初始化 Scheduler gRPC 服务器
 func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcapi.ReporterServer,
-	task *grpcapi.TaskServer, agent *grpcapi.AgentServer) *grpcpkg.Server {
+	task *grpcapi.TaskServer, agent *grpcapi.AgentServer, codebook *grpcapi.CodebookServer,
+	runner *grpcapi.RunnerServer) *grpcpkg.Server {
 	var cfg grpcpkg.ServerConfig
 	if err := viper.UnmarshalKey("grpc.server.scheduler", &cfg); err != nil {
 		panic(err)
@@ -66,6 +69,8 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 	taskv1.RegisterTaskServiceServer(server.Server, task)
 	executorv1.RegisterAgentServiceServer(server.Server, agent)
 	executorv1.RegisterTaskExecutionServiceServer(server.Server, agent)
+	codebookv1.RegisterCodebookServiceServer(server.Server, codebook)
+	runnerv1.RegisterRunnerServiceServer(server.Server, runner)
 
 	return server
 }

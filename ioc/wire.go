@@ -29,7 +29,7 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 		ConsumerSet,
 		ProducerSet,
 		GrpcSet,
-		InitRunner,
+		InitDispatcher,
 		InitInvoker,
 		// 从 Base 中提取基础资源
 		wire.FieldsOf(new(*Base), "Registry", "MQ"),
@@ -61,6 +61,8 @@ func InitAgentModule(base *Base) *agent.Module {
 func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 	wire.Build(
 		TaskSet,
+		CodebookSet,
+		RunnerSet,
 		TaskExecutionSet,
 		SchedulerSet,
 		AppSet,
@@ -74,6 +76,8 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 func InitWebModule(base *Base) *WebModule {
 	wire.Build(
 		TaskSet,
+		CodebookSet,
+		RunnerSet,
 		TaskExecutionSet,
 		ExecutorSet,
 		AgentWebSet,

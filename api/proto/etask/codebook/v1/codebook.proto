@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package etask.codebook.v1;
+
+option go_package = "etask/codebook/v1;codebook";
+
+message Codebook {
+  int64 id = 1;
+  string name = 2;
+  string owner = 3;
+  string code = 4;
+  string language = 5;
+  string secret = 6;
+  string identifier = 7;
+  int64 ctime = 8;
+  int64 utime = 9;
+}
+
+message GetCodebookByIdentifierRequest {
+  string identifier = 1;
+}
+
+message GetCodebookByIdentifierResponse {
+  Codebook codebook = 1;
+}
+
+service CodebookService {
+  rpc GetCodebookByIdentifier(GetCodebookByIdentifierRequest) returns (GetCodebookByIdentifierResponse);
+}

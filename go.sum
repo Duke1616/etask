@@ -9,6 +9,8 @@ github.com/Duke1616/ecmdb v1.11.0 h1:qHj4KGyRes2lAkrBqKiJoefU5w5dukRf/TDLgVeMHbc
 github.com/Duke1616/ecmdb v1.11.0/go.mod h1:djR+myIzjmCWHLIMgTVauvjNmg0QfQ8rvqSUNB/fFYQ=
 github.com/Duke1616/eiam v0.0.12 h1:B2w0f74g4tawmGr04KGhQ0Jbs2k2Yg4qyMSFS2qpvIY=
 github.com/Duke1616/eiam v0.0.12/go.mod h1:hEj14gu/lJ3xQLl7IGnDsjWVtIh6vXWKr2e/9MNG3C0=
+github.com/Duke1616/eiam v0.0.16 h1:IKPHq5aaXH7OBFdoXKYEfII75n5zbOwUcW7y8foe3ns=
+github.com/Duke1616/eiam v0.0.16/go.mod h1:hEj14gu/lJ3xQLl7IGnDsjWVtIh6vXWKr2e/9MNG3C0=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/RaMin0/gin-health-check v0.0.0-20180807004848-a677317b3f01 h1:GHwYgY6lZR2QKIuYH5k8DFK4e2h2oEEOtyI9E6qrpII=
 github.com/RaMin0/gin-health-check v0.0.0-20180807004848-a677317b3f01/go.mod h1:vZ/F780spvlix7Qg0/17Uj0SayI+CqtybQHtPEV9RTE=
@@ -488,6 +490,8 @@ github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gi
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZqKjWU=
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
+github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=
+github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78/go.mod h1:aL8wCCfTfSfmXjznFBSZNN13rSJjlIOI1fUNAtF7rmI=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=

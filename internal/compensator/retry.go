@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Duke1616/etask/internal/service/runner"
+	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"
 )
@@ -20,23 +20,23 @@ type RetryConfig struct {
 
 // RetryCompensator 重试补偿器
 type RetryCompensator struct {
-	runner  runner.Runner
-	execSvc task.ExecutionService
-	config  RetryConfig
-	logger  *elog.Component
+	dispatcher dispatcher.Dispatcher
+	execSvc    task.ExecutionService
+	config     RetryConfig
+	logger     *elog.Component
 }
 
 // NewRetryCompensator 创建重试补偿器
 func NewRetryCompensator(
-	runner runner.Runner,
+	dispatcher dispatcher.Dispatcher,
 	execSvc task.ExecutionService,
 	config RetryConfig,
 ) *RetryCompensator {
 	return &RetryCompensator{
-		runner:  runner,
-		execSvc: execSvc,
-		config:  config,
-		logger:  elog.DefaultLogger.With(elog.FieldComponentName("compensator.retry")),
+		dispatcher: dispatcher,
+		execSvc:    execSvc,
+		config:     config,
+		logger:     elog.DefaultLogger.With(elog.FieldComponentName("compensator.retry")),
 	}
 }
 
@@ -90,7 +90,7 @@ func (r *RetryCompensator) retry(ctx context.Context) error {
 
 	// 处理每个可重试的执行
 	for i := range executions {
-		err = r.runner.Retry(ctx, executions[i])
+		err = r.dispatcher.Retry(ctx, executions[i])
 		if err != nil {
 			r.logger.Error("重试任务失败",
 				elog.Int64("executionId", executions[i].ID),

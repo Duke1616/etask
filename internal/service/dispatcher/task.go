@@ -1,4 +1,4 @@
-package runner
+package dispatcher
 
 import (
 	"context"
@@ -14,9 +14,9 @@ import (
 	"github.com/gotomicro/ego/core/elog"
 )
 
-var _ Runner = &NormalTaskRunner{}
+var _ Dispatcher = &TaskDispatcher{}
 
-type NormalTaskRunner struct {
+type TaskDispatcher struct {
 	nodeID       string                 // 当前调度节点ID
 	taskSvc      task.Service           // 任务服务
 	execSvc      task.ExecutionService  // 任务执行服务
@@ -27,26 +27,26 @@ type NormalTaskRunner struct {
 	logger *elog.Component
 }
 
-func NewNormalTaskRunner(
+func NewTaskDispatcher(
 	nodeID string,
 	taskSvc task.Service,
 	execSvc task.ExecutionService,
 	taskAcquirer acquirer.TaskAcquirer,
 	invoker invoker.Invoker,
 	producer event.CompleteProducer,
-) *NormalTaskRunner {
-	return &NormalTaskRunner{
+) *TaskDispatcher {
+	return &TaskDispatcher{
 		nodeID:       nodeID,
 		taskSvc:      taskSvc,
 		execSvc:      execSvc,
 		taskAcquirer: taskAcquirer,
 		invoker:      invoker,
 		producer:     producer,
-		logger:       elog.DefaultLogger.With(elog.FieldComponentName("execute.NormalTaskRunner")),
+		logger:       elog.DefaultLogger.With(elog.FieldComponentName("dispatcher.TaskDispatcher")),
 	}
 }
 
-func (s *NormalTaskRunner) Run(ctx context.Context, task domain.Task) error {
+func (s *TaskDispatcher) Run(ctx context.Context, task domain.Task) error {
 	// 抢占任务
 	acquiredTask, err := s.acquireTask(ctx, task)
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *NormalTaskRunner) Run(ctx context.Context, task domain.Task) error {
 }
 
 // acquireTask 抢占任务
-func (s *NormalTaskRunner) acquireTask(ctx context.Context, task domain.Task) (domain.Task, error) {
+func (s *TaskDispatcher) acquireTask(ctx context.Context, task domain.Task) (domain.Task, error) {
 	// 抢占任务
 	acquiredTask, err := s.taskAcquirer.Acquire(ctx, task.ID, task.Version, s.nodeID)
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *NormalTaskRunner) acquireTask(ctx context.Context, task domain.Task) (d
 	return acquiredTask, nil
 }
 
-func (s *NormalTaskRunner) handleNormalTask(ctx context.Context, task domain.Task) error {
+func (s *TaskDispatcher) handleNormalTask(ctx context.Context, task domain.Task) error {
 	// 判断是否为拉取模式
 	isPullMode := task.ExecMode.IsPull()
 
@@ -145,7 +145,7 @@ func (s *NormalTaskRunner) handleNormalTask(ctx context.Context, task domain.Tas
 }
 
 // releaseTask 释放任务
-func (s *NormalTaskRunner) releaseTask(ctx context.Context, task domain.Task) {
+func (s *TaskDispatcher) releaseTask(ctx context.Context, task domain.Task) {
 	if err := s.taskAcquirer.Release(ctx, task.ID, s.nodeID); err != nil {
 		s.logger.Error("释放任务失败",
 			elog.Int64("taskID", task.ID),
@@ -154,7 +154,7 @@ func (s *NormalTaskRunner) releaseTask(ctx context.Context, task domain.Task) {
 	}
 }
 
-func (s *NormalTaskRunner) WithSpecificNodeIDContext(ctx context.Context, executorNodeID string) context.Context {
+func (s *TaskDispatcher) WithSpecificNodeIDContext(ctx context.Context, executorNodeID string) context.Context {
 	if executorNodeID != "" {
 		return balancer.WithSpecificNodeID(ctx, executorNodeID)
 	}
@@ -162,7 +162,7 @@ func (s *NormalTaskRunner) WithSpecificNodeIDContext(ctx context.Context, execut
 }
 
 // Retry 重试
-func (s *NormalTaskRunner) Retry(ctx context.Context, execution domain.TaskExecution) error {
+func (s *TaskDispatcher) Retry(ctx context.Context, execution domain.TaskExecution) error {
 	// 抢占和创建都成功，异步触发任务
 	go func() {
 		// 执行任务，并在 context 中设置要排除的执行节点 ID，避免重调度到同一个节点
@@ -203,7 +203,7 @@ func (s *NormalTaskRunner) Retry(ctx context.Context, execution domain.TaskExecu
 	return nil
 }
 
-func (s *NormalTaskRunner) WithExcludedNodeIDContext(ctx context.Context, executorNodeID string) context.Context {
+func (s *TaskDispatcher) WithExcludedNodeIDContext(ctx context.Context, executorNodeID string) context.Context {
 	if executorNodeID != "" {
 		return balancer.WithExcludedNodeID(ctx, executorNodeID)
 	}
@@ -211,7 +211,7 @@ func (s *NormalTaskRunner) WithExcludedNodeIDContext(ctx context.Context, execut
 }
 
 // Reschedule 重新调度
-func (s *NormalTaskRunner) Reschedule(ctx context.Context, execution domain.TaskExecution) error {
+func (s *TaskDispatcher) Reschedule(ctx context.Context, execution domain.TaskExecution) error {
 	// 抢占和创建都成功，异步触发任务
 	go func() {
 		// 执行任务，并在 context 中设置要指定的执行节点ID

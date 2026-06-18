@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Duke1616/etask/internal/service/runner"
+	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"
 )
@@ -18,23 +18,23 @@ type RescheduleConfig struct {
 
 // RescheduleCompensator 重调度补偿器
 type RescheduleCompensator struct {
-	runner  runner.Runner
-	execSvc task.ExecutionService
-	config  RescheduleConfig
-	logger  *elog.Component
+	dispatcher dispatcher.Dispatcher
+	execSvc    task.ExecutionService
+	config     RescheduleConfig
+	logger     *elog.Component
 }
 
 // NewRescheduleCompensator 创建重调度补偿器
 func NewRescheduleCompensator(
-	runner runner.Runner,
+	dispatcher dispatcher.Dispatcher,
 	execSvc task.ExecutionService,
 	config RescheduleConfig,
 ) *RescheduleCompensator {
 	return &RescheduleCompensator{
-		runner:  runner,
-		execSvc: execSvc,
-		config:  config,
-		logger:  elog.DefaultLogger.With(elog.FieldComponentName("compensator.reschedule")),
+		dispatcher: dispatcher,
+		execSvc:    execSvc,
+		config:     config,
+		logger:     elog.DefaultLogger.With(elog.FieldComponentName("compensator.reschedule")),
 	}
 }
 
@@ -88,7 +88,7 @@ func (r *RescheduleCompensator) reschedule(ctx context.Context) error {
 
 	// 处理每个可重调度的执行
 	for i := range executions {
-		err = r.runner.Reschedule(ctx, executions[i])
+		err = r.dispatcher.Reschedule(ctx, executions[i])
 		if err != nil {
 			r.logger.Error("重调度失败",
 				elog.Int64("executionId", executions[i].ID),

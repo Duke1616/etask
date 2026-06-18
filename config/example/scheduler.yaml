@@ -8,6 +8,10 @@ redis:
   addr: "127.0.0.1:6379"
   password: "1234567890"
 
+encryption:
+  version: "V1"
+  key: "1234567890"
+
 kafka:
   network: tcp
   addresses:

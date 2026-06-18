@@ -1,4 +1,4 @@
-package runner
+package dispatcher
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 )
 
-type Runner interface {
+type Dispatcher interface {
 	// Run 运行任务
 	Run(ctx context.Context, task domain.Task) error
 	// Retry 重试任务的一次执行

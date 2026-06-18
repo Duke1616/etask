@@ -2,8 +2,8 @@ package ioc
 
 import (
 	"github.com/Duke1616/etask/internal/service/acquirer"
+	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/picker"
-	"github.com/Duke1616/etask/internal/service/runner"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/google/uuid"
@@ -16,7 +16,7 @@ func InitNodeID() string {
 
 func InitScheduler(
 	nodeID string,
-	runner runner.Runner,
+	dispatcher dispatcher.Dispatcher,
 	taskSvc task.Service,
 	execSvc task.ExecutionService,
 	acquirer acquirer.TaskAcquirer,
@@ -31,7 +31,7 @@ func InitScheduler(
 
 	return scheduler.NewScheduler(
 		nodeID,
-		runner,
+		dispatcher,
 		taskSvc,
 		execSvc,
 		acquirer,

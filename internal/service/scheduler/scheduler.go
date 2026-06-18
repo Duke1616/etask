@@ -8,8 +8,8 @@ import (
 	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/service/acquirer"
+	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/picker"
-	"github.com/Duke1616/etask/internal/service/runner"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/pkg/grpc/balancer"
 	"github.com/gotomicro/ego/core/constant"
@@ -22,7 +22,7 @@ var _ server.Server = &Scheduler{}
 // Scheduler 分布式任务调度器
 type Scheduler struct {
 	nodeID             string                    // 当前调度节点ID
-	runner             runner.Runner             // Runner 分发器
+	dispatcher         dispatcher.Dispatcher     // Dispatcher 分发器
 	taskSvc            task.Service              // 任务服务
 	execSvc            task.ExecutionService     // 任务执行服务
 	acquirer           acquirer.TaskAcquirer     // 任务抢占、续约、释放器
@@ -46,7 +46,7 @@ type Config struct {
 // NewScheduler 创建调度器实例
 func NewScheduler(
 	nodeID string,
-	runner runner.Runner,
+	dispatcher dispatcher.Dispatcher,
 	taskSvc task.Service,
 	execSvc task.ExecutionService,
 	acquirer acquirer.TaskAcquirer,
@@ -57,7 +57,7 @@ func NewScheduler(
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
 		nodeID:             nodeID,
-		runner:             runner,
+		dispatcher:         dispatcher,
 		taskSvc:            taskSvc,
 		execSvc:            execSvc,
 		acquirer:           acquirer,
@@ -167,7 +167,7 @@ func (s *Scheduler) scheduleOnce(task domain.Task) error {
 	if nodeID != "" {
 		ctx = balancer.WithSpecificNodeID(ctx, nodeID)
 	}
-	return s.runner.Run(ctx, task)
+	return s.dispatcher.Run(ctx, task)
 }
 
 // renewLoop 续约循环

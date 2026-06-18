@@ -6,9 +6,13 @@ import (
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
+	codebookSvc "github.com/Duke1616/etask/internal/service/codebook"
+	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
+	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
+	runnerWeb "github.com/Duke1616/etask/internal/web/runner"
 	"github.com/google/wire"
 )
 
@@ -38,6 +42,21 @@ var (
 		taskSvc.NewService,
 		taskSvc.NewLogService,
 		manager.NewHandler,
+	)
+
+	CodebookSet = wire.NewSet(
+		dao.NewGORMCodebookDAO,
+		repository.NewCodebookRepository,
+		codebookSvc.NewService,
+		codebookWeb.NewHandler,
+	)
+
+	RunnerSet = wire.NewSet(
+		dao.NewGORMRunnerDAO,
+		InitCrypto,
+		repository.NewRunnerRepository,
+		runnerSvc.NewService,
+		runnerWeb.NewHandler,
 	)
 
 	ExecutorSet = wire.NewSet(
@@ -92,6 +111,8 @@ var (
 		grpc.NewReporterServer,
 		grpc.NewTaskServer,
 		grpc.NewAgentServer,
+		grpc.NewCodebookServer,
+		grpc.NewRunnerServer,
 		InitTasks,
 		InitSchedulerNodeGRPCServer,
 	)

@@ -3,14 +3,14 @@ package ioc
 import (
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	"github.com/Duke1616/etask/internal/compensator"
-	"github.com/Duke1616/etask/internal/service/runner"
+	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/pkg/grpc/pool"
 	"github.com/spf13/viper"
 )
 
 func InitRetryCompensator(
-	runner runner.Runner,
+	dispatcher dispatcher.Dispatcher,
 	execSvc task.ExecutionService,
 ) *compensator.RetryCompensator {
 	var cfg compensator.RetryConfig
@@ -19,14 +19,14 @@ func InitRetryCompensator(
 		panic(err)
 	}
 	return compensator.NewRetryCompensator(
-		runner,
+		dispatcher,
 		execSvc,
 		cfg,
 	)
 }
 
 func InitRescheduleCompensator(
-	runner runner.Runner,
+	dispatcher dispatcher.Dispatcher,
 	execSvc task.ExecutionService,
 ) *compensator.RescheduleCompensator {
 	var cfg compensator.RescheduleConfig
@@ -35,7 +35,7 @@ func InitRescheduleCompensator(
 		panic(err)
 	}
 	return compensator.NewRescheduleCompensator(
-		runner,
+		dispatcher,
 		execSvc,
 		cfg)
 }
