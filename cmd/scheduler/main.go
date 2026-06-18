@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/Duke1616/etask/cmd/endpoint"
 	"github.com/Duke1616/etask/ioc"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gotomicro/ego"
@@ -36,7 +35,6 @@ func main() {
 
 	// 注册子命令
 	rootCmd.AddCommand(serverCmd)
-	rootCmd.AddCommand(endpoint.Cmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
