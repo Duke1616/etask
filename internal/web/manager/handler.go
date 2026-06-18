@@ -81,8 +81,8 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.POST("/stop/:id", h.Capability("停止任务", "stop").
 		Handle(ginx.W(h.Stop)),
 	)
-	g.POST("/run/:id", h.Capability("运行任务", "start").
-		Handle(ginx.W(h.Run)),
+	g.POST("/run", h.Capability("运行任务", "start").
+		Handle(ginx.B[RunTaskReq](h.Run)),
 	)
 }
 
@@ -150,13 +150,8 @@ func (h *Handler) Stop(ctx *ginx.Context) (ginx.Result, error) {
 	}, nil
 }
 
-func (h *Handler) Run(ctx *ginx.Context) (ginx.Result, error) {
-	id, err := ctx.Param("id").AsInt64()
-	if err != nil {
-		return systemErrorResult, err
-	}
-
-	err = h.svc.Run(ctx, id)
+func (h *Handler) Run(ctx *ginx.Context, req RunTaskReq) (ginx.Result, error) {
+	err := h.svc.Run(ctx, req.ID, req.CronExpr)
 	if err != nil {
 		return ginx.Result{
 			Code: SystemErrorCode,
@@ -165,7 +160,7 @@ func (h *Handler) Run(ctx *ginx.Context) (ginx.Result, error) {
 	}
 
 	// 启动成功后，主动拉取最新任务状态并广播
-	if t, errGet := h.svc.GetByID(ctx, id); errGet == nil {
+	if t, errGet := h.svc.GetByID(ctx, req.ID); errGet == nil {
 		sse.GetSSEHub().Broadcast(sse.TaskStatusEvent{
 			TaskID:   t.ID,
 			Status:   t.Status.String(),

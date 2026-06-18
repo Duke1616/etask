@@ -39,6 +39,11 @@ type IdReq struct {
 	ID int64 `json:"id"`
 }
 
+type RunTaskReq struct {
+	ID       int64  `json:"id"`
+	CronExpr string `json:"cron_expr,omitempty"`
+}
+
 type UpdateTaskReq struct {
 	ID                  int64             `json:"id"`
 	Name                string            `json:"name"`

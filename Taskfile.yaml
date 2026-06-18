@@ -17,27 +17,27 @@ tasks:
   run:
     desc: "启动服务 (默认全量模式: Scheduler + Agent + Executor)"
     cmds:
-      - go run main.go server --mode all --config ./config/all.yaml
+      - go run main.go server --mode all --config ./config/config.yaml
 
   scheduler:
     desc: "启动调度器 (仅包含 Scheduler 逻辑)"
     cmds:
-      - go run main.go server --mode scheduler --config ./config/all.yaml
+      - go run main.go server --mode scheduler --config ./config/config.yaml
 
   agent:
     desc: "启动异步执行代理 (仅基于 Kafka 的 Agent)"
     cmds:
-      - go run main.go server --mode agent --config ./config/all.yaml
+      - go run main.go server --mode agent --config ./config/config.yaml
 
   executor:
     desc: "启动原生执行器 (仅基于 gRPC 的 Executor)"
     cmds:
-      - go run main.go server --mode executor --config ./config/all.yaml
+      - go run main.go server --mode executor --config ./config/config.yaml
 
   endpoint:
     desc: "批量注册/同步系统端点信息"
     cmds:
-      - go run main.go endpoint --config ./config/all.yaml
+      - go run main.go endpoint --config ./config/config.yaml
 
   # --- 代码与生成 ---
 

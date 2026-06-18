@@ -37,8 +37,8 @@ type Service interface {
 	Delete(ctx context.Context, id int64) error
 	// Stop 停止任务
 	Stop(ctx context.Context, id int64) error
-	// Run 运行任务（从停止状态恢复）
-	Run(ctx context.Context, id int64) error
+	// Run 运行任务（从停止状态恢复）。一次性任务可传入 cronExpr 修改下次执行时间。
+	Run(ctx context.Context, id int64, cronExpr string) error
 }
 
 type service struct {
@@ -206,7 +206,29 @@ func (s *service) Stop(ctx context.Context, id int64) error {
 	return err
 }
 
-func (s *service) Run(ctx context.Context, id int64) error {
+func (s *service) Run(ctx context.Context, id int64, cronExpr string) error {
+	if cronExpr != "" {
+		task, err := s.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !task.Type.IsOneTime() {
+			return fmt.Errorf("只有一次性任务支持传递执行时间表达式")
+		}
+		if task.Status == domain.TaskStatusPreempted {
+			return fmt.Errorf("任务正在运行中，请等结束后再运行")
+		}
+
+		task.CronExpr = cronExpr
+		task.Status = domain.TaskStatusActive
+		if err = s.setNextScheduleTime(&task); err != nil {
+			return err
+		}
+		if err = s.repo.Update(ctx, task); err != nil {
+			return err
+		}
+	}
+
 	_, err := s.repo.UpdateStatus(ctx, id, domain.TaskStatusActive)
 	return err
 }
