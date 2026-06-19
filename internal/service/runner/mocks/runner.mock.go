@@ -434,6 +434,45 @@ func (c *MockServiceListExcludeCodebookUIDCall) DoAndReturn(f func(context.Conte
 	return c
 }
 
+// ListMergedVariables mocks base method.
+func (m *MockService) ListMergedVariables(ctx context.Context, id int64) ([]domain.RunnerVariable, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListMergedVariables", ctx, id)
+	ret0, _ := ret[0].([]domain.RunnerVariable)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListMergedVariables indicates an expected call of ListMergedVariables.
+func (mr *MockServiceMockRecorder) ListMergedVariables(ctx, id any) *MockServiceListMergedVariablesCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListMergedVariables", reflect.TypeOf((*MockService)(nil).ListMergedVariables), ctx, id)
+	return &MockServiceListMergedVariablesCall{Call: call}
+}
+
+// MockServiceListMergedVariablesCall wrap *gomock.Call
+type MockServiceListMergedVariablesCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceListMergedVariablesCall) Return(arg0 []domain.RunnerVariable, arg1 error) *MockServiceListMergedVariablesCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceListMergedVariablesCall) Do(f func(context.Context, int64) ([]domain.RunnerVariable, error)) *MockServiceListMergedVariablesCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceListMergedVariablesCall) DoAndReturn(f func(context.Context, int64) ([]domain.RunnerVariable, error)) *MockServiceListMergedVariablesCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // Update mocks base method.
 func (m *MockService) Update(ctx context.Context, req domain.Runner) (int64, error) {
 	m.ctrl.T.Helper()
