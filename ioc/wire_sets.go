@@ -9,6 +9,7 @@ import (
 	executorSvc "github.com/Duke1616/etask/internal/service/executor"
 	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
+	taskBinding "github.com/Duke1616/etask/internal/service/task/binding"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
@@ -57,6 +58,21 @@ var (
 		repository.NewRunnerRepository,
 		runnerSvc.NewService,
 		runnerWeb.NewHandler,
+	)
+
+	MaterializerCoreSet = wire.NewSet(
+		dao.NewGORMCodebookDAO,
+		repository.NewCodebookRepository,
+		codebookSvc.NewService,
+		dao.NewGORMRunnerDAO,
+		InitCrypto,
+		repository.NewRunnerRepository,
+		runnerSvc.NewService,
+		taskBinding.NewScriptBindingResolvers,
+	)
+
+	BindingResolverSet = wire.NewSet(
+		taskBinding.NewScriptBindingResolvers,
 	)
 
 	ExecutorSet = wire.NewSet(

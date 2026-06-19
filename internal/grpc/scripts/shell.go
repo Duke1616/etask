@@ -49,10 +49,6 @@ func (h *ShellTaskHandler) Metadata() []executor.Parameter {
 					Label:       "脚本库引用",
 					Placeholder: "请选择脚本库...",
 					Component:   "codebook-picker",
-					Resolver: func(ctx *executor.Context, value string) (string, error) {
-						// NOTE: 后续可接入 codebook-picker 对应的解析逻辑 (RPC 调用)
-						return value, nil
-					},
 				},
 			},
 		},
@@ -83,10 +79,6 @@ func (h *ShellTaskHandler) Metadata() []executor.Parameter {
 					Label:       "执行单元引用",
 					Placeholder: "请选择执行单元...",
 					Component:   "runner-picker",
-					Resolver: func(ctx *executor.Context, value string) (string, error) {
-						// NOTE: 后续可接入 runner-picker 对应的解析逻辑 (RPC 调用)
-						return value, nil
-					},
 				},
 			},
 		},

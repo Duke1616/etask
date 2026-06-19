@@ -29,6 +29,7 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 		ConsumerSet,
 		ProducerSet,
 		GrpcSet,
+		MaterializerCoreSet,
 		InitDispatcher,
 		InitInvoker,
 		// 从 Base 中提取基础资源
@@ -63,6 +64,7 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 		TaskSet,
 		CodebookSet,
 		RunnerSet,
+		BindingResolverSet,
 		TaskExecutionSet,
 		SchedulerSet,
 		AppSet,
@@ -79,6 +81,7 @@ func InitWebModule(base *Base) *WebModule {
 		CodebookSet,
 		RunnerSet,
 		TaskExecutionSet,
+		BindingResolverSet,
 		ExecutorSet,
 		AgentWebSet,
 		WebSetup,

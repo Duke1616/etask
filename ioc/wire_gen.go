@@ -15,6 +15,7 @@ import (
 	executor3 "github.com/Duke1616/etask/internal/service/executor"
 	"github.com/Duke1616/etask/internal/service/runner"
 	"github.com/Duke1616/etask/internal/service/task"
+	binding "github.com/Duke1616/etask/internal/service/task/binding"
 	codebook2 "github.com/Duke1616/etask/internal/web/codebook"
 	executor2 "github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
@@ -46,14 +47,22 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 	taskRepository := repository.NewTaskRepository(taskDAO)
 	service := task.NewService(taskRepository)
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
-	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
+	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO)
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
 	taskExecutionLogRepository := repository.NewTaskExecutionLogRepository(taskExecutionLogDAO)
 	logService := task.NewLogService(taskExecutionLogRepository)
 	mq := base.MQ
 	completeProducer := InitCompleteProducer(mq)
 	registry := base.Registry
-	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
+	codebookDAO := dao.NewGORMCodebookDAO(db)
+	codebookRepository := repository.NewCodebookRepository(codebookDAO)
+	codebookService := codebook.NewService(codebookRepository)
+	runnerDAO := dao.NewGORMRunnerDAO(db)
+	crypto := InitCrypto()
+	runnerRepository := repository.NewRunnerRepository(runnerDAO, crypto)
+	runnerService := runner.NewService(runnerRepository)
+	bindingResolverRegistry := binding.NewScriptBindingResolvers(codebookService, runnerService)
+	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry, bindingResolverRegistry)
 	taskAcquirer := InitMySQLTaskAcquirer(taskRepository)
 	clients := InitExecutorServiceGRPCClients(registry)
 	invoker := InitInvoker(clients)
@@ -96,25 +105,26 @@ func InitSchedulerServerModule(base *Base) *grpc.Server {
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskDAO := dao.NewGORMTaskDAO(db)
 	taskRepository := repository.NewTaskRepository(taskDAO)
-	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
+	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO)
 	service := task.NewService(taskRepository)
 	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
 	taskExecutionLogRepository := repository.NewTaskExecutionLogRepository(taskExecutionLogDAO)
 	logService := task.NewLogService(taskExecutionLogRepository)
 	mq := base.MQ
 	completeProducer := InitCompleteProducer(mq)
-	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
-	reporterServer := grpc2.NewReporterServer(executionService)
-	taskServer := grpc2.NewTaskServer(service)
-	agentServer := grpc2.NewAgentServer(taskExecutionRepository, logService)
 	codebookDAO := dao.NewGORMCodebookDAO(db)
 	codebookRepository := repository.NewCodebookRepository(codebookDAO)
 	codebookService := codebook.NewService(codebookRepository)
-	codebookServer := grpc2.NewCodebookServer(codebookService)
 	runnerDAO := dao.NewGORMRunnerDAO(db)
 	crypto := InitCrypto()
 	runnerRepository := repository.NewRunnerRepository(runnerDAO, crypto)
 	runnerService := runner.NewService(runnerRepository)
+	bindingResolverRegistry := binding.NewScriptBindingResolvers(codebookService, runnerService)
+	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry, bindingResolverRegistry)
+	reporterServer := grpc2.NewReporterServer(executionService)
+	taskServer := grpc2.NewTaskServer(service)
+	agentServer := grpc2.NewAgentServer(taskExecutionRepository, logService)
+	codebookServer := grpc2.NewCodebookServer(codebookService)
 	runnerServer := grpc2.NewRunnerServer(runnerService)
 	server := InitSchedulerNodeGRPCServer(registry, reporterServer, taskServer, agentServer, codebookServer, runnerServer)
 	return server
@@ -134,20 +144,21 @@ func InitWebModule(base *Base) *WebModule {
 	logService := task.NewLogService(taskExecutionLogRepository)
 	string2 := InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
-	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO, taskRepository)
+	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO)
 	mq := base.MQ
 	completeProducer := InitCompleteProducer(mq)
 	registry := base.Registry
-	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry)
-	handler := manager.NewHandler(service, logService, executionService)
 	codebookDAO := dao.NewGORMCodebookDAO(db)
 	codebookRepository := repository.NewCodebookRepository(codebookDAO)
 	codebookService := codebook.NewService(codebookRepository)
-	codebookHandler := codebook2.NewHandler(codebookService)
 	runnerDAO := dao.NewGORMRunnerDAO(db)
 	crypto := InitCrypto()
 	runnerRepository := repository.NewRunnerRepository(runnerDAO, crypto)
 	runnerService := runner.NewService(runnerRepository)
+	bindingResolverRegistry := binding.NewScriptBindingResolvers(codebookService, runnerService)
+	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry, bindingResolverRegistry)
+	handler := manager.NewHandler(service, logService, executionService)
+	codebookHandler := codebook2.NewHandler(codebookService)
 	runnerHandler := runner2.NewHandler(runnerService)
 	client := base.Etcd
 	executorService := executor3.NewService(client)

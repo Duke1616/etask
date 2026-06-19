@@ -10,6 +10,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+//go:generate mockgen -source=./codebook.go -package=codebookmocks -destination=./mocks/codebook.mock.go -typed Service
+
 // Service 定义脚本模板业务操作。
 type Service interface {
 	// Create 校验并创建脚本模板。

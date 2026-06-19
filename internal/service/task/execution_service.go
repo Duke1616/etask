@@ -15,6 +15,7 @@ import (
 	"github.com/Duke1616/etask/internal/sse"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/retry"
+	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/gotomicro/ego/core/elog"
 	"go.uber.org/multierr"
 )
@@ -59,6 +60,7 @@ type executionService struct {
 	taskAcquirer acquirer.TaskAcquirer  // 任务抢占器
 	producer     event.CompleteProducer // 任务完成事件生产者
 	registry     registry.Registry
+	resolvers    *executor.BindingResolverRegistry
 	logger       *elog.Component
 }
 
@@ -70,19 +72,30 @@ func NewExecutionService(
 	logSvc LogService,
 	producer event.CompleteProducer,
 	registry registry.Registry,
+	resolvers *executor.BindingResolverRegistry,
 ) ExecutionService {
 	return &executionService{
-		nodeID:   nodeID,
-		repo:     repo,
-		taskSvc:  taskSvc,
-		logSvc:   logSvc,
-		producer: producer,
-		registry: registry,
-		logger:   elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
+		nodeID:    nodeID,
+		repo:      repo,
+		taskSvc:   taskSvc,
+		logSvc:    logSvc,
+		producer:  producer,
+		registry:  registry,
+		resolvers: resolvers,
+		logger:    elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
 	}
 }
 
 func (s *executionService) Create(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error) {
+	snapshot, err := s.buildTaskSnapshot(ctx, execution.Task)
+	if err != nil {
+		return domain.TaskExecution{}, err
+	}
+	execution.Task = snapshot
+	if execution.TenantID == 0 {
+		execution.TenantID = snapshot.TenantID
+	}
+
 	created, err := s.repo.Create(ctx, execution)
 	if err != nil {
 		return created, err
@@ -90,6 +103,37 @@ func (s *executionService) Create(ctx context.Context, execution domain.TaskExec
 
 	s.broadcastExecutionEvent(created.ID)
 	return created, nil
+}
+
+func (s *executionService) buildTaskSnapshot(ctx context.Context, task domain.Task) (domain.Task, error) {
+	snapshot, err := s.taskSvc.GetByID(ctx, task.ID)
+	if err != nil {
+		return domain.Task{}, fmt.Errorf("获取Task信息失败: %w", err)
+	}
+
+	snapshot.UpdateScheduleParams(task.ScheduleParams)
+
+	if snapshot.GrpcConfig == nil || s.resolvers == nil {
+		return snapshot, nil
+	}
+
+	resolved, err := s.resolvers.Resolve(ctx, snapshot.GrpcConfig.HandlerName, snapshot.GrpcConfig.Params, snapshot.Metadata)
+	if err != nil {
+		return domain.Task{}, err
+	}
+	if len(resolved) == 0 {
+		return snapshot, nil
+	}
+
+	params := make(map[string]string)
+	for k, v := range snapshot.GrpcConfig.Params {
+		params[k] = v
+	}
+	for k, v := range resolved {
+		params[k] = v
+	}
+	snapshot.GrpcConfig.Params = params
+	return snapshot, nil
 }
 
 func (s *executionService) FindByID(ctx context.Context, id int64) (domain.TaskExecution, error) {

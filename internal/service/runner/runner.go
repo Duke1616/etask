@@ -10,6 +10,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+//go:generate mockgen -source=./runner.go -package=runnermocks -destination=./mocks/runner.mock.go -typed Service
+
 // Service 定义脚本执行单元业务操作。
 type Service interface {
 	// Create 校验并创建执行单元。

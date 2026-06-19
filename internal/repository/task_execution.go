@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/repository/dao"
@@ -49,14 +48,12 @@ type TaskExecutionRepository interface {
 }
 
 type taskExecutionRepository struct {
-	dao      dao.TaskExecutionDAO
-	taskRepo TaskRepository
+	dao dao.TaskExecutionDAO
 }
 
-func NewTaskExecutionRepository(executionDAO dao.TaskExecutionDAO, taskRepo TaskRepository) TaskExecutionRepository {
+func NewTaskExecutionRepository(executionDAO dao.TaskExecutionDAO) TaskExecutionRepository {
 	return &taskExecutionRepository{
-		dao:      executionDAO,
-		taskRepo: taskRepo,
+		dao: executionDAO,
 	}
 }
 
@@ -125,16 +122,10 @@ func (r *taskExecutionRepository) Create(ctx context.Context, execution domain.T
 	if execution.Task.ID == 0 {
 		return domain.TaskExecution{}, errors.New("Task.ID不能为空")
 	}
-	// 获取完整的Task信息
-	completeTask, err := r.taskRepo.GetByID(ctx, execution.Task.ID)
-	if err != nil {
-		return domain.TaskExecution{}, fmt.Errorf("获取Task信息失败: %w", err)
-	}
 
-	execution.Task = completeTask
 	// 自动继承 Task 的 TenantID（后台调度等无租户上下文的场景）
 	if execution.TenantID == 0 {
-		execution.TenantID = completeTask.TenantID
+		execution.TenantID = execution.Task.TenantID
 	}
 
 	created, err := r.dao.Create(ctx, r.toEntity(execution))

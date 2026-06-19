@@ -47,9 +47,6 @@ func (h *PythonTaskHandler) Metadata() []executor.Parameter {
 					Label:       "脚本库引用",
 					Placeholder: "请选择脚本库...",
 					Component:   "codebook-picker",
-					Resolver: func(ctx *executor.Context, value string) (string, error) {
-						return value, nil
-					},
 				},
 			},
 		},
@@ -80,9 +77,6 @@ func (h *PythonTaskHandler) Metadata() []executor.Parameter {
 					Label:       "执行单元引用",
 					Placeholder: "请选择执行单元...",
 					Component:   "runner-picker",
-					Resolver: func(ctx *executor.Context, value string) (string, error) {
-						return value, nil
-					},
 				},
 			},
 		},
