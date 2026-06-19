@@ -7,6 +7,7 @@ func InitTables(db *gorm.DB) error {
 		&Task{},
 		&Codebook{},
 		&Runner{},
+		&Variable{},
 		&TaskExecution{},
 		&TaskExecutionLog{},
 	)

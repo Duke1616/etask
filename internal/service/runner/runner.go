@@ -36,6 +36,8 @@ type Service interface {
 	ListByIDs(ctx context.Context, ids []int64) ([]domain.Runner, error)
 	// AggregateTags 按脚本模板 UID 聚合执行单元标签。
 	AggregateTags(ctx context.Context) ([]domain.RunnerTags, error)
+	// ListMergedVariables 获取执行单元变量，私有变量覆盖全局变量。
+	ListMergedVariables(ctx context.Context, id int64) ([]domain.RunnerVariable, error)
 }
 
 type service struct {
@@ -178,4 +180,11 @@ func (s *service) ListByIDs(ctx context.Context, ids []int64) ([]domain.Runner, 
 // AggregateTags 按脚本模板 UID 聚合执行单元标签。
 func (s *service) AggregateTags(ctx context.Context) ([]domain.RunnerTags, error) {
 	return s.repo.AggregateTags(ctx)
+}
+
+func (s *service) ListMergedVariables(ctx context.Context, id int64) ([]domain.RunnerVariable, error) {
+	if id <= 0 {
+		return nil, fmt.Errorf("%w: id = %d", errs.ErrInvalidParameter, id)
+	}
+	return s.repo.ListMergedVariables(ctx, id)
 }

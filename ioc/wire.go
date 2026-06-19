@@ -80,6 +80,7 @@ func InitWebModule(base *Base) *WebModule {
 		TaskSet,
 		CodebookSet,
 		RunnerSet,
+		VariableSet,
 		TaskExecutionSet,
 		BindingResolverSet,
 		ExecutorSet,

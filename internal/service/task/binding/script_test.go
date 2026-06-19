@@ -21,13 +21,10 @@ func TestScriptBindingResolversResolve(t *testing.T) {
 		GetByID(gomock.Any(), int64(12)).
 		Return(domain.Codebook{ID: 12, Code: "echo hello"}, nil)
 	runnerSvc.EXPECT().
-		FindByID(gomock.Any(), int64(34)).
-		Return(domain.Runner{
-			ID: 34,
-			Variables: []domain.RunnerVariable{
-				{Key: "HOST", Value: "127.0.0.1"},
-				{Key: "TOKEN", Value: "secret", Secret: true},
-			},
+		ListMergedVariables(gomock.Any(), int64(34)).
+		Return([]domain.RunnerVariable{
+			{Key: "HOST", Value: "127.0.0.1"},
+			{Key: "TOKEN", Value: "secret", Secret: true},
 		}, nil)
 
 	resolvers := NewScriptBindingResolvers(codebookSvc, runnerSvc)

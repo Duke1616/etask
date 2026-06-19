@@ -10,10 +10,12 @@ import (
 	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	taskBinding "github.com/Duke1616/etask/internal/service/task/binding"
+	variableSvc "github.com/Duke1616/etask/internal/service/variable"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
 	runnerWeb "github.com/Duke1616/etask/internal/web/runner"
+	variableWeb "github.com/Duke1616/etask/internal/web/variable"
 	"github.com/google/wire"
 )
 
@@ -54,10 +56,17 @@ var (
 
 	RunnerSet = wire.NewSet(
 		dao.NewGORMRunnerDAO,
+		dao.NewGORMVariableDAO,
 		InitCrypto,
 		repository.NewRunnerRepository,
 		runnerSvc.NewService,
 		runnerWeb.NewHandler,
+	)
+
+	VariableSet = wire.NewSet(
+		repository.NewVariableRepository,
+		variableSvc.NewService,
+		variableWeb.NewHandler,
 	)
 
 	MaterializerCoreSet = wire.NewSet(
@@ -65,6 +74,7 @@ var (
 		repository.NewCodebookRepository,
 		codebookSvc.NewService,
 		dao.NewGORMRunnerDAO,
+		dao.NewGORMVariableDAO,
 		InitCrypto,
 		repository.NewRunnerRepository,
 		runnerSvc.NewService,

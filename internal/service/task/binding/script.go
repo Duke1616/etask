@@ -51,12 +51,12 @@ func (r RunnerResolver) Resolve(ctx context.Context, req executor.BindingResolve
 		return "", err
 	}
 
-	runner, err := r.svc.FindByID(ctx, id)
+	vars, err := r.svc.ListMergedVariables(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf("get runner failed: %w", err)
+		return "", fmt.Errorf("get runner variables failed: %w", err)
 	}
 
-	variables := lo.Map(runner.Variables, func(v domain.RunnerVariable, _ int) variable {
+	variables := lo.Map(vars, func(v domain.RunnerVariable, _ int) variable {
 		return variable{
 			Key:    v.Key,
 			Value:  v.Value,

@@ -59,7 +59,7 @@ func runMigrate(force bool) {
 	runner := migration.NewRunner(mCfg, migrations.All(),
 		migration.WithDefaultTenantID(migrations.DefaultTenantID),
 		migration.WithAutoMigrateFunc(func(db *gorm.DB) error {
-			return db.AutoMigrate(&dao.Codebook{}, &dao.Runner{})
+			return db.AutoMigrate(&dao.Codebook{}, &dao.Runner{}, &dao.Variable{})
 		}),
 	)
 

@@ -46,15 +46,6 @@ func (runnerMigrator) CollectionName() string {
 }
 
 func (runnerMigrator) Convert(src mongoRunner) dao.Runner {
-	vars := make([]dao.RunnerVariable, 0, len(src.Variables))
-	for _, v := range src.Variables {
-		vars = append(vars, dao.RunnerVariable{
-			Key:    v.Key,
-			Value:  v.Value,
-			Secret: v.Secret,
-		})
-	}
-
 	return dao.Runner{
 		ID:             src.ID,
 		TenantID:       DefaultTenantID,
@@ -67,7 +58,6 @@ func (runnerMigrator) Convert(src mongoRunner) dao.Runner {
 		Tags:           sqlx.JSONColumn[[]string]{Val: src.Tags, Valid: src.Tags != nil},
 		Action:         src.Action,
 		Desc:           src.Desc,
-		Variables:      sqlx.JSONColumn[[]dao.RunnerVariable]{Val: vars, Valid: len(vars) > 0},
 		CTime:          src.CTime,
 		UTime:          src.UTime,
 	}

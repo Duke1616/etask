@@ -9,5 +9,6 @@ func All() []migration.Migrator {
 	return []migration.Migrator{
 		NewCodebookMigrator(),
 		NewRunnerMigrator(),
+		NewRunnerVariableMigrator(),
 	}
 }

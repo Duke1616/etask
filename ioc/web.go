@@ -13,6 +13,7 @@ import (
 	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
 	runnerWeb "github.com/Duke1616/etask/internal/web/runner"
+	variableWeb "github.com/Duke1616/etask/internal/web/variable"
 	"github.com/gin-gonic/gin"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/gotomicro/ego/server/egin"
@@ -23,7 +24,8 @@ const Resource = "TASK"
 func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	syncer capability.Syncer, providers []capability.PermissionProvider,
 	taskHdl *manager.Handler, codebookHdl *codebookWeb.Handler,
-	runnerHdl *runnerWeb.Handler, executorHdl *executor.Handler, agentHdl *web.Handler, listener net.Listener) *egin.Component {
+	runnerHdl *runnerWeb.Handler, variableHdl *variableWeb.Handler,
+	executorHdl *executor.Handler, agentHdl *web.Handler, listener net.Listener) *egin.Component {
 
 	server := egin.Load("server.egin").Build(egin.WithListener(listener))
 	// 开启 ContextWithFallback：使 ctx.Context.Value() 自动 fallback 到 ctx.Request.Context().Value()
@@ -34,6 +36,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	taskHdl.PublicRoutes(server.Engine)
 	codebookHdl.PublicRoutes(server.Engine)
 	runnerHdl.PublicRoutes(server.Engine)
+	variableHdl.PublicRoutes(server.Engine)
 	executorHdl.PublicRoutes(server.Engine)
 	agentHdl.PublicRoutes(server.Engine)
 
@@ -44,6 +47,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	taskHdl.IdentifyRoutes(server.Engine)
 	codebookHdl.IdentifyRoutes(server.Engine)
 	runnerHdl.IdentifyRoutes(server.Engine)
+	variableHdl.IdentifyRoutes(server.Engine)
 
 	// 权限策略检查
 	server.Use(sdk.CheckPolicy())
@@ -52,6 +56,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	taskHdl.PrivateRoutes(server.Engine)
 	codebookHdl.PrivateRoutes(server.Engine)
 	runnerHdl.PrivateRoutes(server.Engine)
+	variableHdl.PrivateRoutes(server.Engine)
 	executorHdl.PrivateRoutes(server.Engine)
 	agentHdl.PrivateRoutes(server.Engine)
 
