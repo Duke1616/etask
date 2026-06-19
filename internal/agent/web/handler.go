@@ -1,36 +1,27 @@
 package web
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/Duke1616/eiam/pkg/web/capability"
 	"github.com/Duke1616/etask/internal/agent/domain"
-	"github.com/Duke1616/etask/pkg/grpc/registry"
-	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
+	agentSvc "github.com/Duke1616/etask/internal/agent/service"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/samber/lo"
 )
 
 var _ ginx.Handler = &Handler{}
 
 type Handler struct {
-	registry registry.Registry
+	svc agentSvc.Service
 	capability.IRegistry
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
 }
 
-func NewHandler(etcdClient *clientv3.Client) *Handler {
-	reg, err := etcd.NewRegistryWithPrefix(etcdClient, "/etask/kafka")
-	if err != nil {
-		panic(err)
-	}
-
+func NewHandler(svc agentSvc.Service) *Handler {
 	return &Handler{
-		registry:  reg,
+		svc:       svc,
 		IRegistry: capability.NewRegistry("task", "agent", "代理管理"),
 	}
 }
@@ -41,97 +32,41 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	// --- 代理管理 ---
 	g.GET("/list", h.Capability("代理列表", "view").
 		NoSync().
-		Handle(ginx.W(h.ListAgents)),
+		Handle(ginx.B[ListAgentsReq](h.ListAgents)),
 	)
 }
 
-func (h *Handler) ListAgents(ctx *ginx.Context) (ginx.Result, error) {
-	// 查询所有服务，通过传入空字符串查询该前缀下所有注册节点
-	instances, err := h.registry.ListServices(ctx, domain.ServiceName)
+func (h *Handler) ListAgents(ctx *ginx.Context, req ListAgentsReq) (ginx.Result, error) {
+	res, err := h.svc.ListAgents(ctx, req.Limit, req.Cursor, req.Keyword)
 	if err != nil {
 		return systemErrorResult, err
 	}
 
-	fmt.Println("instance", instances)
-
 	return ginx.Result{
-		Data: h.groupExecutors(instances),
+		Data: h.toListResp(res),
 		Msg:  "success",
 	}, nil
 }
 
-func (h *Handler) groupExecutors(instances []registry.ServiceInstance) []Agent {
-	type aggregate struct {
-		desc     string
-		topic    string
-		handlers []HandlerDetail
-		nodes    []NodeDetail
+func (h *Handler) toListResp(src domain.AgentList) ListAgentsResp {
+	return ListAgentsResp{
+		Agents:     lo.Map(src.Agents, func(agent domain.Agent, _ int) Agent { return h.toVO(agent) }),
+		NextCursor: src.NextCursor,
+		HasMore:    src.NextCursor != "",
 	}
-
-	grouped := make(map[string]*aggregate)
-
-	for _, inst := range instances {
-		if inst.Metadata == nil {
-			continue
-		}
-
-		agentName := h.getStringMetadata(inst.Metadata, "name")
-		if agentName == "" {
-			// 如果没有 name，则 fallback 到 inst.Name
-			agentName = inst.Name
-		}
-
-		agg, exists := grouped[agentName]
-		if !exists {
-			agg = &aggregate{}
-			grouped[agentName] = agg
-
-			// 只在第一次初始化时解析全局字段
-			agg.desc = h.getStringMetadata(inst.Metadata, "desc")
-			agg.topic = h.getStringMetadata(inst.Metadata, "topic")
-			agg.handlers = h.parseHandlers(inst.Metadata["supported_handlers"])
-		}
-
-		// 每个实例都要加入 node
-		agg.nodes = append(agg.nodes, NodeDetail{
-			ID:      inst.ID,
-			Address: inst.Address,
-		})
-	}
-
-	// 转换为最终结构
-	result := make([]Agent, 0, len(grouped))
-	for name, agg := range grouped {
-		result = append(result, Agent{
-			Name:     name,
-			Desc:     agg.desc,
-			Topic:    agg.topic,
-			Handlers: agg.handlers,
-			Nodes:    agg.nodes,
-		})
-	}
-
-	return result
 }
 
-func (h *Handler) getStringMetadata(metadata map[string]any, key string) string {
-	if v, ok := metadata[key]; ok {
-		if s, ok := v.(string); ok {
-			return s
-		}
+func (h *Handler) toVO(src domain.Agent) Agent {
+	return Agent{
+		Name:     src.Name,
+		Desc:     src.Desc,
+		Topic:    src.Topic,
+		Handlers: lo.Map(src.Handlers, func(handler domain.HandlerDetail, _ int) HandlerDetail { return HandlerDetail(handler) }),
+		Nodes: lo.Map(src.Nodes, func(node domain.NodeDetail, _ int) NodeDetail {
+			return NodeDetail{
+				ID:      node.ID,
+				Address: node.Address,
+			}
+		}),
 	}
-	return ""
-}
-
-func (h *Handler) parseHandlers(data any) []HandlerDetail {
-	str, ok := data.(string)
-	if !ok || str == "" {
-		return nil
-	}
-
-	var handlers []HandlerDetail
-	if err := json.Unmarshal([]byte(str), &handlers); err != nil {
-		return nil
-	}
-	return handlers
 }

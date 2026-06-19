@@ -17,11 +17,12 @@ import (
 	registrysdk "github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/spf13/viper"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 )
 
 // InitExecutor 初始化原生 gRPC 执行器节点
-func InitExecutor(reg registrysdk.Registry) *executor.Executor {
+func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 	var serverCfg grpcpkg.ServerConfig
 	if err := viper.UnmarshalKey("grpc.server.executor", &serverCfg); err != nil {
 		panic(err)
@@ -39,6 +40,7 @@ func InitExecutor(reg registrysdk.Registry) *executor.Executor {
 		Client: clientCfg,
 	}
 
+	reg := InitExecutorRegistry(etcdClient)
 	exec, err := executor.NewExecutor(cfg, reg)
 	if err != nil {
 		panic(err)

@@ -2,11 +2,11 @@ package ioc
 
 import (
 	agentSvc "github.com/Duke1616/etask/internal/agent"
-	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	codebookSvc "github.com/Duke1616/etask/internal/service/codebook"
+	executorSvc "github.com/Duke1616/etask/internal/service/executor"
 	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
@@ -60,6 +60,7 @@ var (
 	)
 
 	ExecutorSet = wire.NewSet(
+		executorSvc.NewService,
 		executor.NewHandler,
 	)
 
@@ -85,7 +86,7 @@ var (
 
 	// AgentWebSet 专门用于 Scheduler 等只需要查看 Agent 状态而不运行 Agent 的场景
 	AgentWebSet = wire.NewSet(
-		web.NewHandler,
+		agentSvc.InitWebHandler,
 	)
 
 	CompensatorSet = wire.NewSet(

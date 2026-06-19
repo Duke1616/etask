@@ -15,6 +15,11 @@ type Registry interface {
 	io.Closer
 }
 
+type Indexer interface {
+	Name() string
+	Key(si ServiceInstance) (string, bool)
+}
+
 type ServiceInstance struct {
 	Name         string // im
 	Address      string // 1.1.0.129

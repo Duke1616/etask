@@ -3,6 +3,7 @@ package ioc
 import (
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
+	"github.com/Duke1616/etask/pkg/grpc/registry/indexer"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -15,4 +16,12 @@ func InitRegistry(etcdClient *clientv3.Client) registry.Registry {
 		panic(err)
 	}
 	return r
+}
+
+func InitExecutorRegistry(etcdClient *clientv3.Client) registry.Registry {
+	r, err := etcd.NewRegistry(etcdClient)
+	if err != nil {
+		panic(err)
+	}
+	return r.UseIndexers(indexer.NewExecutorIndexer())
 }

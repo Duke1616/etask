@@ -25,8 +25,9 @@ var typesMap = map[mvccpb.Event_EventType]registry.EventType{
 }
 
 type Registry struct {
-	client *clientv3.Client
-	prefix string // 服务注册前缀
+	client   *clientv3.Client
+	prefix   string // 服务注册前缀
+	indexers []registry.Indexer
 
 	mutex   sync.RWMutex
 	cancels map[string]func() // 统一管理所有异步任务的生命周期
@@ -46,6 +47,11 @@ func NewRegistryWithPrefix(c *clientv3.Client, prefix string) (*Registry, error)
 		cancels: make(map[string]func()),
 		logger:  elog.DefaultLogger.With(elog.FieldComponentName("grpc.registry.etcd")),
 	}, nil
+}
+
+func (r *Registry) UseIndexers(indexers ...registry.Indexer) *Registry {
+	r.indexers = append(r.indexers, indexers...)
+	return r
 }
 
 // unmarshal 统一解析 etcd 节点数据
@@ -84,10 +90,16 @@ func (r *Registry) keepAlive(ctx context.Context, si registry.ServiceInstance, v
 		if err == nil {
 			// 2. 注册服务
 			_, err = r.client.Put(ctx, r.instanceKey(si), val, clientv3.WithLease(sess.Lease()))
+			if err == nil {
+				err = r.putIndexes(ctx, sess, si, val)
+			}
 		}
 
 		// 3. 失败处理：退避重试
 		if err != nil {
+			if sess != nil {
+				_ = sess.Close()
+			}
 			r.logger.Error("服务注册/全量同步失败", elog.FieldErr(err), elog.String("backoff", backoff.String()))
 			select {
 			case <-ctx.Done():
@@ -114,6 +126,19 @@ func (r *Registry) instanceKey(s registry.ServiceInstance) string {
 	return fmt.Sprintf("%s/%s/%s", r.prefix, s.Name, s.Address)
 }
 
+func (r *Registry) putIndexes(ctx context.Context, sess *concurrency.Session, si registry.ServiceInstance, val string) error {
+	for _, indexer := range r.indexers {
+		key, ok := indexer.Key(si)
+		if !ok {
+			continue
+		}
+		if _, err := r.client.Put(ctx, key, val, clientv3.WithLease(sess.Lease())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *Registry) UnRegister(ctx context.Context, si registry.ServiceInstance) error {
 	key := r.instanceKey(si)
 	r.mutex.Lock()
@@ -123,8 +148,23 @@ func (r *Registry) UnRegister(ctx context.Context, si registry.ServiceInstance) 
 	}
 	r.mutex.Unlock()
 
-	_, err := r.client.Delete(ctx, key)
-	return err
+	if _, err := r.client.Delete(ctx, key); err != nil {
+		return err
+	}
+	return r.deleteIndexes(ctx, si)
+}
+
+func (r *Registry) deleteIndexes(ctx context.Context, si registry.ServiceInstance) error {
+	for _, indexer := range r.indexers {
+		key, ok := indexer.Key(si)
+		if !ok {
+			continue
+		}
+		if _, err := r.client.Delete(ctx, key); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Registry) ListServices(ctx context.Context, name string) ([]registry.ServiceInstance, error) {

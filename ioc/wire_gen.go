@@ -8,11 +8,11 @@ package ioc
 
 import (
 	"github.com/Duke1616/etask/internal/agent"
-	"github.com/Duke1616/etask/internal/agent/web"
 	grpc2 "github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/internal/service/codebook"
+	executor3 "github.com/Duke1616/etask/internal/service/executor"
 	"github.com/Duke1616/etask/internal/service/runner"
 	"github.com/Duke1616/etask/internal/service/task"
 	codebook2 "github.com/Duke1616/etask/internal/web/codebook"
@@ -75,8 +75,8 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 
 // InitExecutorModule 专门用于构造原生执行器模块
 func InitExecutorModule(base *Base) *executor.Executor {
-	registry := base.Registry
-	executorExecutor := InitExecutor(registry)
+	client := base.Etcd
+	executorExecutor := InitExecutor(client)
 	return executorExecutor
 }
 
@@ -149,9 +149,10 @@ func InitWebModule(base *Base) *WebModule {
 	runnerRepository := repository.NewRunnerRepository(runnerDAO, crypto)
 	runnerService := runner.NewService(runnerRepository)
 	runnerHandler := runner2.NewHandler(runnerService)
-	executorHandler := executor2.NewHandler(registry)
 	client := base.Etcd
-	webHandler := web.NewHandler(client)
+	executorService := executor3.NewService(client)
+	executorHandler := executor2.NewHandler(executorService)
+	webHandler := agent.InitWebHandler(mq, client)
 	listener := InitListener()
 	component := InitGinWebServer(v, sdk, syncer, v2, handler, codebookHandler, runnerHandler, executorHandler, webHandler, listener)
 	clientConnInterface := InitECMDBGrpcClient(registry)

@@ -24,17 +24,23 @@ import (
 // Injectors from wire.go:
 
 func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
-	serviceService := service.NewService(q)
-	taskExecuteResultProducer := initExecuteProducer(q)
 	registry := InitRegistry(etcdClient)
+	serviceService := service.NewService(q, registry)
+	taskExecuteResultProducer := initExecuteProducer(q)
 	executeConsumer := initExecuteConsumer(q, serviceService, taskExecuteResultProducer, registry)
-	handler := web.NewHandler(etcdClient)
+	handler := web.NewHandler(serviceService)
 	module := &Module{
 		Svc: serviceService,
 		C:   executeConsumer,
 		Hdl: handler,
 	}
 	return module
+}
+
+func InitWebHandler(q mq.MQ, etcdClient *clientv3.Client) *web.Handler {
+	reg := InitRegistry(etcdClient)
+	svc := service.NewService(q, reg)
+	return web.NewHandler(svc)
 }
 
 // wire.go:
@@ -46,7 +52,7 @@ type Instance struct {
 	WorkerCount int    `yaml:"worker_count" json:"worker_count"` // 并发工作协程数量
 }
 
-var ProviderSet = wire.NewSet(service.NewService)
+var ProviderSet = wire.NewSet(InitRegistry, service.NewService)
 
 func initExecuteProducer(q mq.MQ) event.TaskExecuteResultProducer {
 	producer, err := event.NewExecuteResultEventProducer(q)

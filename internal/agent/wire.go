@@ -26,18 +26,24 @@ type Instance struct {
 }
 
 var ProviderSet = wire.NewSet(
+	InitRegistry,
 	service.NewService)
 
 func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
 	wire.Build(
 		ProviderSet,
-		InitRegistry,
 		web.NewHandler,
 		initExecuteConsumer,
 		initExecuteProducer,
 		wire.Struct(new(Module), "Svc", "C", "Hdl"),
 	)
 	return new(Module)
+}
+
+func InitWebHandler(q mq.MQ, etcdClient *clientv3.Client) *web.Handler {
+	reg := InitRegistry(etcdClient)
+	svc := service.NewService(q, reg)
+	return web.NewHandler(svc)
 }
 
 func initExecuteProducer(q mq.MQ) event2.TaskExecuteResultProducer {

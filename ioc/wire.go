@@ -43,7 +43,7 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 func InitExecutorModule(base *Base) *executor.Executor {
 	wire.Build(
 		InitExecutor,
-		wire.FieldsOf(new(*Base), "Registry"),
+		wire.FieldsOf(new(*Base), "Etcd"),
 	)
 	return nil
 }

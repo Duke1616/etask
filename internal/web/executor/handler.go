@@ -1,28 +1,27 @@
 package executor
 
 import (
-	"encoding/json"
-
 	"github.com/Duke1616/eiam/pkg/web/capability"
-	"github.com/Duke1616/etask/pkg/grpc/registry"
-	"github.com/Duke1616/etask/sdk/executor"
+	"github.com/Duke1616/etask/internal/domain"
+	executorSvc "github.com/Duke1616/etask/internal/service/executor"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
 )
 
 var _ ginx.Handler = &Handler{}
 
 type Handler struct {
-	registry registry.Registry
+	svc executorSvc.Service
 	capability.IRegistry
 }
 
 func (h *Handler) PublicRoutes(_ *gin.Engine) {
 }
 
-func NewHandler(reg registry.Registry) *Handler {
+func NewHandler(svc executorSvc.Service) *Handler {
 	return &Handler{
-		registry:  reg,
+		svc:       svc,
 		IRegistry: capability.NewRegistry("task", "executor", "执行节点"),
 	}
 }
@@ -33,82 +32,67 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	// --- 执行器管理 ---
 	g.GET("/list", h.Capability("执行节点列表", "view").
 		Needs("task:agent:view").
-		Handle(ginx.W(h.ListExecutors)),
+		Handle(ginx.B[ListExecutorsReq](h.ListExecutors)),
 	)
 }
 
-func (h *Handler) ListExecutors(ctx *ginx.Context) (ginx.Result, error) {
-	// 查询所有服务，通过传入空字符串查询该前缀下所有注册节点
-	instances, err := h.registry.ListServices(ctx, "")
+func (h *Handler) ListExecutors(ctx *ginx.Context, req ListExecutorsReq) (ginx.Result, error) {
+	res, err := h.svc.List(ctx, req.Limit, req.Cursor, req.Keyword)
 	if err != nil {
 		return systemErrorResult, err
 	}
 
 	return ginx.Result{
-		Data: h.groupExecutors(instances),
+		Data: h.toListResp(res),
 		Msg:  "success",
 	}, nil
 }
 
-func (h *Handler) groupExecutors(instances []registry.ServiceInstance) []Executor {
-	groupedNodes := make(map[string][]NodeDetail)
-	groupedHandlers := make(map[string][]HandlerDetail)
-	groupedDesc := make(map[string]string)
-	groupedMode := make(map[string]string)
-
-	for _, inst := range instances {
-		if inst.Metadata == nil {
-			continue
-		}
-
-		// 过滤掉非 executor 节点
-		if role, ok := inst.Metadata["role"]; !ok || role != executor.RoleName {
-			continue
-		}
-
-		// 提取节点运行模式
-		if modeRaw, ok := inst.Metadata["mode"]; ok {
-			if modeStr, ok := modeRaw.(string); ok {
-				groupedMode[inst.Name] = modeStr
-			}
-		}
-
-		// 提取节点全局描述
-		if descRaw, ok := inst.Metadata["desc"]; ok {
-			if descStr, ok := descRaw.(string); ok {
-				groupedDesc[inst.Name] = descStr
-			}
-		}
-
-		// 获取 Handlers 一次（每个节点的都应是相同的）
-		if _, exists := groupedHandlers[inst.Name]; !exists {
-			groupedHandlers[inst.Name] = h.parseHandlers(inst.Metadata["supported_handlers"])
-		}
-
-		groupedNodes[inst.Name] = append(groupedNodes[inst.Name], NodeDetail{
-			ID:      inst.ID,
-			Address: inst.Address,
-		})
+func (h *Handler) toListResp(src domain.ExecutorList) ListExecutorsResp {
+	return ListExecutorsResp{
+		Executors:  lo.Map(src.Executors, func(exec domain.Executor, _ int) ExecutorVO { return h.toVO(exec) }),
+		NextCursor: src.NextCursor,
+		HasMore:    src.NextCursor != "",
 	}
-
-	executors := make([]Executor, 0, len(groupedNodes))
-	for name, nodes := range groupedNodes {
-		executors = append(executors, Executor{
-			Name:     name,
-			Desc:     groupedDesc[name],
-			Mode:     groupedMode[name],
-			Handlers: groupedHandlers[name],
-			Nodes:    nodes,
-		})
-	}
-
-	return executors
 }
 
-func (h *Handler) parseHandlers(data any) []HandlerDetail {
-	var handlers []HandlerDetail
-	if bytes, ok := data.(string); ok {
-		_ = json.Unmarshal([]byte(bytes), &handlers)
+func (h *Handler) toVO(src domain.Executor) ExecutorVO {
+	return ExecutorVO{
+		Name:     src.Name,
+		Desc:     src.Desc,
+		Mode:     src.Mode,
+		Handlers: lo.Map(src.Handlers, func(handler domain.ExecutorHandler, _ int) HandlerDetail { return h.toHandlerVO(handler) }),
+		Nodes: lo.Map(src.Nodes, func(node domain.ExecutorNode, _ int) NodeDetail {
+			return NodeDetail{
+				ID:      node.ID,
+				Address: node.Address,
+			}
+		}),
 	}
-	return handlers
+}
+
+func (h *Handler) toHandlerVO(src domain.ExecutorHandler) HandlerDetail {
+	return HandlerDetail{
+		Name:     src.Name,
+		Desc:     src.Desc,
+		Metadata: lo.Map(src.Metadata, func(param domain.ExecutorParameter, _ int) ParameterVO { return h.toParameterVO(param) }),
+	}
+}
+
+func (h *Handler) toParameterVO(src domain.ExecutorParameter) ParameterVO {
+	return ParameterVO{
+		Key:      src.Key,
+		Desc:     src.Desc,
+		Secret:   src.Secret,
+		Required: src.Required,
+		Bindings: lo.MapValues(src.Bindings, func(binding domain.ExecutorBinding, _ string) BindingVO {
+			return BindingVO{
+				Label:       binding.Label,
+				Placeholder: binding.Placeholder,
+				Component:   binding.Component,
+				Config:      binding.Config,
+			}
+		}),
+		Default: src.Default,
+	}
 }

@@ -1,21 +1,30 @@
 package executor
 
-type Executor struct {
-	Name     string          `json:"name"`     // 分组的执行器服务名
-	Desc     string          `json:"desc"`     // 执行器的总体功能描述
-	Mode     string          `json:"mode"`     // 执行器模式
-	Handlers []HandlerDetail `json:"handlers"` // 该分组下所有节点共同支持的处理方法
-	Nodes    []NodeDetail    `json:"nodes"`    // 该服务名下的所有在线节点
+type ListExecutorsReq struct {
+	Limit   int64  `form:"limit"`
+	Cursor  string `form:"cursor"`
+	Keyword string `form:"keyword"`
+}
+
+type ListExecutorsResp struct {
+	Executors  []ExecutorVO `json:"executors"`
+	NextCursor string       `json:"next_cursor,omitempty"`
+	HasMore    bool         `json:"has_more"`
+}
+
+type ExecutorVO struct {
+	Name     string          `json:"name"`
+	Desc     string          `json:"desc"`
+	Mode     string          `json:"mode"`
+	Handlers []HandlerDetail `json:"handlers"`
+	Nodes    []NodeDetail    `json:"nodes"`
 }
 
 type NodeDetail struct {
-	ID      string `json:"id"`      // 节点唯一ID
-	Address string `json:"address"` // 节点网络地址
+	ID      string `json:"id"`
+	Address string `json:"address"`
 }
 
-// HandlerDetail 处理器详情
-// NOTE: 这里的 Metadata 使用 ParameterVO 而非 executor.Parameter 是为了避免
-// 接口类型 (Binding) 在 JSON 反序列化时丢失具体类型信息，从而方便前端使用。
 type HandlerDetail struct {
 	Name     string        `json:"name"`
 	Desc     string        `json:"desc"`
@@ -25,15 +34,15 @@ type HandlerDetail struct {
 type ParameterVO struct {
 	Key      string               `json:"key"`
 	Desc     string               `json:"desc"`
-	Secret   bool                 `json:"secret"` // 是否是加密参数
+	Secret   bool                 `json:"secret"`
 	Required bool                 `json:"required"`
-	Bindings map[string]BindingVO `json:"bindings"` // 支持的绑定能力映射
-	Default  string               `json:"default"`  // 默认值
+	Bindings map[string]BindingVO `json:"bindings"`
+	Default  string               `json:"default"`
 }
 
 type BindingVO struct {
-	Label       string            `json:"label"`       // 展示给用户的选项名称
-	Placeholder string            `json:"placeholder"` // 占位符
-	Component   string            `json:"component"`   // UI 渲染控件提示
-	Config      map[string]string `json:"config"`      // 扩展配置提示
+	Label       string            `json:"label"`
+	Placeholder string            `json:"placeholder"`
+	Component   string            `json:"component"`
+	Config      map[string]string `json:"config"`
 }
