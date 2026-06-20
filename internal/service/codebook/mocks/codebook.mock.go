@@ -550,18 +550,18 @@ func (c *MockServiceSortCall) DoAndReturn(f func(context.Context, int64, int64, 
 }
 
 // Tree mocks base method.
-func (m *MockService) Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error) {
+func (m *MockService) Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Tree", ctx, projectID, scope)
+	ret := m.ctrl.Call(m, "Tree", ctx, projectID)
 	ret0, _ := ret[0].([]domain.Codebook)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Tree indicates an expected call of Tree.
-func (mr *MockServiceMockRecorder) Tree(ctx, projectID, scope any) *MockServiceTreeCall {
+func (mr *MockServiceMockRecorder) Tree(ctx, projectID any) *MockServiceTreeCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tree", reflect.TypeOf((*MockService)(nil).Tree), ctx, projectID, scope)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tree", reflect.TypeOf((*MockService)(nil).Tree), ctx, projectID)
 	return &MockServiceTreeCall{Call: call}
 }
 
@@ -577,13 +577,13 @@ func (c *MockServiceTreeCall) Return(arg0 []domain.Codebook, arg1 error) *MockSe
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockServiceTreeCall) Do(f func(context.Context, int64, domain.CodebookScope) ([]domain.Codebook, error)) *MockServiceTreeCall {
+func (c *MockServiceTreeCall) Do(f func(context.Context, int64) ([]domain.Codebook, error)) *MockServiceTreeCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceTreeCall) DoAndReturn(f func(context.Context, int64, domain.CodebookScope) ([]domain.Codebook, error)) *MockServiceTreeCall {
+func (c *MockServiceTreeCall) DoAndReturn(f func(context.Context, int64) ([]domain.Codebook, error)) *MockServiceTreeCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

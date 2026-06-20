@@ -120,8 +120,8 @@ type CodebookDAO interface {
 	ListChildren(ctx context.Context, projectID, parentID int64) ([]Codebook, error)
 	// ListChildrenBySpace 查询指定空间和父节点下的子节点。
 	ListChildrenBySpace(ctx context.Context, projectID, parentID int64, scope string) ([]Codebook, error)
-	// Tree 查询指定项目视图下的节点树，包含系统组件库。
-	Tree(ctx context.Context, projectID int64, scope string) ([]Codebook, error)
+	// Tree 查询指定项目视图下的节点树，系统组件库由租户插件透出。
+	Tree(ctx context.Context, projectID int64) ([]Codebook, error)
 	// Count 统计代码节点总数。
 	Count(ctx context.Context) (int64, error)
 	// GetMaxSortNo 查询指定空间和父节点下最大的排序号。
@@ -369,21 +369,13 @@ func (g *GORMCodebookDAO) ListChildrenBySpace(ctx context.Context, projectID, pa
 	return res, err
 }
 
-// Tree 查询指定项目视图下的节点树，包含系统组件库。
-func (g *GORMCodebookDAO) Tree(ctx context.Context, projectID int64, scope string) ([]Codebook, error) {
+// Tree 查询指定项目视图下的节点树，系统组件库由租户插件透出。
+func (g *GORMCodebookDAO) Tree(ctx context.Context, projectID int64) ([]Codebook, error) {
 	var res []Codebook
-	query := g.dbWithContext(ctx)
-	if scope == domain.CodebookScopeSystem.String() {
-		query = query.Where("scope = ?", scope)
-	} else if projectID > 0 {
-		query = query.Where(
-			"(scope = ? AND project_id = ?) OR (scope = ? AND project_id = 0)",
-			domain.CodebookScopeTenant.String(), projectID, domain.CodebookScopeSystem.String(),
-		)
-	} else if scope != "" {
-		query = query.Where("scope = ?", scope)
-	}
-	err := query.Order("path_ids ASC, sort_no ASC, kind ASC, name ASC, id ASC").Find(&res).Error
+	err := g.dbWithContext(ctx).
+		Where("scope = ? AND project_id = ?", domain.CodebookScopeTenant.String(), projectID).
+		Order("path_ids ASC, sort_no ASC, kind ASC, name ASC, id ASC").
+		Find(&res).Error
 	return res, err
 }
 

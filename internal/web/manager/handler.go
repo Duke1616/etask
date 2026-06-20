@@ -52,11 +52,11 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 
 	// --- 任务管理 ---
 	g.POST("/create", h.Capability("创建任务", "add").
-		Needs("ticket:codebook:view", "ticket:runner:view", "ticket:executor:view").
+		Needs("ticket:executor:view").
 		Handle(ginx.B[CreateTaskReq](h.Create)),
 	)
 	g.POST("/update", h.Capability("更新任务", "edit").
-		Needs("ticket:codebook:view", "ticket:runner:view", "ticket:executor:view").
+		Needs("ticket:executor:view").
 		Handle(ginx.B[UpdateTaskReq](h.Update)),
 	)
 	g.POST("/list", h.Capability("任务列表", "view").

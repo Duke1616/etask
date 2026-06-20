@@ -25,13 +25,6 @@ type UpdateRunnerReq struct {
 	Variables      []Variable `json:"variables"`
 }
 
-type ListByCodebookIDReq struct {
-	Page
-	CodebookID int64  `json:"codebook_id"`
-	Keyword    string `json:"keyword"`
-	Kind       string `json:"kind"`
-}
-
 type ListRunnerByIDsReq struct {
 	IDs []int64 `json:"ids"`
 }
@@ -51,6 +44,13 @@ type ListRunnerReq struct {
 	Page
 	Keyword string `json:"keyword"`
 	Kind    string `json:"kind"`
+}
+
+type ListExcludeCodebookIDReq struct {
+	Page
+	CodebookID int64  `json:"codebook_id"`
+	Keyword    string `json:"keyword"`
+	Kind       string `json:"kind"`
 }
 
 type RunnerVO struct {

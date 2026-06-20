@@ -53,14 +53,14 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 		NoSync().
 		Handle(ginx.B[ListRunnerByIDsReq](h.ListByIDs)),
 	)
-	g.POST("/list/by_codebook_id", h.Capability("当前绑定执行单元", "view_by_codebook_id").
+	g.GET("/list/:codebook_id", h.Capability("当前绑定执行单元", "view_by_codebook_id").
 		Module("codebook").
 		Group("脚本模板").
-		Handle(ginx.B[ListByCodebookIDReq](h.ListByCodebookID)),
+		Handle(ginx.W(h.ListByCodebookID)),
 	)
 	g.POST("/list/exclude_codebook_id", h.Capability("复用执行单元", "view_exclude_codebook_id").
 		NoSync().
-		Handle(ginx.B[ListByCodebookIDReq](h.ListExcludeCodebookID)),
+		Handle(ginx.B[ListExcludeCodebookIDReq](h.ListExcludeCodebookID)),
 	)
 }
 
@@ -124,15 +124,19 @@ func (h *Handler) ListByIDs(ctx *ginx.Context, req ListRunnerByIDsReq) (ginx.Res
 	return ginx.Result{Msg: "success", Data: h.toListResp(rs, int64(len(rs)))}, nil
 }
 
-func (h *Handler) ListByCodebookID(ctx *ginx.Context, req ListByCodebookIDReq) (ginx.Result, error) {
-	rs, total, err := h.svc.ListByCodebookID(ctx, req.Offset, req.Limit, req.CodebookID, req.Keyword, req.Kind)
+func (h *Handler) ListByCodebookID(ctx *ginx.Context) (ginx.Result, error) {
+	codebookID, err := ctx.Param("codebook_id").AsInt64()
+	if err != nil {
+		return invalidIDResult, err
+	}
+	rs, err := h.svc.ListByCodebookID(ctx, codebookID)
 	if err != nil {
 		return h.translateError(err), err
 	}
-	return ginx.Result{Msg: "success", Data: h.toListResp(rs, total)}, nil
+	return ginx.Result{Msg: "success", Data: h.toListResp(rs, int64(len(rs)))}, nil
 }
 
-func (h *Handler) ListExcludeCodebookID(ctx *ginx.Context, req ListByCodebookIDReq) (ginx.Result, error) {
+func (h *Handler) ListExcludeCodebookID(ctx *ginx.Context, req ListExcludeCodebookIDReq) (ginx.Result, error) {
 	rs, total, err := h.svc.ListExcludeCodebookID(ctx, req.Offset, req.Limit, req.CodebookID, req.Keyword, req.Kind)
 	if err != nil {
 		return h.translateError(err), err

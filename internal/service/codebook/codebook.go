@@ -29,8 +29,8 @@ type Service interface {
 	List(ctx context.Context, offset, limit int64) ([]domain.Codebook, int64, error)
 	// Children 获取指定项目和目录下的代码资源节点。
 	Children(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error)
-	// Tree 获取指定项目和作用域下的代码资源树。
-	Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error)
+	// Tree 获取指定项目下的代码资源树。
+	Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error)
 	// Update 校验并更新脚本模板。
 	Update(ctx context.Context, req domain.Codebook) (int64, error)
 	// CreateVersion 校验并创建脚本版本。
@@ -151,12 +151,12 @@ func (s *service) Children(ctx context.Context, projectID, parentID int64) ([]do
 	return s.repo.ListChildren(ctx, projectID, parentID)
 }
 
-// Tree 获取指定项目和作用域下的代码资源树。
-func (s *service) Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error) {
-	if scope != "" && !scope.Valid() {
-		return nil, fmt.Errorf("%w: 不支持的作用域: %s", errs.ErrInvalidParameter, scope)
+// Tree 获取指定项目下的代码资源树。
+func (s *service) Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error) {
+	if projectID <= 0 {
+		return nil, fmt.Errorf("%w: 项目 ID 非法: %d", errs.ErrInvalidParameter, projectID)
 	}
-	return s.repo.Tree(ctx, projectID, scope)
+	return s.repo.Tree(ctx, projectID)
 }
 
 // Update 校验并更新脚本模板。

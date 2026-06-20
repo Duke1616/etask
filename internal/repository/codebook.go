@@ -32,7 +32,7 @@ type ICodebookRepository interface {
 	// ListChildrenByScope 查询指定租户项目或系统作用域下的子节点。
 	ListChildrenByScope(ctx context.Context, projectID, parentID int64, scope domain.CodebookScope) ([]domain.Codebook, error)
 	// Tree 查询指定项目视图下的代码资源树，包含系统组件库。
-	Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error)
+	Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error)
 	// Total 统计代码资源总数。
 	Total(ctx context.Context) (int64, error)
 	// GetMaxSortNo 查询指定租户项目、作用域和父节点下最大的排序号。
@@ -175,8 +175,8 @@ func (repo *codebookRepository) ListChildrenByScope(ctx context.Context, project
 }
 
 // Tree 查询指定项目视图下的代码资源树，包含系统组件库。
-func (repo *codebookRepository) Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error) {
-	cs, err := repo.dao.Tree(ctx, projectID, scope.String())
+func (repo *codebookRepository) Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error) {
+	cs, err := repo.dao.Tree(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}

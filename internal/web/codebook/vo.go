@@ -55,11 +55,6 @@ type ChildrenReq struct {
 	ParentID  int64 `json:"parent_id"`
 }
 
-type TreeReq struct {
-	ProjectID int64  `json:"project_id"`
-	Scope     string `json:"scope"`
-}
-
 type Codebook struct {
 	ID               int64  `json:"id"`
 	TenantID         int64  `json:"tenant_id"`

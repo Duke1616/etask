@@ -29,10 +29,8 @@ type RunnerRepository interface {
 	List(ctx context.Context, offset, limit int64, keyword, kind string) ([]domain.Runner, error)
 	// Count 统计匹配条件的执行单元总数。
 	Count(ctx context.Context, keyword, kind string) (int64, error)
-	// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
-	ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, error)
-	// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
-	CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error)
+	// ListByCodebookID 查询绑定指定脚本模板 ID 的全部执行单元。
+	ListByCodebookID(ctx context.Context, codebookID int64) ([]domain.Runner, error)
 	// ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。
 	ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, error)
 	// CountExcludeCodebookID 统计未绑定指定脚本模板 ID 的执行单元数量。
@@ -103,20 +101,15 @@ func (repo *runnerRepository) Count(ctx context.Context, keyword, kind string) (
 	return repo.runnerDAO.Count(ctx, keyword, kind)
 }
 
-// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
-func (repo *runnerRepository) ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, error) {
-	rs, err := repo.runnerDAO.ListByCodebookID(ctx, offset, limit, codebookID, keyword, kind)
+// ListByCodebookID 查询绑定指定脚本模板 ID 的全部执行单元。
+func (repo *runnerRepository) ListByCodebookID(ctx context.Context, codebookID int64) ([]domain.Runner, error) {
+	rs, err := repo.runnerDAO.ListByCodebookID(ctx, codebookID)
 	if err != nil {
 		return nil, err
 	}
 	return slice.Map(rs, func(_ int, src dao.Runner) domain.Runner {
 		return repo.toDomain(src)
 	}), nil
-}
-
-// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
-func (repo *runnerRepository) CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error) {
-	return repo.runnerDAO.CountByCodebookID(ctx, codebookID, keyword, kind)
 }
 
 // ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。

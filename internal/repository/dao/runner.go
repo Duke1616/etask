@@ -49,10 +49,8 @@ type RunnerDAO interface {
 	Count(ctx context.Context, keyword, kind string) (int64, error)
 	// FindByCodebookIDAndTag 根据脚本模板 ID 和标签查询执行单元。
 	FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (Runner, error)
-	// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
-	ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]Runner, error)
-	// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
-	CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error)
+	// ListByCodebookID 查询绑定指定脚本模板 ID 的全部执行单元。
+	ListByCodebookID(ctx context.Context, codebookID int64) ([]Runner, error)
 	// ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。
 	ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]Runner, error)
 	// CountExcludeCodebookID 统计未绑定指定脚本模板 ID 的执行单元数量。
@@ -201,32 +199,14 @@ func (g *GORMRunnerDAO) FindByCodebookIDAndTag(ctx context.Context, codebookID i
 	return res, err
 }
 
-// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
-func (g *GORMRunnerDAO) ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]Runner, error) {
+// ListByCodebookID 查询绑定指定脚本模板 ID 的全部执行单元。
+func (g *GORMRunnerDAO) ListByCodebookID(ctx context.Context, codebookID int64) ([]Runner, error) {
 	var res []Runner
-	query := g.db.WithContext(ctx).Where("codebook_id = ?", codebookID)
-	if keyword != "" {
-		query = query.Where("name LIKE ?", "%"+keyword+"%")
-	}
-	if kind != "" {
-		query = query.Where("kind = ?", kind)
-	}
-	err := query.Order("ctime DESC").Offset(int(offset)).Limit(int(limit)).Find(&res).Error
+	err := g.db.WithContext(ctx).
+		Where("codebook_id = ?", codebookID).
+		Order("ctime DESC").
+		Find(&res).Error
 	return res, err
-}
-
-// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
-func (g *GORMRunnerDAO) CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error) {
-	var count int64
-	query := g.db.WithContext(ctx).Model(&Runner{}).Where("codebook_id = ?", codebookID)
-	if keyword != "" {
-		query = query.Where("name LIKE ?", "%"+keyword+"%")
-	}
-	if kind != "" {
-		query = query.Where("kind = ?", kind)
-	}
-	err := query.Count(&count).Error
-	return count, err
 }
 
 // ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。

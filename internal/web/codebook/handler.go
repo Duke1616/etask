@@ -34,14 +34,13 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.POST("/create", h.Capability("创建脚本模板", "add").
 		Handle(ginx.B[CreateReq](h.Create)),
 	)
-	g.POST("/list", h.Capability("脚本模板列表", "view").
-		Handle(ginx.B[ListReq](h.List)),
-	)
 	g.POST("/children", h.Capability("代码资源子节点", "children").
+		NoSync().
 		Handle(ginx.B[ChildrenReq](h.Children)),
 	)
-	g.POST("/tree", h.Capability("代码资源树", "tree").
-		Handle(ginx.B[TreeReq](h.Tree)),
+	g.GET("/tree/:project_id", h.Capability("代码资源树", "view").
+		Needs("task:codebook:children").
+		Handle(ginx.W(h.Tree)),
 	)
 	g.GET("/detail/:id", h.Capability("脚本模板详情", "get").
 		Handle(ginx.W(h.Detail)),
@@ -109,14 +108,6 @@ func (h *Handler) Detail(ctx *ginx.Context) (ginx.Result, error) {
 	return ginx.Result{Data: h.toVO(c), Msg: "success"}, nil
 }
 
-func (h *Handler) List(ctx *ginx.Context, req ListReq) (ginx.Result, error) {
-	cs, total, err := h.svc.List(ctx, req.Offset, req.Limit)
-	if err != nil {
-		return systemErrorResult, err
-	}
-	return ginx.Result{Msg: "success", Data: h.toListResp(cs, total)}, nil
-}
-
 func (h *Handler) Children(ctx *ginx.Context, req ChildrenReq) (ginx.Result, error) {
 	cs, err := h.svc.Children(ctx, req.ProjectID, req.ParentID)
 	if err != nil {
@@ -125,8 +116,13 @@ func (h *Handler) Children(ctx *ginx.Context, req ChildrenReq) (ginx.Result, err
 	return ginx.Result{Msg: "success", Data: h.toListResp(cs, int64(len(cs)))}, nil
 }
 
-func (h *Handler) Tree(ctx *ginx.Context, req TreeReq) (ginx.Result, error) {
-	cs, err := h.svc.Tree(ctx, req.ProjectID, domain.CodebookScope(req.Scope))
+func (h *Handler) Tree(ctx *ginx.Context) (ginx.Result, error) {
+	projectID, err := ctx.Param("project_id").AsInt64()
+	if err != nil {
+		return invalidProjectIDError, err
+	}
+
+	cs, err := h.svc.Tree(ctx, projectID)
 	if err != nil {
 		return h.translateError(err), err
 	}

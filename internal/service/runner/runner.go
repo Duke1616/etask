@@ -26,8 +26,8 @@ type Service interface {
 	List(ctx context.Context, offset, limit int64, keyword, kind string) ([]domain.Runner, int64, error)
 	// FindByCodebookIDAndTag 根据脚本模板 ID 和标签获取执行单元。
 	FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (domain.Runner, error)
-	// ListByCodebookID 获取绑定指定脚本模板 ID 的执行单元列表。
-	ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error)
+	// ListByCodebookID 获取绑定指定脚本模板 ID 的全部执行单元。
+	ListByCodebookID(ctx context.Context, codebookID int64) ([]domain.Runner, error)
 	// ListExcludeCodebookID 获取未绑定指定脚本模板 ID 的执行单元列表。
 	ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error)
 	// ListByCodebookIDs 获取绑定任一脚本模板 ID 的执行单元列表。
@@ -119,30 +119,12 @@ func (s *service) FindByCodebookIDAndTag(ctx context.Context, codebookID int64, 
 	return s.repo.FindByCodebookIDAndTag(ctx, codebookID, tag)
 }
 
-// ListByCodebookID 获取绑定指定脚本模板 ID 的执行单元列表。
-func (s *service) ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error) {
+// ListByCodebookID 获取绑定指定脚本模板 ID 的全部执行单元。
+func (s *service) ListByCodebookID(ctx context.Context, codebookID int64) ([]domain.Runner, error) {
 	if codebookID <= 0 {
-		return nil, 0, fmt.Errorf("%w: codebook_id = %d", errs.ErrInvalidParameter, codebookID)
+		return nil, fmt.Errorf("%w: codebook_id = %d", errs.ErrInvalidParameter, codebookID)
 	}
-	var (
-		eg    errgroup.Group
-		res   []domain.Runner
-		total int64
-	)
-	eg.Go(func() error {
-		var err error
-		res, err = s.repo.ListByCodebookID(ctx, offset, limit, codebookID, keyword, kind)
-		return err
-	})
-	eg.Go(func() error {
-		var err error
-		total, err = s.repo.CountByCodebookID(ctx, codebookID, keyword, kind)
-		return err
-	})
-	if err := eg.Wait(); err != nil {
-		return nil, 0, err
-	}
-	return res, total, nil
+	return s.repo.ListByCodebookID(ctx, codebookID)
 }
 
 // ListExcludeCodebookID 获取未绑定指定脚本模板 ID 的执行单元列表。
