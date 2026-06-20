@@ -27,11 +27,9 @@ type Codebook struct {
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Owner         string                 `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
 	Code          string                 `protobuf:"bytes,4,opt,name=code,proto3" json:"code,omitempty"`
-	Language      string                 `protobuf:"bytes,5,opt,name=language,proto3" json:"language,omitempty"`
-	Secret        string                 `protobuf:"bytes,6,opt,name=secret,proto3" json:"secret,omitempty"`
-	Identifier    string                 `protobuf:"bytes,7,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	Ctime         int64                  `protobuf:"varint,8,opt,name=ctime,proto3" json:"ctime,omitempty"`
-	Utime         int64                  `protobuf:"varint,9,opt,name=utime,proto3" json:"utime,omitempty"`
+	Secret        string                 `protobuf:"bytes,5,opt,name=secret,proto3" json:"secret,omitempty"`
+	Ctime         int64                  `protobuf:"varint,6,opt,name=ctime,proto3" json:"ctime,omitempty"`
+	Utime         int64                  `protobuf:"varint,7,opt,name=utime,proto3" json:"utime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -94,23 +92,9 @@ func (x *Codebook) GetCode() string {
 	return ""
 }
 
-func (x *Codebook) GetLanguage() string {
-	if x != nil {
-		return x.Language
-	}
-	return ""
-}
-
 func (x *Codebook) GetSecret() string {
 	if x != nil {
 		return x.Secret
-	}
-	return ""
-}
-
-func (x *Codebook) GetIdentifier() string {
-	if x != nil {
-		return x.Identifier
 	}
 	return ""
 }
@@ -129,27 +113,27 @@ func (x *Codebook) GetUtime() int64 {
 	return 0
 }
 
-type GetCodebookByIdentifierRequest struct {
+type GetCodebookByIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identifier    string                 `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetCodebookByIdentifierRequest) Reset() {
-	*x = GetCodebookByIdentifierRequest{}
+func (x *GetCodebookByIDRequest) Reset() {
+	*x = GetCodebookByIDRequest{}
 	mi := &file_etask_codebook_v1_codebook_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetCodebookByIdentifierRequest) String() string {
+func (x *GetCodebookByIDRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetCodebookByIdentifierRequest) ProtoMessage() {}
+func (*GetCodebookByIDRequest) ProtoMessage() {}
 
-func (x *GetCodebookByIdentifierRequest) ProtoReflect() protoreflect.Message {
+func (x *GetCodebookByIDRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_etask_codebook_v1_codebook_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -161,39 +145,39 @@ func (x *GetCodebookByIdentifierRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetCodebookByIdentifierRequest.ProtoReflect.Descriptor instead.
-func (*GetCodebookByIdentifierRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetCodebookByIDRequest.ProtoReflect.Descriptor instead.
+func (*GetCodebookByIDRequest) Descriptor() ([]byte, []int) {
 	return file_etask_codebook_v1_codebook_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetCodebookByIdentifierRequest) GetIdentifier() string {
+func (x *GetCodebookByIDRequest) GetId() int64 {
 	if x != nil {
-		return x.Identifier
+		return x.Id
 	}
-	return ""
+	return 0
 }
 
-type GetCodebookByIdentifierResponse struct {
+type GetCodebookByIDResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Codebook      *Codebook              `protobuf:"bytes,1,opt,name=codebook,proto3" json:"codebook,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetCodebookByIdentifierResponse) Reset() {
-	*x = GetCodebookByIdentifierResponse{}
+func (x *GetCodebookByIDResponse) Reset() {
+	*x = GetCodebookByIDResponse{}
 	mi := &file_etask_codebook_v1_codebook_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetCodebookByIdentifierResponse) String() string {
+func (x *GetCodebookByIDResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetCodebookByIdentifierResponse) ProtoMessage() {}
+func (*GetCodebookByIDResponse) ProtoMessage() {}
 
-func (x *GetCodebookByIdentifierResponse) ProtoReflect() protoreflect.Message {
+func (x *GetCodebookByIDResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_etask_codebook_v1_codebook_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -205,12 +189,12 @@ func (x *GetCodebookByIdentifierResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetCodebookByIdentifierResponse.ProtoReflect.Descriptor instead.
-func (*GetCodebookByIdentifierResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetCodebookByIDResponse.ProtoReflect.Descriptor instead.
+func (*GetCodebookByIDResponse) Descriptor() ([]byte, []int) {
 	return file_etask_codebook_v1_codebook_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *GetCodebookByIdentifierResponse) GetCodebook() *Codebook {
+func (x *GetCodebookByIDResponse) GetCodebook() *Codebook {
 	if x != nil {
 		return x.Codebook
 	}
@@ -221,27 +205,21 @@ var File_etask_codebook_v1_codebook_proto protoreflect.FileDescriptor
 
 const file_etask_codebook_v1_codebook_proto_rawDesc = "" +
 	"\n" +
-	" etask/codebook/v1/codebook.proto\x12\x11etask.codebook.v1\"\xd8\x01\n" +
+	" etask/codebook/v1/codebook.proto\x12\x11etask.codebook.v1\"\x9c\x01\n" +
 	"\bCodebook\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\tR\x05owner\x12\x12\n" +
-	"\x04code\x18\x04 \x01(\tR\x04code\x12\x1a\n" +
-	"\blanguage\x18\x05 \x01(\tR\blanguage\x12\x16\n" +
-	"\x06secret\x18\x06 \x01(\tR\x06secret\x12\x1e\n" +
-	"\n" +
-	"identifier\x18\a \x01(\tR\n" +
-	"identifier\x12\x14\n" +
-	"\x05ctime\x18\b \x01(\x03R\x05ctime\x12\x14\n" +
-	"\x05utime\x18\t \x01(\x03R\x05utime\"@\n" +
-	"\x1eGetCodebookByIdentifierRequest\x12\x1e\n" +
-	"\n" +
-	"identifier\x18\x01 \x01(\tR\n" +
-	"identifier\"Z\n" +
-	"\x1fGetCodebookByIdentifierResponse\x127\n" +
-	"\bcodebook\x18\x01 \x01(\v2\x1b.etask.codebook.v1.CodebookR\bcodebook2\x94\x01\n" +
-	"\x0fCodebookService\x12\x80\x01\n" +
-	"\x17GetCodebookByIdentifier\x121.etask.codebook.v1.GetCodebookByIdentifierRequest\x1a2.etask.codebook.v1.GetCodebookByIdentifierResponseB\xd2\x01\n" +
+	"\x04code\x18\x04 \x01(\tR\x04code\x12\x16\n" +
+	"\x06secret\x18\x05 \x01(\tR\x06secret\x12\x14\n" +
+	"\x05ctime\x18\x06 \x01(\x03R\x05ctime\x12\x14\n" +
+	"\x05utime\x18\a \x01(\x03R\x05utime\"(\n" +
+	"\x16GetCodebookByIDRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"R\n" +
+	"\x17GetCodebookByIDResponse\x127\n" +
+	"\bcodebook\x18\x01 \x01(\v2\x1b.etask.codebook.v1.CodebookR\bcodebook2{\n" +
+	"\x0fCodebookService\x12h\n" +
+	"\x0fGetCodebookByID\x12).etask.codebook.v1.GetCodebookByIDRequest\x1a*.etask.codebook.v1.GetCodebookByIDResponseB\xd2\x01\n" +
 	"\x15com.etask.codebook.v1B\rCodebookProtoP\x01ZDgithub.com/Duke1616/etask/api/proto/gen/etask/codebook/v1;codebookv1\xa2\x02\x03ECX\xaa\x02\x11Etask.Codebook.V1\xca\x02\x11Etask\\Codebook\\V1\xe2\x02\x1dEtask\\Codebook\\V1\\GPBMetadata\xea\x02\x13Etask::Codebook::V1b\x06proto3"
 
 var (
@@ -258,14 +236,14 @@ func file_etask_codebook_v1_codebook_proto_rawDescGZIP() []byte {
 
 var file_etask_codebook_v1_codebook_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_etask_codebook_v1_codebook_proto_goTypes = []any{
-	(*Codebook)(nil),                        // 0: etask.codebook.v1.Codebook
-	(*GetCodebookByIdentifierRequest)(nil),  // 1: etask.codebook.v1.GetCodebookByIdentifierRequest
-	(*GetCodebookByIdentifierResponse)(nil), // 2: etask.codebook.v1.GetCodebookByIdentifierResponse
+	(*Codebook)(nil),                // 0: etask.codebook.v1.Codebook
+	(*GetCodebookByIDRequest)(nil),  // 1: etask.codebook.v1.GetCodebookByIDRequest
+	(*GetCodebookByIDResponse)(nil), // 2: etask.codebook.v1.GetCodebookByIDResponse
 }
 var file_etask_codebook_v1_codebook_proto_depIdxs = []int32{
-	0, // 0: etask.codebook.v1.GetCodebookByIdentifierResponse.codebook:type_name -> etask.codebook.v1.Codebook
-	1, // 1: etask.codebook.v1.CodebookService.GetCodebookByIdentifier:input_type -> etask.codebook.v1.GetCodebookByIdentifierRequest
-	2, // 2: etask.codebook.v1.CodebookService.GetCodebookByIdentifier:output_type -> etask.codebook.v1.GetCodebookByIdentifierResponse
+	0, // 0: etask.codebook.v1.GetCodebookByIDResponse.codebook:type_name -> etask.codebook.v1.Codebook
+	1, // 1: etask.codebook.v1.CodebookService.GetCodebookByID:input_type -> etask.codebook.v1.GetCodebookByIDRequest
+	2, // 2: etask.codebook.v1.CodebookService.GetCodebookByID:output_type -> etask.codebook.v1.GetCodebookByIDResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

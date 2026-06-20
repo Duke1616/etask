@@ -24,18 +24,16 @@ type Service interface {
 	Delete(ctx context.Context, id int64) (int64, error)
 	// List 分页获取执行单元列表和总数。
 	List(ctx context.Context, offset, limit int64, keyword, kind string) ([]domain.Runner, int64, error)
-	// FindByCodebookUIDAndTag 根据脚本模板 UID 和标签获取执行单元。
-	FindByCodebookUIDAndTag(ctx context.Context, codebookUID string, tag string) (domain.Runner, error)
-	// ListByCodebookUID 获取绑定指定脚本模板 UID 的执行单元列表。
-	ListByCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, int64, error)
-	// ListExcludeCodebookUID 获取未绑定指定脚本模板 UID 的执行单元列表。
-	ListExcludeCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, int64, error)
-	// ListByCodebookUIDs 获取绑定任一脚本模板 UID 的执行单元列表。
-	ListByCodebookUIDs(ctx context.Context, codebookUIDs []string) ([]domain.Runner, error)
+	// FindByCodebookIDAndTag 根据脚本模板 ID 和标签获取执行单元。
+	FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (domain.Runner, error)
+	// ListByCodebookID 获取绑定指定脚本模板 ID 的执行单元列表。
+	ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error)
+	// ListExcludeCodebookID 获取未绑定指定脚本模板 ID 的执行单元列表。
+	ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error)
+	// ListByCodebookIDs 获取绑定任一脚本模板 ID 的执行单元列表。
+	ListByCodebookIDs(ctx context.Context, codebookIDs []int64) ([]domain.Runner, error)
 	// ListByIDs 根据 ID 列表批量获取执行单元。
 	ListByIDs(ctx context.Context, ids []int64) ([]domain.Runner, error)
-	// AggregateTags 按脚本模板 UID 聚合执行单元标签。
-	AggregateTags(ctx context.Context) ([]domain.RunnerTags, error)
 	// ListMergedVariables 获取执行单元变量，私有变量覆盖全局变量。
 	ListMergedVariables(ctx context.Context, id int64) ([]domain.RunnerVariable, error)
 }
@@ -110,19 +108,22 @@ func (s *service) List(ctx context.Context, offset, limit int64, keyword, kind s
 	return res, total, nil
 }
 
-// FindByCodebookUIDAndTag 根据脚本模板 UID 和标签获取执行单元。
-func (s *service) FindByCodebookUIDAndTag(ctx context.Context, codebookUID string, tag string) (domain.Runner, error) {
-	if codebookUID == "" {
-		return domain.Runner{}, fmt.Errorf("%w: codebook_uid is empty", errs.ErrInvalidParameter)
+// FindByCodebookIDAndTag 根据脚本模板 ID 和标签获取执行单元。
+func (s *service) FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (domain.Runner, error) {
+	if codebookID <= 0 {
+		return domain.Runner{}, fmt.Errorf("%w: codebook_id = %d", errs.ErrInvalidParameter, codebookID)
 	}
 	if tag == "" {
 		return domain.Runner{}, fmt.Errorf("%w: tag is empty", errs.ErrInvalidParameter)
 	}
-	return s.repo.FindByCodebookUIDAndTag(ctx, codebookUID, tag)
+	return s.repo.FindByCodebookIDAndTag(ctx, codebookID, tag)
 }
 
-// ListByCodebookUID 获取绑定指定脚本模板 UID 的执行单元列表。
-func (s *service) ListByCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, int64, error) {
+// ListByCodebookID 获取绑定指定脚本模板 ID 的执行单元列表。
+func (s *service) ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error) {
+	if codebookID <= 0 {
+		return nil, 0, fmt.Errorf("%w: codebook_id = %d", errs.ErrInvalidParameter, codebookID)
+	}
 	var (
 		eg    errgroup.Group
 		res   []domain.Runner
@@ -130,12 +131,12 @@ func (s *service) ListByCodebookUID(ctx context.Context, offset, limit int64, co
 	)
 	eg.Go(func() error {
 		var err error
-		res, err = s.repo.ListByCodebookUID(ctx, offset, limit, codebookUID, keyword, kind)
+		res, err = s.repo.ListByCodebookID(ctx, offset, limit, codebookID, keyword, kind)
 		return err
 	})
 	eg.Go(func() error {
 		var err error
-		total, err = s.repo.CountByCodebookUID(ctx, codebookUID, keyword, kind)
+		total, err = s.repo.CountByCodebookID(ctx, codebookID, keyword, kind)
 		return err
 	})
 	if err := eg.Wait(); err != nil {
@@ -144,8 +145,11 @@ func (s *service) ListByCodebookUID(ctx context.Context, offset, limit int64, co
 	return res, total, nil
 }
 
-// ListExcludeCodebookUID 获取未绑定指定脚本模板 UID 的执行单元列表。
-func (s *service) ListExcludeCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, int64, error) {
+// ListExcludeCodebookID 获取未绑定指定脚本模板 ID 的执行单元列表。
+func (s *service) ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error) {
+	if codebookID <= 0 {
+		return nil, 0, fmt.Errorf("%w: codebook_id = %d", errs.ErrInvalidParameter, codebookID)
+	}
 	var (
 		eg    errgroup.Group
 		res   []domain.Runner
@@ -153,12 +157,12 @@ func (s *service) ListExcludeCodebookUID(ctx context.Context, offset, limit int6
 	)
 	eg.Go(func() error {
 		var err error
-		res, err = s.repo.ListExcludeCodebookUID(ctx, offset, limit, codebookUID, keyword, kind)
+		res, err = s.repo.ListExcludeCodebookID(ctx, offset, limit, codebookID, keyword, kind)
 		return err
 	})
 	eg.Go(func() error {
 		var err error
-		total, err = s.repo.CountExcludeCodebookUID(ctx, codebookUID, keyword, kind)
+		total, err = s.repo.CountExcludeCodebookID(ctx, codebookID, keyword, kind)
 		return err
 	})
 	if err := eg.Wait(); err != nil {
@@ -167,19 +171,14 @@ func (s *service) ListExcludeCodebookUID(ctx context.Context, offset, limit int6
 	return res, total, nil
 }
 
-// ListByCodebookUIDs 获取绑定任一脚本模板 UID 的执行单元列表。
-func (s *service) ListByCodebookUIDs(ctx context.Context, codebookUIDs []string) ([]domain.Runner, error) {
-	return s.repo.ListByCodebookUIDs(ctx, codebookUIDs)
+// ListByCodebookIDs 获取绑定任一脚本模板 ID 的执行单元列表。
+func (s *service) ListByCodebookIDs(ctx context.Context, codebookIDs []int64) ([]domain.Runner, error) {
+	return s.repo.ListByCodebookIDs(ctx, codebookIDs)
 }
 
 // ListByIDs 根据 ID 列表批量获取执行单元。
 func (s *service) ListByIDs(ctx context.Context, ids []int64) ([]domain.Runner, error) {
 	return s.repo.ListByIDs(ctx, ids)
-}
-
-// AggregateTags 按脚本模板 UID 聚合执行单元标签。
-func (s *service) AggregateTags(ctx context.Context) ([]domain.RunnerTags, error) {
-	return s.repo.AggregateTags(ctx)
 }
 
 func (s *service) ListMergedVariables(ctx context.Context, id int64) ([]domain.RunnerVariable, error) {

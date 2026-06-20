@@ -37,12 +37,6 @@ func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
 	return module
 }
 
-func InitWebHandler(q mq.MQ, etcdClient *clientv3.Client) *web.Handler {
-	reg := InitRegistry(etcdClient)
-	svc := service.NewService(q, reg)
-	return web.NewHandler(svc)
-}
-
 // wire.go:
 
 type Instance struct {
@@ -52,7 +46,15 @@ type Instance struct {
 	WorkerCount int    `yaml:"worker_count" json:"worker_count"` // 并发工作协程数量
 }
 
-var ProviderSet = wire.NewSet(InitRegistry, service.NewService)
+var ProviderSet = wire.NewSet(
+	InitRegistry, service.NewService,
+)
+
+func InitWebHandler(q mq.MQ, etcdClient *clientv3.Client) *web.Handler {
+	reg := InitRegistry(etcdClient)
+	svc := service.NewService(q, reg)
+	return web.NewHandler(svc)
+}
 
 func initExecuteProducer(q mq.MQ) event.TaskExecuteResultProducer {
 	producer, err := event.NewExecuteResultEventProducer(q)

@@ -27,24 +27,24 @@ func NewRunnerServer(svc runnerSvc.Service) *RunnerServer {
 	}
 }
 
-// FindRunnerByCodebookUidAndTag 根据脚本模板 UID 和派发标签获取执行单元。
-func (s *RunnerServer) FindRunnerByCodebookUidAndTag(ctx context.Context, req *runnerv1.FindRunnerByCodebookUidAndTagRequest) (*runnerv1.FindRunnerByCodebookUidAndTagResponse, error) {
-	r, err := s.svc.FindByCodebookUIDAndTag(ctx, req.GetCodebookUid(), req.GetTag())
+// FindRunnerByCodebookIdAndTag 根据脚本模板 ID 和派发标签获取执行单元。
+func (s *RunnerServer) FindRunnerByCodebookIdAndTag(ctx context.Context, req *runnerv1.FindRunnerByCodebookIdAndTagRequest) (*runnerv1.FindRunnerByCodebookIdAndTagResponse, error) {
+	r, err := s.svc.FindByCodebookIDAndTag(ctx, req.GetCodebookId(), req.GetTag())
 	if err != nil {
 		s.logger.Error("获取执行单元失败",
-			elog.String("codebookUID", req.GetCodebookUid()),
+			elog.Any("codebookID", req.GetCodebookId()),
 			elog.String("tag", req.GetTag()),
 			elog.FieldErr(err))
 		return nil, status.Errorf(codes.NotFound, "runner not found: %v", err)
 	}
-	return &runnerv1.FindRunnerByCodebookUidAndTagResponse{Runner: s.toProto(r)}, nil
+	return &runnerv1.FindRunnerByCodebookIdAndTagResponse{Runner: s.toProto(r)}, nil
 }
 
 func (s *RunnerServer) toProto(r domain.Runner) *runnerv1.Runner {
 	return &runnerv1.Runner{
 		Id:             r.ID,
 		Name:           r.Name,
-		CodebookUid:    r.CodebookUID,
+		CodebookId:     r.CodebookID,
 		CodebookSecret: r.CodebookSecret,
 		Kind:           r.Kind.String(),
 		Target:         r.Target,

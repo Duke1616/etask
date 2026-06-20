@@ -26,26 +26,24 @@ func NewCodebookServer(svc codebookSvc.Service) *CodebookServer {
 	}
 }
 
-// GetCodebookByIdentifier 根据业务唯一标识获取脚本模板。
-func (s *CodebookServer) GetCodebookByIdentifier(ctx context.Context, req *codebookv1.GetCodebookByIdentifierRequest) (*codebookv1.GetCodebookByIdentifierResponse, error) {
-	c, err := s.svc.GetByIdentifier(ctx, req.GetIdentifier())
+// GetCodebookByID 根据主键 ID 获取脚本模板。
+func (s *CodebookServer) GetCodebookByID(ctx context.Context, req *codebookv1.GetCodebookByIDRequest) (*codebookv1.GetCodebookByIDResponse, error) {
+	c, err := s.svc.GetByID(ctx, req.GetId())
 	if err != nil {
-		s.logger.Error("获取脚本模板失败", elog.String("identifier", req.GetIdentifier()), elog.FieldErr(err))
+		s.logger.Error("获取脚本模板失败", elog.Any("id", req.GetId()), elog.FieldErr(err))
 		return nil, status.Errorf(codes.NotFound, "codebook not found: %v", err)
 	}
-	return &codebookv1.GetCodebookByIdentifierResponse{Codebook: s.toProto(c)}, nil
+	return &codebookv1.GetCodebookByIDResponse{Codebook: s.toProto(c)}, nil
 }
 
 func (s *CodebookServer) toProto(c domain.Codebook) *codebookv1.Codebook {
 	return &codebookv1.Codebook{
-		Id:         c.ID,
-		Name:       c.Name,
-		Owner:      c.Owner,
-		Code:       c.Code,
-		Language:   c.Language,
-		Secret:     c.Secret,
-		Identifier: c.Identifier,
-		Ctime:      c.CTime,
-		Utime:      c.UTime,
+		Id:     c.ID,
+		Name:   c.Name,
+		Owner:  c.Owner,
+		Code:   c.Code,
+		Secret: c.Secret,
+		Ctime:  c.CTime,
+		Utime:  c.UTime,
 	}
 }

@@ -29,22 +29,20 @@ type RunnerRepository interface {
 	List(ctx context.Context, offset, limit int64, keyword, kind string) ([]domain.Runner, error)
 	// Count 统计匹配条件的执行单元总数。
 	Count(ctx context.Context, keyword, kind string) (int64, error)
-	// ListByCodebookUID 查询绑定指定脚本模板 UID 的执行单元。
-	ListByCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, error)
-	// CountByCodebookUID 统计绑定指定脚本模板 UID 的执行单元数量。
-	CountByCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error)
-	// ListExcludeCodebookUID 查询未绑定指定脚本模板 UID 的执行单元。
-	ListExcludeCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, error)
-	// CountExcludeCodebookUID 统计未绑定指定脚本模板 UID 的执行单元数量。
-	CountExcludeCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error)
-	// ListByCodebookUIDs 查询绑定任一脚本模板 UID 的执行单元。
-	ListByCodebookUIDs(ctx context.Context, codebookUIDs []string) ([]domain.Runner, error)
+	// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
+	ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, error)
+	// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
+	CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error)
+	// ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。
+	ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, error)
+	// CountExcludeCodebookID 统计未绑定指定脚本模板 ID 的执行单元数量。
+	CountExcludeCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error)
+	// ListByCodebookIDs 查询绑定任一脚本模板 ID 的执行单元。
+	ListByCodebookIDs(ctx context.Context, codebookIDs []int64) ([]domain.Runner, error)
 	// ListByIDs 根据 ID 列表批量查询执行单元。
 	ListByIDs(ctx context.Context, ids []int64) ([]domain.Runner, error)
-	// FindByCodebookUIDAndTag 根据脚本模板 UID 和标签加载执行单元。
-	FindByCodebookUIDAndTag(ctx context.Context, codebookUID string, tag string) (domain.Runner, error)
-	// AggregateTags 按脚本模板 UID 聚合执行单元标签。
-	AggregateTags(ctx context.Context) ([]domain.RunnerTags, error)
+	// FindByCodebookIDAndTag 根据脚本模板 ID 和标签加载执行单元。
+	FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (domain.Runner, error)
 	// ListMergedVariables 获取执行单元变量，私有变量覆盖全局变量。
 	ListMergedVariables(ctx context.Context, runnerID int64) ([]domain.RunnerVariable, error)
 }
@@ -105,9 +103,9 @@ func (repo *runnerRepository) Count(ctx context.Context, keyword, kind string) (
 	return repo.runnerDAO.Count(ctx, keyword, kind)
 }
 
-// ListByCodebookUID 查询绑定指定脚本模板 UID 的执行单元。
-func (repo *runnerRepository) ListByCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, error) {
-	rs, err := repo.runnerDAO.ListByCodebookUID(ctx, offset, limit, codebookUID, keyword, kind)
+// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
+func (repo *runnerRepository) ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, error) {
+	rs, err := repo.runnerDAO.ListByCodebookID(ctx, offset, limit, codebookID, keyword, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -116,14 +114,14 @@ func (repo *runnerRepository) ListByCodebookUID(ctx context.Context, offset, lim
 	}), nil
 }
 
-// CountByCodebookUID 统计绑定指定脚本模板 UID 的执行单元数量。
-func (repo *runnerRepository) CountByCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error) {
-	return repo.runnerDAO.CountByCodebookUID(ctx, codebookUID, keyword, kind)
+// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
+func (repo *runnerRepository) CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error) {
+	return repo.runnerDAO.CountByCodebookID(ctx, codebookID, keyword, kind)
 }
 
-// ListExcludeCodebookUID 查询未绑定指定脚本模板 UID 的执行单元。
-func (repo *runnerRepository) ListExcludeCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, error) {
-	rs, err := repo.runnerDAO.ListExcludeCodebookUID(ctx, offset, limit, codebookUID, keyword, kind)
+// ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。
+func (repo *runnerRepository) ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]domain.Runner, error) {
+	rs, err := repo.runnerDAO.ListExcludeCodebookID(ctx, offset, limit, codebookID, keyword, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -132,14 +130,14 @@ func (repo *runnerRepository) ListExcludeCodebookUID(ctx context.Context, offset
 	}), nil
 }
 
-// CountExcludeCodebookUID 统计未绑定指定脚本模板 UID 的执行单元数量。
-func (repo *runnerRepository) CountExcludeCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error) {
-	return repo.runnerDAO.CountExcludeCodebookUID(ctx, codebookUID, keyword, kind)
+// CountExcludeCodebookID 统计未绑定指定脚本模板 ID 的执行单元数量。
+func (repo *runnerRepository) CountExcludeCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error) {
+	return repo.runnerDAO.CountExcludeCodebookID(ctx, codebookID, keyword, kind)
 }
 
-// ListByCodebookUIDs 查询绑定任一脚本模板 UID 的执行单元。
-func (repo *runnerRepository) ListByCodebookUIDs(ctx context.Context, codebookUIDs []string) ([]domain.Runner, error) {
-	rs, err := repo.runnerDAO.ListByCodebookUIDs(ctx, codebookUIDs)
+// ListByCodebookIDs 查询绑定任一脚本模板 ID 的执行单元。
+func (repo *runnerRepository) ListByCodebookIDs(ctx context.Context, codebookIDs []int64) ([]domain.Runner, error) {
+	rs, err := repo.runnerDAO.ListByCodebookIDs(ctx, codebookIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -159,30 +157,13 @@ func (repo *runnerRepository) ListByIDs(ctx context.Context, ids []int64) ([]dom
 	}), nil
 }
 
-// FindByCodebookUIDAndTag 根据脚本模板 UID 和标签加载执行单元。
-func (repo *runnerRepository) FindByCodebookUIDAndTag(ctx context.Context, codebookUID string, tag string) (domain.Runner, error) {
-	r, err := repo.runnerDAO.FindByCodebookUIDAndTag(ctx, codebookUID, tag)
+// FindByCodebookIDAndTag 根据脚本模板 ID 和标签加载执行单元。
+func (repo *runnerRepository) FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (domain.Runner, error) {
+	r, err := repo.runnerDAO.FindByCodebookIDAndTag(ctx, codebookID, tag)
 	if err != nil {
 		return domain.Runner{}, err
 	}
 	return repo.toDomain(r), nil
-}
-
-// AggregateTags 按脚本模板 UID 聚合执行单元标签。
-func (repo *runnerRepository) AggregateTags(ctx context.Context) ([]domain.RunnerTags, error) {
-	runners, err := repo.runnerDAO.AggregateTags(ctx)
-	if err != nil {
-		return nil, err
-	}
-	grouped := lo.GroupBy(runners, func(r dao.Runner) string {
-		return r.CodebookUID
-	})
-	return lo.MapToSlice(grouped, func(uid string, rs []dao.Runner) domain.RunnerTags {
-		return domain.RunnerTags{
-			CodebookUID: uid,
-			TagsMapping: repo.toTagMapping(rs),
-		}
-	}), nil
 }
 
 func (repo *runnerRepository) ListMergedVariables(ctx context.Context, runnerID int64) ([]domain.RunnerVariable, error) {
@@ -208,26 +189,12 @@ func mergeVariablesByKey(variables []dao.Variable) []dao.Variable {
 	return merged
 }
 
-func (repo *runnerRepository) toTagMapping(rs []dao.Runner) map[string]domain.RunnerTagDetail {
-	tagSet := make(map[string]domain.RunnerTagDetail)
-	for _, r := range rs {
-		for _, tag := range r.Tags.Val {
-			tagSet[tag] = domain.RunnerTagDetail{
-				Kind:    domain.RunnerKind(r.Kind),
-				Target:  r.Target,
-				Handler: r.Handler,
-			}
-		}
-	}
-	return tagSet
-}
-
 func (repo *runnerRepository) toEntity(req domain.Runner) dao.Runner {
 	return dao.Runner{
 		ID:             req.ID,
 		TenantID:       req.TenantID,
 		Name:           req.Name,
-		CodebookUID:    req.CodebookUID,
+		CodebookID:     req.CodebookID,
 		CodebookSecret: req.CodebookSecret,
 		Kind:           req.Kind.String(),
 		Target:         req.Target,
@@ -245,7 +212,7 @@ func (repo *runnerRepository) toDomain(req dao.Runner) domain.Runner {
 		ID:             req.ID,
 		TenantID:       req.TenantID,
 		Name:           req.Name,
-		CodebookUID:    req.CodebookUID,
+		CodebookID:     req.CodebookID,
 		CodebookSecret: req.CodebookSecret,
 		Kind:           domain.RunnerKind(req.Kind),
 		Target:         req.Target,

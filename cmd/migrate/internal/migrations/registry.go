@@ -8,6 +8,7 @@ const DefaultTenantID int64 = 2
 func All() []migration.Migrator {
 	return []migration.Migrator{
 		NewCodebookMigrator(),
+		NewCodebookVersionMigrator(),
 		NewRunnerMigrator(),
 		NewRunnerVariableMigrator(),
 	}

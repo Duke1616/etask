@@ -13,7 +13,7 @@ message Variable {
 message Runner {
   int64 id = 1;
   string name = 2;
-  string codebook_uid = 3;
+  int64 codebook_id = 3;
   string codebook_secret = 4;
   string kind = 5;
   string target = 6;
@@ -26,15 +26,15 @@ message Runner {
   int64 utime = 13;
 }
 
-message FindRunnerByCodebookUidAndTagRequest {
-  string codebook_uid = 1;
+message FindRunnerByCodebookIdAndTagRequest {
+  int64 codebook_id = 1;
   string tag = 2;
 }
 
-message FindRunnerByCodebookUidAndTagResponse {
+message FindRunnerByCodebookIdAndTagResponse {
   Runner runner = 1;
 }
 
 service RunnerService {
-  rpc FindRunnerByCodebookUidAndTag(FindRunnerByCodebookUidAndTagRequest) returns (FindRunnerByCodebookUidAndTagResponse);
+  rpc FindRunnerByCodebookIdAndTag(FindRunnerByCodebookIdAndTagRequest) returns (FindRunnerByCodebookIdAndTagResponse);
 }

@@ -48,7 +48,7 @@ type Runner struct {
 	ID             int64
 	TenantID       int64
 	Name           string
-	CodebookUID    string
+	CodebookID     int64
 	CodebookSecret string
 	Kind           RunnerKind
 	Target         string
@@ -66,8 +66,8 @@ func (r *Runner) Validate() error {
 	if r.Name == "" {
 		return fmt.Errorf("%w: name is empty", errs.ErrInvalidParameter)
 	}
-	if r.CodebookUID == "" {
-		return fmt.Errorf("%w: codebook_uid is empty", errs.ErrInvalidParameter)
+	if r.CodebookID <= 0 {
+		return fmt.Errorf("%w: codebook_id = %d", errs.ErrInvalidParameter, r.CodebookID)
 	}
 	if r.Kind == "" {
 		return fmt.Errorf("%w: kind is empty", errs.ErrInvalidParameter)
@@ -84,17 +84,4 @@ func (r *Runner) Validate() error {
 // IsKindKafka 判断执行单元是否通过 Kafka 派发。
 func (r *Runner) IsKindKafka() bool {
 	return r.Kind == RunnerKindKafka
-}
-
-// RunnerTagDetail 描述标签到派发规则的映射。
-type RunnerTagDetail struct {
-	Kind    RunnerKind
-	Target  string
-	Handler string
-}
-
-// RunnerTags 按脚本模板 UID 聚合可用标签映射。
-type RunnerTags struct {
-	CodebookUID string
-	TagsMapping map[string]RunnerTagDetail
 }

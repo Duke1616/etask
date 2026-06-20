@@ -1,19 +1,44 @@
 package codebook
 
 type CreateReq struct {
-	Name       string `json:"name"`
-	Owner      string `json:"owner"`
-	Code       string `json:"code"`
-	Language   string `json:"language"`
-	Identifier string `json:"identifier"`
+	ProjectID int64  `json:"project_id"`
+	Name      string `json:"name"`
+	Owner     string `json:"owner"`
+	Code      string `json:"code"`
+	ParentID  int64  `json:"parent_id"`
+	Scope     string `json:"scope"`
+	Kind      string `json:"kind"`
+	SortNo    int64  `json:"sort_no"`
 }
 
 type UpdateReq struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	Owner    string `json:"owner"`
-	Code     string `json:"code"`
-	Language string `json:"language"`
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"project_id"`
+	Name      string `json:"name"`
+	Owner     string `json:"owner"`
+	Scope     string `json:"scope"`
+	SortNo    int64  `json:"sort_no"`
+}
+
+type SortReq struct {
+	ID             int64 `json:"id"`
+	TargetParentID int64 `json:"target_parent_id"`
+	TargetPosition int64 `json:"target_position"`
+}
+
+type CreateVersionReq struct {
+	NodeID  int64  `json:"node_id"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type UseVersionReq struct {
+	NodeID    int64 `json:"node_id"`
+	VersionID int64 `json:"version_id"`
+}
+
+type ListVersionsReq struct {
+	NodeID int64 `json:"node_id"`
 }
 
 type Page struct {
@@ -25,19 +50,83 @@ type ListReq struct {
 	Page
 }
 
-type CodebookVO struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	Owner      string `json:"owner"`
-	Identifier string `json:"identifier"`
-	Code       string `json:"code"`
-	Language   string `json:"language"`
-	Secret     string `json:"secret"`
-	CTime      int64  `json:"ctime"`
-	UTime      int64  `json:"utime"`
+type ChildrenReq struct {
+	ProjectID int64 `json:"project_id"`
+	ParentID  int64 `json:"parent_id"`
+}
+
+type TreeReq struct {
+	ProjectID int64  `json:"project_id"`
+	Scope     string `json:"scope"`
+}
+
+type Codebook struct {
+	ID               int64  `json:"id"`
+	TenantID         int64  `json:"tenant_id"`
+	Scope            string `json:"scope"`
+	ProjectID        int64  `json:"project_id"`
+	ParentID         int64  `json:"parent_id"`
+	PathIDs          string `json:"path_ids"`
+	Depth            int    `json:"depth"`
+	Name             string `json:"name"`
+	Owner            string `json:"owner"`
+	Kind             string `json:"kind"`
+	SortNo           int64  `json:"sort_no"`
+	Code             string `json:"code"`
+	Secret           string `json:"secret"`
+	CurrentVersionID int64  `json:"current_version_id"`
+	CurrentVersionNo int64  `json:"current_version_no"`
+	CTime            int64  `json:"ctime"`
+	UTime            int64  `json:"utime"`
 }
 
 type ListCodebooksResp struct {
-	Total     int64        `json:"total"`
-	Codebooks []CodebookVO `json:"codebooks"`
+	Total     int64      `json:"total"`
+	Codebooks []Codebook `json:"codebooks"`
+}
+
+type Version struct {
+	ID           int64  `json:"id"`
+	NodeID       int64  `json:"node_id"`
+	TenantID     int64  `json:"tenant_id"`
+	Scope        string `json:"scope"`
+	VersionNo    int64  `json:"version_no"`
+	Code         string `json:"code"`
+	Hash         string `json:"hash"`
+	Message      string `json:"message"`
+	AuthorUserID int64  `json:"author_user_id"`
+	CTime        int64  `json:"ctime"`
+}
+
+type ListVersionsResp struct {
+	Versions []Version `json:"versions"`
+}
+
+type CreateProjectReq struct {
+	Name string `json:"name"`
+	Desc string `json:"desc"`
+}
+
+type UpdateProjectReq struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Desc   string `json:"desc"`
+	SortNo int64  `json:"sort_no"`
+}
+
+type Project struct {
+	ID       int64  `json:"id"`
+	TenantID int64  `json:"tenant_id"`
+	Scope    string `json:"scope"`
+	Name     string `json:"name"`
+	Desc     string `json:"desc"`
+	SortNo   int64  `json:"sort_no"`
+	Status   string `json:"status"`
+	CTime    int64  `json:"ctime"`
+	UTime    int64  `json:"utime"`
+}
+
+type ListProjectsResp struct {
+	Total    int64     `json:"total"`
+	Projects []Project `json:"projects"`
 }

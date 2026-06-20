@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/Duke1616/eiam/pkg/migration"
 	"github.com/Duke1616/etask/cmd/migrate/internal/config"
@@ -59,8 +60,32 @@ func runMigrate(force bool) {
 	runner := migration.NewRunner(mCfg, migrations.All(),
 		migration.WithDefaultTenantID(migrations.DefaultTenantID),
 		migration.WithAutoMigrateFunc(func(db *gorm.DB) error {
-			return db.AutoMigrate(&dao.Codebook{}, &dao.Runner{}, &dao.Variable{})
+			if err := db.AutoMigrate(&dao.Codebook{}, &dao.CodebookVersion{}, &dao.CodebookProject{}, &dao.Runner{}, &dao.Variable{}); err != nil {
+				return err
+			}
+			var count int64
+			if err := db.Model(&dao.CodebookProject{}).Where("id = ?", 1).Count(&count).Error; err != nil {
+				return err
+			}
+			if count == 0 {
+				p := dao.CodebookProject{
+					ID:       1,
+					TenantID: 2,
+					Scope:    "TENANT",
+					Name:     "工单",
+					Desc:     "系统自动创建的工单代码资源项目",
+					SortNo:   10000,
+					Status:   "NORMAL",
+					CTime:    time.Now().UnixMilli(),
+					UTime:    time.Now().UnixMilli(),
+				}
+				if err := db.Create(&p).Error; err != nil {
+					return err
+				}
+			}
+			return nil
 		}),
+		migration.WithPostHooks(migrations.ResolveRunnerCodebookIDs),
 	)
 
 	if err = runner.Run(ctx); err != nil {

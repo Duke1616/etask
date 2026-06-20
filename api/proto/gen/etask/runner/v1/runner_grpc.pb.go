@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RunnerService_FindRunnerByCodebookUidAndTag_FullMethodName = "/etask.runner.v1.RunnerService/FindRunnerByCodebookUidAndTag"
+	RunnerService_FindRunnerByCodebookIdAndTag_FullMethodName = "/etask.runner.v1.RunnerService/FindRunnerByCodebookIdAndTag"
 )
 
 // RunnerServiceClient is the client API for RunnerService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RunnerServiceClient interface {
-	FindRunnerByCodebookUidAndTag(ctx context.Context, in *FindRunnerByCodebookUidAndTagRequest, opts ...grpc.CallOption) (*FindRunnerByCodebookUidAndTagResponse, error)
+	FindRunnerByCodebookIdAndTag(ctx context.Context, in *FindRunnerByCodebookIdAndTagRequest, opts ...grpc.CallOption) (*FindRunnerByCodebookIdAndTagResponse, error)
 }
 
 type runnerServiceClient struct {
@@ -37,10 +37,10 @@ func NewRunnerServiceClient(cc grpc.ClientConnInterface) RunnerServiceClient {
 	return &runnerServiceClient{cc}
 }
 
-func (c *runnerServiceClient) FindRunnerByCodebookUidAndTag(ctx context.Context, in *FindRunnerByCodebookUidAndTagRequest, opts ...grpc.CallOption) (*FindRunnerByCodebookUidAndTagResponse, error) {
+func (c *runnerServiceClient) FindRunnerByCodebookIdAndTag(ctx context.Context, in *FindRunnerByCodebookIdAndTagRequest, opts ...grpc.CallOption) (*FindRunnerByCodebookIdAndTagResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(FindRunnerByCodebookUidAndTagResponse)
-	err := c.cc.Invoke(ctx, RunnerService_FindRunnerByCodebookUidAndTag_FullMethodName, in, out, cOpts...)
+	out := new(FindRunnerByCodebookIdAndTagResponse)
+	err := c.cc.Invoke(ctx, RunnerService_FindRunnerByCodebookIdAndTag_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (c *runnerServiceClient) FindRunnerByCodebookUidAndTag(ctx context.Context,
 // All implementations must embed UnimplementedRunnerServiceServer
 // for forward compatibility.
 type RunnerServiceServer interface {
-	FindRunnerByCodebookUidAndTag(context.Context, *FindRunnerByCodebookUidAndTagRequest) (*FindRunnerByCodebookUidAndTagResponse, error)
+	FindRunnerByCodebookIdAndTag(context.Context, *FindRunnerByCodebookIdAndTagRequest) (*FindRunnerByCodebookIdAndTagResponse, error)
 	mustEmbedUnimplementedRunnerServiceServer()
 }
 
@@ -62,8 +62,8 @@ type RunnerServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedRunnerServiceServer struct{}
 
-func (UnimplementedRunnerServiceServer) FindRunnerByCodebookUidAndTag(context.Context, *FindRunnerByCodebookUidAndTagRequest) (*FindRunnerByCodebookUidAndTagResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method FindRunnerByCodebookUidAndTag not implemented")
+func (UnimplementedRunnerServiceServer) FindRunnerByCodebookIdAndTag(context.Context, *FindRunnerByCodebookIdAndTagRequest) (*FindRunnerByCodebookIdAndTagResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FindRunnerByCodebookIdAndTag not implemented")
 }
 func (UnimplementedRunnerServiceServer) mustEmbedUnimplementedRunnerServiceServer() {}
 func (UnimplementedRunnerServiceServer) testEmbeddedByValue()                       {}
@@ -86,20 +86,20 @@ func RegisterRunnerServiceServer(s grpc.ServiceRegistrar, srv RunnerServiceServe
 	s.RegisterService(&RunnerService_ServiceDesc, srv)
 }
 
-func _RunnerService_FindRunnerByCodebookUidAndTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FindRunnerByCodebookUidAndTagRequest)
+func _RunnerService_FindRunnerByCodebookIdAndTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FindRunnerByCodebookIdAndTagRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RunnerServiceServer).FindRunnerByCodebookUidAndTag(ctx, in)
+		return srv.(RunnerServiceServer).FindRunnerByCodebookIdAndTag(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: RunnerService_FindRunnerByCodebookUidAndTag_FullMethodName,
+		FullMethod: RunnerService_FindRunnerByCodebookIdAndTag_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RunnerServiceServer).FindRunnerByCodebookUidAndTag(ctx, req.(*FindRunnerByCodebookUidAndTagRequest))
+		return srv.(RunnerServiceServer).FindRunnerByCodebookIdAndTag(ctx, req.(*FindRunnerByCodebookIdAndTagRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -112,8 +112,8 @@ var RunnerService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*RunnerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "FindRunnerByCodebookUidAndTag",
-			Handler:    _RunnerService_FindRunnerByCodebookUidAndTag_Handler,
+			MethodName: "FindRunnerByCodebookIdAndTag",
+			Handler:    _RunnerService_FindRunnerByCodebookIdAndTag_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

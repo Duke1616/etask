@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CodebookService_GetCodebookByIdentifier_FullMethodName = "/etask.codebook.v1.CodebookService/GetCodebookByIdentifier"
+	CodebookService_GetCodebookByID_FullMethodName = "/etask.codebook.v1.CodebookService/GetCodebookByID"
 )
 
 // CodebookServiceClient is the client API for CodebookService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CodebookServiceClient interface {
-	GetCodebookByIdentifier(ctx context.Context, in *GetCodebookByIdentifierRequest, opts ...grpc.CallOption) (*GetCodebookByIdentifierResponse, error)
+	GetCodebookByID(ctx context.Context, in *GetCodebookByIDRequest, opts ...grpc.CallOption) (*GetCodebookByIDResponse, error)
 }
 
 type codebookServiceClient struct {
@@ -37,10 +37,10 @@ func NewCodebookServiceClient(cc grpc.ClientConnInterface) CodebookServiceClient
 	return &codebookServiceClient{cc}
 }
 
-func (c *codebookServiceClient) GetCodebookByIdentifier(ctx context.Context, in *GetCodebookByIdentifierRequest, opts ...grpc.CallOption) (*GetCodebookByIdentifierResponse, error) {
+func (c *codebookServiceClient) GetCodebookByID(ctx context.Context, in *GetCodebookByIDRequest, opts ...grpc.CallOption) (*GetCodebookByIDResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetCodebookByIdentifierResponse)
-	err := c.cc.Invoke(ctx, CodebookService_GetCodebookByIdentifier_FullMethodName, in, out, cOpts...)
+	out := new(GetCodebookByIDResponse)
+	err := c.cc.Invoke(ctx, CodebookService_GetCodebookByID_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (c *codebookServiceClient) GetCodebookByIdentifier(ctx context.Context, in 
 // All implementations must embed UnimplementedCodebookServiceServer
 // for forward compatibility.
 type CodebookServiceServer interface {
-	GetCodebookByIdentifier(context.Context, *GetCodebookByIdentifierRequest) (*GetCodebookByIdentifierResponse, error)
+	GetCodebookByID(context.Context, *GetCodebookByIDRequest) (*GetCodebookByIDResponse, error)
 	mustEmbedUnimplementedCodebookServiceServer()
 }
 
@@ -62,8 +62,8 @@ type CodebookServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedCodebookServiceServer struct{}
 
-func (UnimplementedCodebookServiceServer) GetCodebookByIdentifier(context.Context, *GetCodebookByIdentifierRequest) (*GetCodebookByIdentifierResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetCodebookByIdentifier not implemented")
+func (UnimplementedCodebookServiceServer) GetCodebookByID(context.Context, *GetCodebookByIDRequest) (*GetCodebookByIDResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetCodebookByID not implemented")
 }
 func (UnimplementedCodebookServiceServer) mustEmbedUnimplementedCodebookServiceServer() {}
 func (UnimplementedCodebookServiceServer) testEmbeddedByValue()                         {}
@@ -86,20 +86,20 @@ func RegisterCodebookServiceServer(s grpc.ServiceRegistrar, srv CodebookServiceS
 	s.RegisterService(&CodebookService_ServiceDesc, srv)
 }
 
-func _CodebookService_GetCodebookByIdentifier_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetCodebookByIdentifierRequest)
+func _CodebookService_GetCodebookByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCodebookByIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CodebookServiceServer).GetCodebookByIdentifier(ctx, in)
+		return srv.(CodebookServiceServer).GetCodebookByID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: CodebookService_GetCodebookByIdentifier_FullMethodName,
+		FullMethod: CodebookService_GetCodebookByID_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CodebookServiceServer).GetCodebookByIdentifier(ctx, req.(*GetCodebookByIdentifierRequest))
+		return srv.(CodebookServiceServer).GetCodebookByID(ctx, req.(*GetCodebookByIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -112,8 +112,8 @@ var CodebookService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*CodebookServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetCodebookByIdentifier",
-			Handler:    _CodebookService_GetCodebookByIdentifier_Handler,
+			MethodName: "GetCodebookByID",
+			Handler:    _CodebookService_GetCodebookByID_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

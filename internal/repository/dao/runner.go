@@ -15,7 +15,7 @@ type Runner struct {
 	ID             int64                     `gorm:"primaryKey;column:id;type:bigint;autoIncrement;comment:'执行单元自增ID'"`
 	TenantID       int64                     `gorm:"column:tenant_id;type:bigint unsigned;not null;default:0;index;comment:'租户ID'"`
 	Name           string                    `gorm:"column:name;type:varchar(128);not null;comment:'执行单元名称'"`
-	CodebookUID    string                    `gorm:"column:codebook_uid;type:varchar(64);index;comment:'关联脚本模板UID'"`
+	CodebookID     int64                     `gorm:"column:codebook_id;type:bigint;index;comment:'关联脚本模板ID'"`
 	CodebookSecret string                    `gorm:"column:codebook_secret;type:varchar(128);comment:'脚本模板认证密钥'"`
 	Kind           string                    `gorm:"column:kind;type:varchar(32);comment:'派发管道协议(KAFKA/GRPC)'"`
 	Target         string                    `gorm:"column:target;type:varchar(128);comment:'派发物理目标(Topic/ServiceName)'"`
@@ -47,22 +47,20 @@ type RunnerDAO interface {
 	List(ctx context.Context, offset, limit int64, keyword, kind string) ([]Runner, error)
 	// Count 统计匹配条件的执行单元总数。
 	Count(ctx context.Context, keyword, kind string) (int64, error)
-	// FindByCodebookUIDAndTag 根据脚本模板 UID 和标签查询执行单元。
-	FindByCodebookUIDAndTag(ctx context.Context, codebookUID string, tag string) (Runner, error)
-	// ListByCodebookUID 查询绑定指定脚本模板 UID 的执行单元。
-	ListByCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]Runner, error)
-	// CountByCodebookUID 统计绑定指定脚本模板 UID 的执行单元数量。
-	CountByCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error)
-	// ListExcludeCodebookUID 查询未绑定指定脚本模板 UID 的执行单元。
-	ListExcludeCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]Runner, error)
-	// CountExcludeCodebookUID 统计未绑定指定脚本模板 UID 的执行单元数量。
-	CountExcludeCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error)
-	// ListByCodebookUIDs 查询绑定任一脚本模板 UID 的执行单元。
-	ListByCodebookUIDs(ctx context.Context, codebookUIDs []string) ([]Runner, error)
+	// FindByCodebookIDAndTag 根据脚本模板 ID 和标签查询执行单元。
+	FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (Runner, error)
+	// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
+	ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]Runner, error)
+	// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
+	CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error)
+	// ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。
+	ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]Runner, error)
+	// CountExcludeCodebookID 统计未绑定指定脚本模板 ID 的执行单元数量。
+	CountExcludeCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error)
+	// ListByCodebookIDs 查询绑定任一脚本模板 ID 的执行单元。
+	ListByCodebookIDs(ctx context.Context, codebookIDs []int64) ([]Runner, error)
 	// ListByIDs 根据 ID 列表批量查询执行单元。
 	ListByIDs(ctx context.Context, ids []int64) ([]Runner, error)
-	// AggregateTags 返回全部执行单元用于内存聚合标签。
-	AggregateTags(ctx context.Context) ([]Runner, error)
 }
 
 // GORMRunnerDAO 基于 GORM 实现 RunnerDAO。
@@ -102,7 +100,7 @@ func (g *GORMRunnerDAO) Update(ctx context.Context, req Runner) (int64, error) {
 		Where("id = ?", req.ID).
 		Updates(map[string]any{
 			"name":            req.Name,
-			"codebook_uid":    req.CodebookUID,
+			"codebook_id":     req.CodebookID,
 			"codebook_secret": req.CodebookSecret,
 			"kind":            req.Kind,
 			"target":          req.Target,
@@ -122,7 +120,7 @@ func (g *GORMRunnerDAO) UpdateWithVariables(ctx context.Context, req Runner, var
 			Where("id = ?", req.ID).
 			Updates(map[string]any{
 				"name":            req.Name,
-				"codebook_uid":    req.CodebookUID,
+				"codebook_id":     req.CodebookID,
 				"codebook_secret": req.CodebookSecret,
 				"kind":            req.Kind,
 				"target":          req.Target,
@@ -194,19 +192,19 @@ func (g *GORMRunnerDAO) Count(ctx context.Context, keyword, kind string) (int64,
 	return count, err
 }
 
-// FindByCodebookUIDAndTag 根据脚本模板 UID 和标签查询执行单元。
-func (g *GORMRunnerDAO) FindByCodebookUIDAndTag(ctx context.Context, codebookUID string, tag string) (Runner, error) {
+// FindByCodebookIDAndTag 根据脚本模板 ID 和标签查询执行单元。
+func (g *GORMRunnerDAO) FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (Runner, error) {
 	var res Runner
 	err := g.db.WithContext(ctx).
-		Where("codebook_uid = ? AND JSON_CONTAINS(tags, ?)", codebookUID, fmt.Sprintf("%q", tag)).
+		Where("codebook_id = ? AND JSON_CONTAINS(tags, ?)", codebookID, fmt.Sprintf("%q", tag)).
 		First(&res).Error
 	return res, err
 }
 
-// ListByCodebookUID 查询绑定指定脚本模板 UID 的执行单元。
-func (g *GORMRunnerDAO) ListByCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]Runner, error) {
+// ListByCodebookID 查询绑定指定脚本模板 ID 的执行单元。
+func (g *GORMRunnerDAO) ListByCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]Runner, error) {
 	var res []Runner
-	query := g.db.WithContext(ctx).Where("codebook_uid = ?", codebookUID)
+	query := g.db.WithContext(ctx).Where("codebook_id = ?", codebookID)
 	if keyword != "" {
 		query = query.Where("name LIKE ?", "%"+keyword+"%")
 	}
@@ -217,10 +215,10 @@ func (g *GORMRunnerDAO) ListByCodebookUID(ctx context.Context, offset, limit int
 	return res, err
 }
 
-// CountByCodebookUID 统计绑定指定脚本模板 UID 的执行单元数量。
-func (g *GORMRunnerDAO) CountByCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error) {
+// CountByCodebookID 统计绑定指定脚本模板 ID 的执行单元数量。
+func (g *GORMRunnerDAO) CountByCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error) {
 	var count int64
-	query := g.db.WithContext(ctx).Model(&Runner{}).Where("codebook_uid = ?", codebookUID)
+	query := g.db.WithContext(ctx).Model(&Runner{}).Where("codebook_id = ?", codebookID)
 	if keyword != "" {
 		query = query.Where("name LIKE ?", "%"+keyword+"%")
 	}
@@ -231,10 +229,10 @@ func (g *GORMRunnerDAO) CountByCodebookUID(ctx context.Context, codebookUID, key
 	return count, err
 }
 
-// ListExcludeCodebookUID 查询未绑定指定脚本模板 UID 的执行单元。
-func (g *GORMRunnerDAO) ListExcludeCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]Runner, error) {
+// ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。
+func (g *GORMRunnerDAO) ListExcludeCodebookID(ctx context.Context, offset, limit int64, codebookID int64, keyword, kind string) ([]Runner, error) {
 	var res []Runner
-	query := g.db.WithContext(ctx).Where("codebook_uid != ?", codebookUID)
+	query := g.db.WithContext(ctx).Where("codebook_id != ?", codebookID)
 	if keyword != "" {
 		query = query.Where("name LIKE ?", "%"+keyword+"%")
 	}
@@ -245,10 +243,10 @@ func (g *GORMRunnerDAO) ListExcludeCodebookUID(ctx context.Context, offset, limi
 	return res, err
 }
 
-// CountExcludeCodebookUID 统计未绑定指定脚本模板 UID 的执行单元数量。
-func (g *GORMRunnerDAO) CountExcludeCodebookUID(ctx context.Context, codebookUID, keyword, kind string) (int64, error) {
+// CountExcludeCodebookID 统计未绑定指定脚本模板 ID 的执行单元数量。
+func (g *GORMRunnerDAO) CountExcludeCodebookID(ctx context.Context, codebookID int64, keyword, kind string) (int64, error) {
 	var count int64
-	query := g.db.WithContext(ctx).Model(&Runner{}).Where("codebook_uid != ?", codebookUID)
+	query := g.db.WithContext(ctx).Model(&Runner{}).Where("codebook_id != ?", codebookID)
 	if keyword != "" {
 		query = query.Where("name LIKE ?", "%"+keyword+"%")
 	}
@@ -259,10 +257,10 @@ func (g *GORMRunnerDAO) CountExcludeCodebookUID(ctx context.Context, codebookUID
 	return count, err
 }
 
-// ListByCodebookUIDs 查询绑定任一脚本模板 UID 的执行单元。
-func (g *GORMRunnerDAO) ListByCodebookUIDs(ctx context.Context, codebookUIDs []string) ([]Runner, error) {
+// ListByCodebookIDs 查询绑定任一脚本模板 ID 的执行单元。
+func (g *GORMRunnerDAO) ListByCodebookIDs(ctx context.Context, codebookIDs []int64) ([]Runner, error) {
 	var res []Runner
-	err := g.db.WithContext(ctx).Where("codebook_uid IN ?", codebookUIDs).Find(&res).Error
+	err := g.db.WithContext(ctx).Where("codebook_id IN ?", codebookIDs).Find(&res).Error
 	return res, err
 }
 
@@ -270,12 +268,5 @@ func (g *GORMRunnerDAO) ListByCodebookUIDs(ctx context.Context, codebookUIDs []s
 func (g *GORMRunnerDAO) ListByIDs(ctx context.Context, ids []int64) ([]Runner, error) {
 	var res []Runner
 	err := g.db.WithContext(ctx).Where("id IN ?", ids).Find(&res).Error
-	return res, err
-}
-
-// AggregateTags 返回全部执行单元用于内存聚合标签。
-func (g *GORMRunnerDAO) AggregateTags(ctx context.Context) ([]Runner, error) {
-	var res []Runner
-	err := g.db.WithContext(ctx).Find(&res).Error
 	return res, err
 }

@@ -49,6 +49,7 @@ var (
 
 	CodebookSet = wire.NewSet(
 		dao.NewGORMCodebookDAO,
+		dao.NewGORMCodebookProjectDAO,
 		repository.NewCodebookRepository,
 		codebookSvc.NewService,
 		codebookWeb.NewHandler,
@@ -71,6 +72,7 @@ var (
 
 	MaterializerCoreSet = wire.NewSet(
 		dao.NewGORMCodebookDAO,
+		dao.NewGORMCodebookProjectDAO,
 		repository.NewCodebookRepository,
 		codebookSvc.NewService,
 		dao.NewGORMRunnerDAO,

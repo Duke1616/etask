@@ -7,9 +7,9 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	codebookSvc "github.com/Duke1616/etask/internal/service/codebook"
-	"github.com/ecodeclub/ekit/slice"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
 )
 
 var _ ginx.Handler = &Handler{}
@@ -37,14 +37,52 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.POST("/list", h.Capability("脚本模板列表", "view").
 		Handle(ginx.B[ListReq](h.List)),
 	)
+	g.POST("/children", h.Capability("代码资源子节点", "children").
+		Handle(ginx.B[ChildrenReq](h.Children)),
+	)
+	g.POST("/tree", h.Capability("代码资源树", "tree").
+		Handle(ginx.B[TreeReq](h.Tree)),
+	)
 	g.GET("/detail/:id", h.Capability("脚本模板详情", "get").
 		Handle(ginx.W(h.Detail)),
 	)
 	g.POST("/update", h.Capability("更新脚本模板", "edit").
 		Handle(ginx.B[UpdateReq](h.Update)),
 	)
+	g.POST("/sort", h.Capability("脚本模板排序", "sort").
+		Handle(ginx.B[SortReq](h.Sort)),
+	)
 	g.DELETE("/delete/:id", h.Capability("删除脚本模板", "delete").
 		Handle(ginx.W(h.Delete)),
+	)
+
+	vg := g.Group("/version")
+	vg.POST("/create", h.Capability("创建脚本版本", "create_version").
+		Handle(ginx.B[CreateVersionReq](h.CreateVersion)),
+	)
+	vg.POST("/list", h.Capability("脚本版本列表", "view_version").
+		Handle(ginx.B[ListVersionsReq](h.ListVersions)),
+	)
+	vg.GET("/detail/:id", h.Capability("脚本版本详情", "get_version").
+		Handle(ginx.W(h.VersionDetail)),
+	)
+	vg.POST("/use", h.Capability("使用脚本版本", "use_version").
+		Handle(ginx.B[UseVersionReq](h.UseVersion)),
+	)
+
+	// 项目路由
+	pg := g.Group("/project")
+	pg.POST("/create", h.Capability("创建脚本项目", "add_project").
+		Handle(ginx.B[CreateProjectReq](h.CreateProject)),
+	)
+	pg.POST("/list", h.Capability("脚本项目列表", "view_project").
+		Handle(ginx.B[ListReq](h.ListProject)),
+	)
+	pg.POST("/update", h.Capability("更新脚本项目", "edit_project").
+		Handle(ginx.B[UpdateProjectReq](h.UpdateProject)),
+	)
+	pg.DELETE("/delete/:id", h.Capability("删除脚本项目", "delete_project").
+		Handle(ginx.W(h.DeleteProject)),
 	)
 }
 
@@ -76,15 +114,23 @@ func (h *Handler) List(ctx *ginx.Context, req ListReq) (ginx.Result, error) {
 	if err != nil {
 		return systemErrorResult, err
 	}
-	return ginx.Result{
-		Msg: "success",
-		Data: ListCodebooksResp{
-			Total: total,
-			Codebooks: slice.Map(cs, func(_ int, src domain.Codebook) CodebookVO {
-				return h.toVO(src)
-			}),
-		},
-	}, nil
+	return ginx.Result{Msg: "success", Data: h.toListResp(cs, total)}, nil
+}
+
+func (h *Handler) Children(ctx *ginx.Context, req ChildrenReq) (ginx.Result, error) {
+	cs, err := h.svc.Children(ctx, req.ProjectID, req.ParentID)
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Msg: "success", Data: h.toListResp(cs, int64(len(cs)))}, nil
+}
+
+func (h *Handler) Tree(ctx *ginx.Context, req TreeReq) (ginx.Result, error) {
+	cs, err := h.svc.Tree(ctx, req.ProjectID, domain.CodebookScope(req.Scope))
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Msg: "success", Data: h.toListResp(cs, int64(len(cs)))}, nil
 }
 
 func (h *Handler) Update(ctx *ginx.Context, req UpdateReq) (ginx.Result, error) {
@@ -95,12 +141,92 @@ func (h *Handler) Update(ctx *ginx.Context, req UpdateReq) (ginx.Result, error) 
 	return ginx.Result{Data: count, Msg: "success"}, nil
 }
 
+func (h *Handler) Sort(ctx *ginx.Context, req SortReq) (ginx.Result, error) {
+	if err := h.svc.Sort(ctx, req.ID, req.TargetParentID, req.TargetPosition); err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Msg: "排序成功"}, nil
+}
+
 func (h *Handler) Delete(ctx *ginx.Context) (ginx.Result, error) {
 	id, err := ctx.Param("id").AsInt64()
 	if err != nil {
 		return invalidCodebookIDError, err
 	}
 	count, err := h.svc.Delete(ctx, id)
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Data: count, Msg: "success"}, nil
+}
+
+func (h *Handler) CreateVersion(ctx *ginx.Context, req CreateVersionReq) (ginx.Result, error) {
+	id, err := h.svc.CreateVersion(ctx, h.toVersionDomain(req))
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Data: id, Msg: "success"}, nil
+}
+
+func (h *Handler) ListVersions(ctx *ginx.Context, req ListVersionsReq) (ginx.Result, error) {
+	versions, err := h.svc.ListVersions(ctx, req.NodeID)
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Msg: "success", Data: h.toVersionListResp(versions)}, nil
+}
+
+func (h *Handler) VersionDetail(ctx *ginx.Context) (ginx.Result, error) {
+	id, err := ctx.Param("id").AsInt64()
+	if err != nil {
+		return invalidCodebookIDError, err
+	}
+	version, err := h.svc.GetVersionByID(ctx, id)
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Data: h.toVersionVO(version), Msg: "success"}, nil
+}
+
+func (h *Handler) UseVersion(ctx *ginx.Context, req UseVersionReq) (ginx.Result, error) {
+	count, err := h.svc.UseVersion(ctx, req.NodeID, req.VersionID)
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Data: count, Msg: "success"}, nil
+}
+
+// 项目接口实现
+func (h *Handler) CreateProject(ctx *ginx.Context, req CreateProjectReq) (ginx.Result, error) {
+	id, err := h.svc.CreateProject(ctx, h.toProjectDomain(req))
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Data: id, Msg: "success"}, nil
+}
+
+func (h *Handler) ListProject(ctx *ginx.Context, req ListReq) (ginx.Result, error) {
+	ps, total, err := h.svc.ListProjects(ctx, req.Offset, req.Limit)
+	if err != nil {
+		return systemErrorResult, err
+	}
+	return ginx.Result{Msg: "success", Data: h.toProjectListResp(ps, total)}, nil
+}
+
+func (h *Handler) UpdateProject(ctx *ginx.Context, req UpdateProjectReq) (ginx.Result, error) {
+	count, err := h.svc.UpdateProject(ctx, h.toUpdateProjectDomain(req))
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Data: count, Msg: "success"}, nil
+}
+
+func (h *Handler) DeleteProject(ctx *ginx.Context) (ginx.Result, error) {
+	id, err := ctx.Param("id").AsInt64()
+	if err != nil {
+		return invalidProjectIDError, err
+	}
+	count, err := h.svc.DeleteProject(ctx, id)
 	if err != nil {
 		return h.translateError(err), err
 	}
@@ -116,34 +242,125 @@ func (h *Handler) translateError(err error) ginx.Result {
 
 func (h *Handler) toDomain(req CreateReq) domain.Codebook {
 	return domain.Codebook{
-		Name:       req.Name,
-		Owner:      req.Owner,
-		Code:       req.Code,
-		Language:   req.Language,
-		Identifier: req.Identifier,
+		ProjectID: req.ProjectID,
+		Name:      req.Name,
+		Owner:     req.Owner,
+		Code:      req.Code,
+		ParentID:  req.ParentID,
+		Scope:     domain.CodebookScope(req.Scope),
+		Kind:      domain.CodebookKind(req.Kind),
+		SortNo:    req.SortNo,
 	}
 }
 
 func (h *Handler) toUpdateDomain(req UpdateReq) domain.Codebook {
 	return domain.Codebook{
-		ID:       req.ID,
-		Name:     req.Name,
-		Owner:    req.Owner,
-		Code:     req.Code,
-		Language: req.Language,
+		ID:        req.ID,
+		ProjectID: req.ProjectID,
+		Name:      req.Name,
+		Owner:     req.Owner,
+		Scope:     domain.CodebookScope(req.Scope),
+		SortNo:    req.SortNo,
 	}
 }
 
-func (h *Handler) toVO(req domain.Codebook) CodebookVO {
-	return CodebookVO{
-		ID:         req.ID,
-		Name:       req.Name,
-		Owner:      req.Owner,
-		Identifier: req.Identifier,
-		Code:       req.Code,
-		Language:   req.Language,
-		Secret:     req.Secret,
-		CTime:      req.CTime,
-		UTime:      req.UTime,
+func (h *Handler) toListResp(cs []domain.Codebook, total int64) ListCodebooksResp {
+	return ListCodebooksResp{
+		Total: total,
+		Codebooks: lo.Map(cs, func(src domain.Codebook, _ int) Codebook {
+			return h.toVO(src)
+		}),
+	}
+}
+
+func (h *Handler) toVO(req domain.Codebook) Codebook {
+	return Codebook{
+		ID:               req.ID,
+		TenantID:         req.TenantID,
+		Scope:            req.Scope.String(),
+		ProjectID:        req.ProjectID,
+		ParentID:         req.ParentID,
+		PathIDs:          req.PathIDs,
+		Depth:            req.Depth,
+		Name:             req.Name,
+		Owner:            req.Owner,
+		Kind:             req.Kind.String(),
+		SortNo:           req.SortNo,
+		Code:             req.Code,
+		Secret:           req.Secret,
+		CurrentVersionID: req.CurrentVersionID,
+		CurrentVersionNo: req.CurrentVersionNo,
+		CTime:            req.CTime,
+		UTime:            req.UTime,
+	}
+}
+
+func (h *Handler) toVersionDomain(req CreateVersionReq) domain.CodebookVersion {
+	return domain.CodebookVersion{
+		NodeID:  req.NodeID,
+		Code:    req.Code,
+		Message: req.Message,
+	}
+}
+
+func (h *Handler) toVersionListResp(versions []domain.CodebookVersion) ListVersionsResp {
+	return ListVersionsResp{
+		Versions: lo.Map(versions, func(src domain.CodebookVersion, _ int) Version {
+			return h.toVersionVO(src)
+		}),
+	}
+}
+
+func (h *Handler) toVersionVO(req domain.CodebookVersion) Version {
+	return Version{
+		ID:           req.ID,
+		NodeID:       req.NodeID,
+		TenantID:     req.TenantID,
+		Scope:        req.Scope.String(),
+		VersionNo:    req.VersionNo,
+		Code:         req.Code,
+		Hash:         req.Hash,
+		Message:      req.Message,
+		AuthorUserID: req.AuthorUserID,
+		CTime:        req.CTime,
+	}
+}
+
+func (h *Handler) toProjectDomain(req CreateProjectReq) domain.CodebookProject {
+	return domain.CodebookProject{
+		Name: req.Name,
+		Desc: req.Desc,
+	}
+}
+
+func (h *Handler) toUpdateProjectDomain(req UpdateProjectReq) domain.CodebookProject {
+	return domain.CodebookProject{
+		ID:     req.ID,
+		Name:   req.Name,
+		Desc:   req.Desc,
+		SortNo: req.SortNo,
+	}
+}
+
+func (h *Handler) toProjectListResp(ps []domain.CodebookProject, total int64) ListProjectsResp {
+	return ListProjectsResp{
+		Total: total,
+		Projects: lo.Map(ps, func(src domain.CodebookProject, _ int) Project {
+			return h.toProjectVO(src)
+		}),
+	}
+}
+
+func (h *Handler) toProjectVO(req domain.CodebookProject) Project {
+	return Project{
+		ID:       req.ID,
+		TenantID: req.TenantID,
+		Scope:    req.Scope.String(),
+		Name:     req.Name,
+		Desc:     req.Desc,
+		SortNo:   req.SortNo,
+		Status:   req.Status.String(),
+		CTime:    req.CTime,
+		UTime:    req.UTime,
 	}
 }

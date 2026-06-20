@@ -40,9 +40,6 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.POST("/list", h.Capability("执行单元列表", "view").
 		Handle(ginx.B[ListRunnerReq](h.List)),
 	)
-	g.POST("/list/tags", h.Capability("执行单元标签", "tags").
-		Handle(ginx.W(h.ListTags)),
-	)
 	g.GET("/detail/:id", h.Capability("执行单元详情", "get").
 		Handle(ginx.W(h.Detail)),
 	)
@@ -56,14 +53,14 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 		NoSync().
 		Handle(ginx.B[ListRunnerByIDsReq](h.ListByIDs)),
 	)
-	g.POST("/list/by_codebook_uid", h.Capability("当前绑定执行单元", "view_by_codebook_uid").
+	g.POST("/list/by_codebook_id", h.Capability("当前绑定执行单元", "view_by_codebook_id").
 		Module("codebook").
 		Group("脚本模板").
-		Handle(ginx.B[ListByCodebookUIDReq](h.ListByCodebookUID)),
+		Handle(ginx.B[ListByCodebookIDReq](h.ListByCodebookID)),
 	)
-	g.POST("/list/exclude_codebook_uid", h.Capability("复用执行单元", "view_exclude_codebook_uid").
+	g.POST("/list/exclude_codebook_id", h.Capability("复用执行单元", "view_exclude_codebook_id").
 		NoSync().
-		Handle(ginx.B[ListByCodebookUIDReq](h.ListExcludeCodebookUID)),
+		Handle(ginx.B[ListByCodebookIDReq](h.ListExcludeCodebookID)),
 	)
 }
 
@@ -127,44 +124,20 @@ func (h *Handler) ListByIDs(ctx *ginx.Context, req ListRunnerByIDsReq) (ginx.Res
 	return ginx.Result{Msg: "success", Data: h.toListResp(rs, int64(len(rs)))}, nil
 }
 
-func (h *Handler) ListByCodebookUID(ctx *ginx.Context, req ListByCodebookUIDReq) (ginx.Result, error) {
-	rs, total, err := h.svc.ListByCodebookUID(ctx, req.Offset, req.Limit, req.CodebookUID, req.Keyword, req.Kind)
+func (h *Handler) ListByCodebookID(ctx *ginx.Context, req ListByCodebookIDReq) (ginx.Result, error) {
+	rs, total, err := h.svc.ListByCodebookID(ctx, req.Offset, req.Limit, req.CodebookID, req.Keyword, req.Kind)
 	if err != nil {
 		return h.translateError(err), err
 	}
 	return ginx.Result{Msg: "success", Data: h.toListResp(rs, total)}, nil
 }
 
-func (h *Handler) ListExcludeCodebookUID(ctx *ginx.Context, req ListByCodebookUIDReq) (ginx.Result, error) {
-	rs, total, err := h.svc.ListExcludeCodebookUID(ctx, req.Offset, req.Limit, req.CodebookUID, req.Keyword, req.Kind)
+func (h *Handler) ListExcludeCodebookID(ctx *ginx.Context, req ListByCodebookIDReq) (ginx.Result, error) {
+	rs, total, err := h.svc.ListExcludeCodebookID(ctx, req.Offset, req.Limit, req.CodebookID, req.Keyword, req.Kind)
 	if err != nil {
 		return h.translateError(err), err
 	}
 	return ginx.Result{Msg: "success", Data: h.toListResp(rs, total)}, nil
-}
-
-func (h *Handler) ListTags(ctx *ginx.Context) (ginx.Result, error) {
-	tags, err := h.svc.AggregateTags(ctx)
-	if err != nil {
-		return h.translateError(err), err
-	}
-	return ginx.Result{
-		Msg: "success",
-		Data: ListRunnerTagsResp{
-			RunnerTags: slice.Map(tags, func(_ int, src domain.RunnerTags) RunnerTags {
-				tagDetails := make([]TagDetail, 0, len(src.TagsMapping))
-				for tag, detail := range src.TagsMapping {
-					tagDetails = append(tagDetails, TagDetail{
-						Tag:     tag,
-						Kind:    detail.Kind.String(),
-						Target:  detail.Target,
-						Handler: detail.Handler,
-					})
-				}
-				return RunnerTags{CodebookUID: src.CodebookUID, Tags: tagDetails}
-			}),
-		},
-	}, nil
 }
 
 func (h *Handler) translateError(err error) ginx.Result {
@@ -178,7 +151,7 @@ func (h *Handler) toDomain(req RegisterRunnerReq) domain.Runner {
 	return domain.Runner{
 		Name:           req.Name,
 		CodebookSecret: req.CodebookSecret,
-		CodebookUID:    req.CodebookUID,
+		CodebookID:     req.CodebookID,
 		Tags:           req.Tags,
 		Kind:           domain.RunnerKind(req.Kind),
 		Variables:      h.toVariablesDomain(req.Variables),
@@ -201,7 +174,7 @@ func (h *Handler) toUpdateDomain(ctx *ginx.Context, req UpdateRunnerReq) (domain
 		ID:             req.ID,
 		Name:           req.Name,
 		CodebookSecret: req.CodebookSecret,
-		CodebookUID:    req.CodebookUID,
+		CodebookID:     req.CodebookID,
 		Tags:           req.Tags,
 		Kind:           domain.RunnerKind(req.Kind),
 		Variables:      h.toUpdateVariablesDomain(oldVars, req.Variables),
@@ -250,16 +223,16 @@ func (h *Handler) toListResp(rs []domain.Runner, total int64) ListRunnersResp {
 
 func (h *Handler) toVO(req domain.Runner) RunnerVO {
 	return RunnerVO{
-		ID:          req.ID,
-		Name:        req.Name,
-		Kind:        req.Kind.String(),
-		CodebookUID: req.CodebookUID,
-		Tags:        req.Tags,
-		Desc:        req.Desc,
-		Target:      req.Target,
-		Handler:     req.Handler,
-		CTime:       req.CTime,
-		UTime:       req.UTime,
+		ID:         req.ID,
+		Name:       req.Name,
+		Kind:       req.Kind.String(),
+		CodebookID: req.CodebookID,
+		Tags:       req.Tags,
+		Desc:       req.Desc,
+		Target:     req.Target,
+		Handler:    req.Handler,
+		CTime:      req.CTime,
+		UTime:      req.UTime,
 		Variables: slice.Map(req.Variables, func(_ int, src domain.RunnerVariable) Variable {
 			if src.Secret {
 				return Variable{Key: src.Key, Secret: src.Secret}

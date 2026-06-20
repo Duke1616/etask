@@ -5,48 +5,100 @@ import (
 
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/repository/dao"
-	"github.com/ecodeclub/ekit/slice"
 	"github.com/google/uuid"
+	"github.com/samber/lo"
 	"gorm.io/gorm"
 )
 
 // ErrCodebookNotFound 表示脚本模板不存在。
 var ErrCodebookNotFound = gorm.ErrRecordNotFound
 
-// CodebookRepository 定义脚本模板的领域仓储操作。
-type CodebookRepository interface {
-	// Create 保存脚本模板，未传入 Secret 时自动生成。
+// ICodebookRepository 定义代码资源及项目的领域仓储操作。
+type ICodebookRepository interface {
+	// Create 保存代码资源，未传入 Secret 时自动生成。
 	Create(ctx context.Context, req domain.Codebook) (int64, error)
-	// GetByID 根据主键 ID 加载脚本模板。
+	// GetByID 根据主键 ID 加载代码资源。
 	GetByID(ctx context.Context, id int64) (domain.Codebook, error)
-	// GetByIdentifier 根据业务唯一标识加载脚本模板。
-	GetByIdentifier(ctx context.Context, identifier string) (domain.Codebook, error)
-	// List 分页查询脚本模板。
+	// GetNodeByID 根据主键 ID 加载代码节点元信息，不加载源码内容。
+	GetNodeByID(ctx context.Context, id int64) (domain.Codebook, error)
+	// ListVersions 查询指定代码节点下的所有版本。
+	ListVersions(ctx context.Context, nodeID int64) ([]domain.CodebookVersion, error)
+	// GetVersionByID 根据主键 ID 加载代码版本。
+	GetVersionByID(ctx context.Context, id int64) (domain.CodebookVersion, error)
+	// List 分页查询代码资源。
 	List(ctx context.Context, offset, limit int64) ([]domain.Codebook, error)
-	// Total 统计脚本模板总数。
+	// ListChildren 查询指定项目和父节点下的子节点。
+	ListChildren(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error)
+	// ListChildrenByScope 查询指定租户项目或系统作用域下的子节点。
+	ListChildrenByScope(ctx context.Context, projectID, parentID int64, scope domain.CodebookScope) ([]domain.Codebook, error)
+	// Tree 查询指定项目视图下的代码资源树，包含系统组件库。
+	Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error)
+	// Total 统计代码资源总数。
 	Total(ctx context.Context) (int64, error)
-	// Update 更新脚本模板可变字段。
+	// GetMaxSortNo 查询指定租户项目、作用域和父节点下最大的排序号。
+	GetMaxSortNo(ctx context.Context, projectID, parentID int64, scope domain.CodebookScope) (int64, error)
+	// Update 更新代码资源可变字段。
 	Update(ctx context.Context, req domain.Codebook) (int64, error)
-	// Delete 根据主键 ID 删除脚本模板。
+	// CreateVersion 创建代码版本。
+	CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error)
+	// UseVersion 设置代码节点当前使用版本。
+	UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error)
+	// UpdateSort 更新单个代码资源排序。
+	UpdateSort(ctx context.Context, item domain.CodebookSortItem) error
+	// BatchUpdateSort 批量更新代码资源排序。
+	BatchUpdateSort(ctx context.Context, items []domain.CodebookSortItem) error
+	// Delete 根据主键 ID 删除代码资源。
 	Delete(ctx context.Context, id int64) (int64, error)
+
+	// CreateProject 插入一个代码资源项目。
+	CreateProject(ctx context.Context, req domain.CodebookProject) (int64, error)
+	// GetProjectByID 根据主键 ID 查询代码资源项目。
+	GetProjectByID(ctx context.Context, id int64) (domain.CodebookProject, error)
+	// ListProjects 分页查询代码资源项目。
+	ListProjects(ctx context.Context, offset, limit int64) ([]domain.CodebookProject, error)
+	// TotalProjects 统计代码资源项目总数。
+	TotalProjects(ctx context.Context) (int64, error)
+	// GetProjectMaxSortNo 查询当前租户项目最大的排序号。
+	GetProjectMaxSortNo(ctx context.Context, tenantID int64) (int64, error)
+	// UpdateProject 更新代码资源项目。
+	UpdateProject(ctx context.Context, req domain.CodebookProject) (int64, error)
+	// DeleteProject 归档代码资源项目。
+	DeleteProject(ctx context.Context, id int64) (int64, error)
 }
 
 type codebookRepository struct {
-	dao dao.CodebookDAO
+	dao        dao.CodebookDAO
+	projectDao dao.CodebookProjectDAO
 }
 
-// NewCodebookRepository 创建基于 CodebookDAO 的脚本模板仓储。
-func NewCodebookRepository(codebookDAO dao.CodebookDAO) CodebookRepository {
-	return &codebookRepository{dao: codebookDAO}
+// NewCodebookRepository 创建基于 CodebookDAO 和 CodebookProjectDAO 的代码资源仓储。
+func NewCodebookRepository(codebookDAO dao.CodebookDAO, projectDAO dao.CodebookProjectDAO) ICodebookRepository {
+	return &codebookRepository{
+		dao:        codebookDAO,
+		projectDao: projectDAO,
+	}
 }
 
-// Create 保存脚本模板，未传入 Secret 时自动生成。
+// Create 保存代码资源，未传入 Secret 时自动生成。
 func (repo *codebookRepository) Create(ctx context.Context, req domain.Codebook) (int64, error) {
-	return repo.dao.Create(ctx, repo.toEntity(req))
+	req.FillDefaults()
+	if err := repo.preparePath(ctx, &req); err != nil {
+		return 0, err
+	}
+	return repo.dao.Create(ctx, repo.toEntity(req), req.Code)
 }
 
-// GetByID 根据主键 ID 加载脚本模板。
+// GetByID 根据主键 ID 加载代码资源。
 func (repo *codebookRepository) GetByID(ctx context.Context, id int64) (domain.Codebook, error) {
+	c, err := repo.dao.GetByID(ctx, id)
+	if err != nil {
+		return domain.Codebook{}, err
+	}
+	return repo.fillCode(ctx, repo.toDomain(c))
+}
+
+// GetNodeByID 根据主键 ID 加载代码节点元信息，不加载源码内容。
+func (repo *codebookRepository) GetNodeByID(ctx context.Context, id int64) (domain.Codebook, error) {
 	c, err := repo.dao.GetByID(ctx, id)
 	if err != nil {
 		return domain.Codebook{}, err
@@ -54,71 +106,344 @@ func (repo *codebookRepository) GetByID(ctx context.Context, id int64) (domain.C
 	return repo.toDomain(c), nil
 }
 
-// GetByIdentifier 根据业务唯一标识加载脚本模板。
-func (repo *codebookRepository) GetByIdentifier(ctx context.Context, identifier string) (domain.Codebook, error) {
-	c, err := repo.dao.GetByIdentifier(ctx, identifier)
-	if err != nil {
-		return domain.Codebook{}, err
-	}
-	return repo.toDomain(c), nil
-}
-
-// List 分页查询脚本模板。
+// List 分页查询代码资源。
 func (repo *codebookRepository) List(ctx context.Context, offset, limit int64) ([]domain.Codebook, error) {
 	cs, err := repo.dao.List(ctx, offset, limit)
 	if err != nil {
 		return nil, err
 	}
-	return slice.Map(cs, func(_ int, src dao.Codebook) domain.Codebook {
+	return repo.fillCurrentVersionNo(ctx, lo.Map(cs, func(src dao.Codebook, _ int) domain.Codebook {
 		return repo.toDomain(src)
+	}))
+}
+
+// ListVersions 查询指定代码节点下的所有版本。
+func (repo *codebookRepository) ListVersions(ctx context.Context, nodeID int64) ([]domain.CodebookVersion, error) {
+	versions, err := repo.dao.ListVersions(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	return lo.Map(versions, func(src dao.CodebookVersion, _ int) domain.CodebookVersion {
+		return repo.toVersionDomain(src)
 	}), nil
 }
 
-// Total 统计脚本模板总数。
+// GetVersionByID 根据主键 ID 加载代码版本。
+func (repo *codebookRepository) GetVersionByID(ctx context.Context, id int64) (domain.CodebookVersion, error) {
+	version, err := repo.dao.GetVersionByID(ctx, id)
+	if err != nil {
+		return domain.CodebookVersion{}, err
+	}
+	return repo.toVersionDomain(version), nil
+}
+
+// ListChildren 查询指定项目和父节点下的子节点。
+func (repo *codebookRepository) ListChildren(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error) {
+	if parentID > 0 {
+		parent, err := repo.dao.GetByID(ctx, parentID)
+		if err != nil {
+			return nil, err
+		}
+		projectID = parent.ProjectID
+	}
+	cs, err := repo.dao.ListChildren(ctx, projectID, parentID)
+	if err != nil {
+		return nil, err
+	}
+	return repo.fillCurrentVersionNo(ctx, lo.Map(cs, func(src dao.Codebook, _ int) domain.Codebook {
+		return repo.toDomain(src)
+	}))
+}
+
+// ListChildrenByScope 查询指定租户项目或系统作用域下的子节点。
+func (repo *codebookRepository) ListChildrenByScope(ctx context.Context, projectID, parentID int64, scope domain.CodebookScope) ([]domain.Codebook, error) {
+	if parentID > 0 {
+		parent, err := repo.dao.GetByID(ctx, parentID)
+		if err != nil {
+			return nil, err
+		}
+		projectID = parent.ProjectID
+		scope = domain.CodebookScope(parent.Scope)
+	}
+	cs, err := repo.dao.ListChildrenBySpace(ctx, projectID, parentID, scope.String())
+	if err != nil {
+		return nil, err
+	}
+	return repo.fillCurrentVersionNo(ctx, lo.Map(cs, func(src dao.Codebook, _ int) domain.Codebook {
+		return repo.toDomain(src)
+	}))
+}
+
+// Tree 查询指定项目视图下的代码资源树，包含系统组件库。
+func (repo *codebookRepository) Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error) {
+	cs, err := repo.dao.Tree(ctx, projectID, scope.String())
+	if err != nil {
+		return nil, err
+	}
+	return repo.fillCurrentVersionNo(ctx, lo.Map(cs, func(src dao.Codebook, _ int) domain.Codebook {
+		return repo.toDomain(src)
+	}))
+}
+
+// Total 统计代码资源总数。
 func (repo *codebookRepository) Total(ctx context.Context) (int64, error) {
 	return repo.dao.Count(ctx)
 }
 
-// Update 更新脚本模板可变字段。
-func (repo *codebookRepository) Update(ctx context.Context, req domain.Codebook) (int64, error) {
-	return repo.dao.Update(ctx, repo.toEntity(req))
+// GetMaxSortNo 查询指定租户项目、作用域和父节点下最大的排序号。
+func (repo *codebookRepository) GetMaxSortNo(ctx context.Context, projectID, parentID int64, scope domain.CodebookScope) (int64, error) {
+	if parentID > 0 {
+		parent, err := repo.dao.GetByID(ctx, parentID)
+		if err != nil {
+			return 0, err
+		}
+		projectID = parent.ProjectID
+		scope = domain.CodebookScope(parent.Scope)
+	}
+	return repo.dao.GetMaxSortNo(ctx, projectID, parentID, scope.String())
 }
 
-// Delete 根据主键 ID 删除脚本模板。
+// Update 更新代码资源可变字段。
+func (repo *codebookRepository) Update(ctx context.Context, req domain.Codebook) (int64, error) {
+	old, err := repo.dao.GetByID(ctx, req.ID)
+	if err != nil {
+		return 0, err
+	}
+	entity := repo.toEntity(req)
+	entity.ProjectID = old.ProjectID
+	entity.ParentID = old.ParentID
+	entity.PathIDs = old.PathIDs
+	entity.Depth = old.Depth
+	entity.Kind = old.Kind
+	entity.Secret = old.Secret
+	entity.CurrentVersionID = old.CurrentVersionID
+	return repo.dao.Update(ctx, entity)
+}
+
+// CreateVersion 创建代码版本。
+func (repo *codebookRepository) CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error) {
+	return repo.dao.CreateVersion(ctx, repo.toVersionEntity(req))
+}
+
+// UseVersion 设置代码节点当前使用版本。
+func (repo *codebookRepository) UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error) {
+	return repo.dao.UseVersion(ctx, nodeID, versionID)
+}
+
+// UpdateSort 更新单个代码资源排序。
+func (repo *codebookRepository) UpdateSort(ctx context.Context, item domain.CodebookSortItem) error {
+	return repo.dao.UpdateSort(ctx, repo.toSortEntity(item))
+}
+
+// BatchUpdateSort 批量更新代码资源排序。
+func (repo *codebookRepository) BatchUpdateSort(ctx context.Context, items []domain.CodebookSortItem) error {
+	return repo.dao.BatchUpdateSort(ctx, lo.Map(items, func(src domain.CodebookSortItem, _ int) dao.CodebookSortItem {
+		return repo.toSortEntity(src)
+	}))
+}
+
+// Delete 根据主键 ID 删除代码资源。
 func (repo *codebookRepository) Delete(ctx context.Context, id int64) (int64, error) {
 	return repo.dao.Delete(ctx, id)
 }
 
+func (repo *codebookRepository) fillCode(ctx context.Context, c domain.Codebook) (domain.Codebook, error) {
+	if !c.IsFile() {
+		return c, nil
+	}
+	if c.CurrentVersionID == 0 {
+		return c, nil
+	}
+	version, err := repo.dao.GetCurrentVersion(ctx, c.ID)
+	if err != nil {
+		return domain.Codebook{}, err
+	}
+	c.Code = version.Code
+	c.CurrentVersionNo = version.VersionNo
+	return c, nil
+}
+
+func (repo *codebookRepository) fillCurrentVersionNo(ctx context.Context, cs []domain.Codebook) ([]domain.Codebook, error) {
+	versionIDs := lo.Uniq(lo.FilterMap(cs, func(c domain.Codebook, _ int) (int64, bool) {
+		return c.CurrentVersionID, c.IsFile() && c.CurrentVersionID > 0
+	}))
+	if len(versionIDs) == 0 {
+		return cs, nil
+	}
+	versions, err := repo.dao.ListVersionsByIDs(ctx, versionIDs)
+	if err != nil {
+		return nil, err
+	}
+	versionNoMap := lo.SliceToMap(versions, func(v dao.CodebookVersion) (int64, int64) {
+		return v.ID, v.VersionNo
+	})
+	for i := range cs {
+		cs[i].CurrentVersionNo = versionNoMap[cs[i].CurrentVersionID]
+	}
+	return cs, nil
+}
+
+func (repo *codebookRepository) preparePath(ctx context.Context, req *domain.Codebook) error {
+	if req.ParentID == 0 {
+		req.ApplyRoot()
+		return nil
+	}
+	parent, err := repo.dao.GetByID(ctx, req.ParentID)
+	if err != nil {
+		return err
+	}
+	return req.ApplyParent(repo.toDomain(parent))
+}
+
 func (repo *codebookRepository) toEntity(req domain.Codebook) dao.Codebook {
+	req.FillDefaults()
 	secret := req.Secret
-	if secret == "" {
+	if secret == "" && req.IsFile() {
 		secret = uuid.NewString()
 	}
 	return dao.Codebook{
-		ID:         req.ID,
-		TenantID:   req.TenantID,
-		Name:       req.Name,
-		Owner:      req.Owner,
-		Code:       req.Code,
-		Language:   req.Language,
-		Secret:     secret,
-		Identifier: req.Identifier,
-		CTime:      req.CTime,
-		UTime:      req.UTime,
+		ID:               req.ID,
+		TenantID:         req.TenantID,
+		Scope:            req.Scope.String(),
+		ProjectID:        req.ProjectID,
+		ParentID:         req.ParentID,
+		PathIDs:          req.PathIDs,
+		Depth:            req.Depth,
+		Name:             req.Name,
+		Owner:            req.Owner,
+		Kind:             req.Kind.String(),
+		SortNo:           req.SortNo,
+		Secret:           secret,
+		CurrentVersionID: req.CurrentVersionID,
+		CTime:            req.CTime,
+		UTime:            req.UTime,
 	}
 }
 
 func (repo *codebookRepository) toDomain(req dao.Codebook) domain.Codebook {
 	return domain.Codebook{
-		ID:         req.ID,
-		TenantID:   req.TenantID,
-		Name:       req.Name,
-		Owner:      req.Owner,
-		Code:       req.Code,
-		Language:   req.Language,
-		Secret:     req.Secret,
-		Identifier: req.Identifier,
-		CTime:      req.CTime,
-		UTime:      req.UTime,
+		ID:               req.ID,
+		TenantID:         req.TenantID,
+		Scope:            domain.CodebookScope(req.Scope),
+		ProjectID:        req.ProjectID,
+		ParentID:         req.ParentID,
+		PathIDs:          req.PathIDs,
+		Depth:            req.Depth,
+		Name:             req.Name,
+		Owner:            req.Owner,
+		Kind:             domain.CodebookKind(req.Kind),
+		SortNo:           req.SortNo,
+		Secret:           req.Secret,
+		CurrentVersionID: req.CurrentVersionID,
+		CTime:            req.CTime,
+		UTime:            req.UTime,
+	}
+}
+
+func (repo *codebookRepository) toVersionEntity(req domain.CodebookVersion) dao.CodebookVersion {
+	return dao.CodebookVersion{
+		ID:           req.ID,
+		NodeID:       req.NodeID,
+		TenantID:     req.TenantID,
+		Scope:        req.Scope.String(),
+		VersionNo:    req.VersionNo,
+		Code:         req.Code,
+		Hash:         req.Hash,
+		Message:      req.Message,
+		AuthorUserID: req.AuthorUserID,
+		CTime:        req.CTime,
+	}
+}
+
+func (repo *codebookRepository) toVersionDomain(req dao.CodebookVersion) domain.CodebookVersion {
+	return domain.CodebookVersion{
+		ID:           req.ID,
+		NodeID:       req.NodeID,
+		TenantID:     req.TenantID,
+		Scope:        domain.CodebookScope(req.Scope),
+		VersionNo:    req.VersionNo,
+		Code:         req.Code,
+		Hash:         req.Hash,
+		Message:      req.Message,
+		AuthorUserID: req.AuthorUserID,
+		CTime:        req.CTime,
+	}
+}
+
+func (repo *codebookRepository) toSortEntity(req domain.CodebookSortItem) dao.CodebookSortItem {
+	return dao.CodebookSortItem{
+		ID:        req.ID,
+		ProjectID: req.ProjectID,
+		ParentID:  req.ParentID,
+		PathIDs:   req.PathIDs,
+		Depth:     req.Depth,
+		SortNo:    req.SortNo,
+	}
+}
+
+// Redirect repository implementations for Project methods to repo itself.
+func (repo *codebookRepository) CreateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
+	return repo.projectDao.Create(ctx, repo.toProjectEntity(req))
+}
+
+func (repo *codebookRepository) GetProjectByID(ctx context.Context, id int64) (domain.CodebookProject, error) {
+	p, err := repo.projectDao.GetByID(ctx, id)
+	if err != nil {
+		return domain.CodebookProject{}, err
+	}
+	return repo.toProjectDomain(p), nil
+}
+
+func (repo *codebookRepository) ListProjects(ctx context.Context, offset, limit int64) ([]domain.CodebookProject, error) {
+	ps, err := repo.projectDao.List(ctx, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	return lo.Map(ps, func(src dao.CodebookProject, _ int) domain.CodebookProject {
+		return repo.toProjectDomain(src)
+	}), nil
+}
+
+func (repo *codebookRepository) TotalProjects(ctx context.Context) (int64, error) {
+	return repo.projectDao.Count(ctx)
+}
+
+func (repo *codebookRepository) GetProjectMaxSortNo(ctx context.Context, tenantID int64) (int64, error) {
+	return repo.projectDao.GetMaxSortNo(ctx, tenantID)
+}
+
+func (repo *codebookRepository) UpdateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
+	return repo.projectDao.Update(ctx, repo.toProjectEntity(req))
+}
+
+func (repo *codebookRepository) DeleteProject(ctx context.Context, id int64) (int64, error) {
+	return repo.projectDao.Delete(ctx, id)
+}
+
+func (repo *codebookRepository) toProjectEntity(p domain.CodebookProject) dao.CodebookProject {
+	return dao.CodebookProject{
+		ID:       p.ID,
+		TenantID: p.TenantID,
+		Scope:    p.Scope.String(),
+		Name:     p.Name,
+		Desc:     p.Desc,
+		SortNo:   p.SortNo,
+		Status:   p.Status.String(),
+		CTime:    p.CTime,
+		UTime:    p.UTime,
+	}
+}
+
+func (repo *codebookRepository) toProjectDomain(p dao.CodebookProject) domain.CodebookProject {
+	return domain.CodebookProject{
+		ID:       p.ID,
+		TenantID: p.TenantID,
+		Scope:    domain.CodebookScope(p.Scope),
+		Name:     p.Name,
+		Desc:     p.Desc,
+		SortNo:   p.SortNo,
+		Status:   domain.CodebookProjectStatus(p.Status),
+		CTime:    p.CTime,
+		UTime:    p.UTime,
 	}
 }

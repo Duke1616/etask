@@ -4,42 +4,86 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/repository"
+	"github.com/Duke1616/etask/pkg/sorter"
+	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 )
 
 //go:generate mockgen -source=./codebook.go -package=codebookmocks -destination=./mocks/codebook.mock.go -typed Service
 
-// Service 定义脚本模板业务操作。
+// Service 定义脚本模板及项目业务操作。
 type Service interface {
 	// Create 校验并创建脚本模板。
 	Create(ctx context.Context, req domain.Codebook) (int64, error)
 	// GetByID 根据主键 ID 获取脚本模板。
 	GetByID(ctx context.Context, id int64) (domain.Codebook, error)
-	// GetByIdentifier 根据业务唯一标识获取脚本模板。
-	GetByIdentifier(ctx context.Context, identifier string) (domain.Codebook, error)
+	// GetVersionByID 根据主键 ID 获取脚本版本。
+	GetVersionByID(ctx context.Context, id int64) (domain.CodebookVersion, error)
+	// ListVersions 获取指定脚本模板的版本列表。
+	ListVersions(ctx context.Context, nodeID int64) ([]domain.CodebookVersion, error)
 	// List 分页获取脚本模板列表和总数。
 	List(ctx context.Context, offset, limit int64) ([]domain.Codebook, int64, error)
+	// Children 获取指定项目和目录下的代码资源节点。
+	Children(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error)
+	// Tree 获取指定项目和作用域下的代码资源树。
+	Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error)
 	// Update 校验并更新脚本模板。
 	Update(ctx context.Context, req domain.Codebook) (int64, error)
+	// CreateVersion 校验并创建脚本版本。
+	CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error)
+	// UseVersion 设置脚本模板当前使用版本。
+	UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error)
+	// Sort 拖拽排序代码资源节点，支持跨目录移动。
+	Sort(ctx context.Context, id, targetParentID, targetPosition int64) error
 	// Delete 根据主键 ID 删除脚本模板。
 	Delete(ctx context.Context, id int64) (int64, error)
+
+	// CreateProject 校验并创建脚本项目。
+	CreateProject(ctx context.Context, req domain.CodebookProject) (int64, error)
+	// GetProjectByID 根据主键 ID 获取脚本项目。
+	GetProjectByID(ctx context.Context, id int64) (domain.CodebookProject, error)
+	// ListProjects 分页获取脚本项目列表和总数。
+	ListProjects(ctx context.Context, offset, limit int64) ([]domain.CodebookProject, int64, error)
+	// UpdateProject 校验并更新脚本项目。
+	UpdateProject(ctx context.Context, req domain.CodebookProject) (int64, error)
+	// DeleteProject 根据主键 ID 删除脚本项目。
+	DeleteProject(ctx context.Context, id int64) (int64, error)
 }
 
 type service struct {
-	repo repository.CodebookRepository
+	repo   repository.ICodebookRepository
+	sorter *sorter.Sorter[domain.CodebookSortItem, domain.CodebookSortItem]
 }
 
 // NewService 创建脚本模板服务。
-func NewService(repo repository.CodebookRepository) Service {
-	return &service{repo: repo}
+func NewService(repo repository.ICodebookRepository) Service {
+	return &service{
+		repo: repo,
+		sorter: sorter.NewSorter[domain.CodebookSortItem, domain.CodebookSortItem](
+			func(elem domain.CodebookSortItem, idx int) domain.CodebookSortItem {
+				elem.SortNo = int64(idx+1) * sorter.DefaultIndexGap
+				return elem
+			},
+		),
+	}
 }
 
 // Create 校验并创建脚本模板。
 func (s *service) Create(ctx context.Context, req domain.Codebook) (int64, error) {
+	if err := s.inheritParentContext(ctx, &req); err != nil {
+		return 0, err
+	}
 	if err := req.Validate(); err != nil {
+		return 0, err
+	}
+	if err := s.prepareOwnership(ctx, &req); err != nil {
+		return 0, err
+	}
+	if err := s.prepareSortNo(ctx, &req); err != nil {
 		return 0, err
 	}
 	return s.repo.Create(ctx, req)
@@ -48,17 +92,32 @@ func (s *service) Create(ctx context.Context, req domain.Codebook) (int64, error
 // GetByID 根据主键 ID 获取脚本模板。
 func (s *service) GetByID(ctx context.Context, id int64) (domain.Codebook, error) {
 	if id <= 0 {
-		return domain.Codebook{}, fmt.Errorf("%w: id = %d", errs.ErrInvalidParameter, id)
+		return domain.Codebook{}, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, id)
 	}
 	return s.repo.GetByID(ctx, id)
 }
 
-// GetByIdentifier 根据业务唯一标识获取脚本模板。
-func (s *service) GetByIdentifier(ctx context.Context, identifier string) (domain.Codebook, error) {
-	if identifier == "" {
-		return domain.Codebook{}, fmt.Errorf("%w: identifier is empty", errs.ErrInvalidParameter)
+// GetVersionByID 根据主键 ID 获取脚本版本。
+func (s *service) GetVersionByID(ctx context.Context, id int64) (domain.CodebookVersion, error) {
+	if id <= 0 {
+		return domain.CodebookVersion{}, fmt.Errorf("%w: 版本 ID 非法: %d", errs.ErrInvalidParameter, id)
 	}
-	return s.repo.GetByIdentifier(ctx, identifier)
+	return s.repo.GetVersionByID(ctx, id)
+}
+
+// ListVersions 获取指定脚本模板的版本列表。
+func (s *service) ListVersions(ctx context.Context, nodeID int64) ([]domain.CodebookVersion, error) {
+	if nodeID <= 0 {
+		return nil, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, nodeID)
+	}
+	node, err := s.repo.GetNodeByID(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if !node.IsFile() {
+		return nil, fmt.Errorf("%w: 目录没有版本", errs.ErrInvalidParameter)
+	}
+	return s.repo.ListVersions(ctx, nodeID)
 }
 
 // List 分页获取脚本模板列表和总数。
@@ -84,21 +143,232 @@ func (s *service) List(ctx context.Context, offset, limit int64) ([]domain.Codeb
 	return res, total, nil
 }
 
+// Children 获取指定项目和目录下的代码资源节点。
+func (s *service) Children(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error) {
+	if parentID < 0 {
+		return nil, fmt.Errorf("%w: 父级目录 ID 非法: %d", errs.ErrInvalidParameter, parentID)
+	}
+	return s.repo.ListChildren(ctx, projectID, parentID)
+}
+
+// Tree 获取指定项目和作用域下的代码资源树。
+func (s *service) Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error) {
+	if scope != "" && !scope.Valid() {
+		return nil, fmt.Errorf("%w: 不支持的作用域: %s", errs.ErrInvalidParameter, scope)
+	}
+	return s.repo.Tree(ctx, projectID, scope)
+}
+
 // Update 校验并更新脚本模板。
 func (s *service) Update(ctx context.Context, req domain.Codebook) (int64, error) {
 	if req.ID <= 0 {
-		return 0, fmt.Errorf("%w: id = %d", errs.ErrInvalidParameter, req.ID)
+		return 0, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, req.ID)
 	}
-	if err := req.Validate(); err != nil {
+	old, err := s.repo.GetByID(ctx, req.ID)
+	if err != nil {
+		return 0, err
+	}
+	if req.Scope != "" && req.Scope != old.Scope {
+		return 0, fmt.Errorf("%w: 代码资源作用域不能修改", errs.ErrInvalidParameter)
+	}
+	req.MergeForUpdate(old)
+	if err = req.Validate(); err != nil {
+		return 0, err
+	}
+	if err = s.prepareOwnership(ctx, &req); err != nil {
 		return 0, err
 	}
 	return s.repo.Update(ctx, req)
 }
 
+// CreateVersion 校验并创建脚本版本。
+func (s *service) CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error) {
+	if req.NodeID <= 0 {
+		return 0, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, req.NodeID)
+	}
+	node, err := s.repo.GetNodeByID(ctx, req.NodeID)
+	if err != nil {
+		return 0, err
+	}
+	if err = req.PrepareForNode(node); err != nil {
+		return 0, err
+	}
+	return s.repo.CreateVersion(ctx, req)
+}
+
+// UseVersion 设置脚本模板当前使用版本。
+func (s *service) UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error) {
+	if nodeID <= 0 {
+		return 0, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, nodeID)
+	}
+	if versionID <= 0 {
+		return 0, fmt.Errorf("%w: 版本 ID 非法: %d", errs.ErrInvalidParameter, versionID)
+	}
+	return s.repo.UseVersion(ctx, nodeID, versionID)
+}
+
+// Sort 拖拽排序代码资源节点，支持跨目录移动。
+func (s *service) Sort(ctx context.Context, id, targetParentID, targetPosition int64) error {
+	if id <= 0 {
+		return fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, id)
+	}
+	if targetParentID < 0 {
+		return fmt.Errorf("%w: 目标父级目录 ID 非法: %d", errs.ErrInvalidParameter, targetParentID)
+	}
+	dragged, err := s.repo.GetNodeByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	draggedItem, err := s.resolveTarget(ctx, dragged, targetParentID)
+	if err != nil {
+		return err
+	}
+	children, err := s.repo.ListChildrenByScope(ctx, dragged.ProjectID, draggedItem.ParentID, dragged.Scope)
+	if err != nil {
+		return err
+	}
+	items := lo.Map(children, func(src domain.Codebook, _ int) domain.CodebookSortItem {
+		return src.ToSortItem()
+	})
+	plan := s.sorter.PlanReorder(items, draggedItem, targetPosition)
+	if plan.NeedRebalance {
+		for i := range plan.Items {
+			plan.Items[i].ParentID = draggedItem.ParentID
+			plan.Items[i].ProjectID = dragged.ProjectID
+			plan.Items[i].PathIDs = draggedItem.PathIDs
+			plan.Items[i].Depth = draggedItem.Depth
+		}
+		return s.repo.BatchUpdateSort(ctx, plan.Items)
+	}
+	draggedItem.SortNo = plan.NewSortKey
+	return s.repo.UpdateSort(ctx, draggedItem)
+}
+
 // Delete 根据主键 ID 删除脚本模板。
 func (s *service) Delete(ctx context.Context, id int64) (int64, error) {
 	if id <= 0 {
-		return 0, fmt.Errorf("%w: id = %d", errs.ErrInvalidParameter, id)
+		return 0, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, id)
 	}
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *service) prepareSortNo(ctx context.Context, req *domain.Codebook) error {
+	if req.SortNo > 0 {
+		return nil
+	}
+	sortNo, err := s.repo.GetMaxSortNo(ctx, req.ProjectID, req.ParentID, req.Scope)
+	if err != nil {
+		return err
+	}
+	req.SortNo = sortNo + sorter.DefaultIndexGap
+	return nil
+}
+
+func (s *service) resolveTarget(ctx context.Context, dragged domain.Codebook, targetParentID int64) (domain.CodebookSortItem, error) {
+	if targetParentID == 0 {
+		return dragged.ResolveMoveTarget(nil)
+	}
+	parent, err := s.repo.GetNodeByID(ctx, targetParentID)
+	if err != nil {
+		return domain.CodebookSortItem{}, err
+	}
+	return dragged.ResolveMoveTarget(&parent)
+}
+
+func (s *service) inheritParentContext(ctx context.Context, req *domain.Codebook) error {
+	if req.ParentID == 0 {
+		return nil
+	}
+	parent, err := s.repo.GetNodeByID(ctx, req.ParentID)
+	if err != nil {
+		return err
+	}
+	return req.ApplyParent(parent)
+}
+
+func (s *service) prepareOwnership(ctx context.Context, req *domain.Codebook) error {
+	switch req.Scope {
+	case domain.CodebookScopeSystem:
+		req.TenantID = ctxutil.SystemTenantID
+	case domain.CodebookScopeTenant:
+		tenantID := ctxutil.GetTenantID(ctx).Int64()
+		if tenantID <= 0 {
+			return fmt.Errorf("%w: 租户 ID 不能为空", errs.ErrInvalidParameter)
+		}
+		req.TenantID = tenantID
+	default:
+		return fmt.Errorf("%w: 不支持的作用域: %s", errs.ErrInvalidParameter, req.Scope)
+	}
+	return nil
+}
+
+func (s *service) CreateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
+	tenantID := ctxutil.GetTenantID(ctx).Int64()
+	if tenantID <= 0 {
+		return 0, fmt.Errorf("%w: 租户 ID 不能为空", errs.ErrInvalidParameter)
+	}
+	req.TenantID = tenantID
+	req.Scope = domain.CodebookScopeTenant
+	if err := req.Validate(); err != nil {
+		return 0, err
+	}
+	if req.SortNo <= 0 {
+		sortNo, err := s.repo.GetProjectMaxSortNo(ctx, tenantID)
+		if err != nil {
+			return 0, err
+		}
+		req.SortNo = sortNo + sorter.DefaultIndexGap
+	}
+	return s.repo.CreateProject(ctx, req)
+}
+
+func (s *service) GetProjectByID(ctx context.Context, id int64) (domain.CodebookProject, error) {
+	if id <= 0 {
+		return domain.CodebookProject{}, fmt.Errorf("%w: 项目 ID 非法: %d", errs.ErrInvalidParameter, id)
+	}
+	return s.repo.GetProjectByID(ctx, id)
+}
+
+func (s *service) ListProjects(ctx context.Context, offset, limit int64) ([]domain.CodebookProject, int64, error) {
+	var (
+		eg    errgroup.Group
+		res   []domain.CodebookProject
+		total int64
+	)
+	eg.Go(func() error {
+		var err error
+		res, err = s.repo.ListProjects(ctx, offset, limit)
+		return err
+	})
+	eg.Go(func() error {
+		var err error
+		total, err = s.repo.TotalProjects(ctx)
+		return err
+	})
+	if err := eg.Wait(); err != nil {
+		return nil, 0, err
+	}
+	return res, total, nil
+}
+
+func (s *service) UpdateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
+	if req.ID <= 0 {
+		return 0, fmt.Errorf("%w: 项目 ID 非法: %d", errs.ErrInvalidParameter, req.ID)
+	}
+	old, err := s.repo.GetProjectByID(ctx, req.ID)
+	if err != nil {
+		return 0, err
+	}
+	req.MergeForUpdate(old)
+	if err = req.Validate(); err != nil {
+		return 0, err
+	}
+	return s.repo.UpdateProject(ctx, req)
+}
+
+func (s *service) DeleteProject(ctx context.Context, id int64) (int64, error) {
+	if id <= 0 {
+		return 0, fmt.Errorf("%w: 项目 ID 非法: %d", errs.ErrInvalidParameter, id)
+	}
+	return s.repo.DeleteProject(ctx, id)
 }

@@ -41,45 +41,6 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
-// AggregateTags mocks base method.
-func (m *MockService) AggregateTags(ctx context.Context) ([]domain.RunnerTags, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AggregateTags", ctx)
-	ret0, _ := ret[0].([]domain.RunnerTags)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AggregateTags indicates an expected call of AggregateTags.
-func (mr *MockServiceMockRecorder) AggregateTags(ctx any) *MockServiceAggregateTagsCall {
-	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AggregateTags", reflect.TypeOf((*MockService)(nil).AggregateTags), ctx)
-	return &MockServiceAggregateTagsCall{Call: call}
-}
-
-// MockServiceAggregateTagsCall wrap *gomock.Call
-type MockServiceAggregateTagsCall struct {
-	*gomock.Call
-}
-
-// Return rewrite *gomock.Call.Return
-func (c *MockServiceAggregateTagsCall) Return(arg0 []domain.RunnerTags, arg1 error) *MockServiceAggregateTagsCall {
-	c.Call = c.Call.Return(arg0, arg1)
-	return c
-}
-
-// Do rewrite *gomock.Call.Do
-func (c *MockServiceAggregateTagsCall) Do(f func(context.Context) ([]domain.RunnerTags, error)) *MockServiceAggregateTagsCall {
-	c.Call = c.Call.Do(f)
-	return c
-}
-
-// DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceAggregateTagsCall) DoAndReturn(f func(context.Context) ([]domain.RunnerTags, error)) *MockServiceAggregateTagsCall {
-	c.Call = c.Call.DoAndReturn(f)
-	return c
-}
-
 // Create mocks base method.
 func (m *MockService) Create(ctx context.Context, req domain.Runner) (int64, error) {
 	m.ctrl.T.Helper()
@@ -158,41 +119,41 @@ func (c *MockServiceDeleteCall) DoAndReturn(f func(context.Context, int64) (int6
 	return c
 }
 
-// FindByCodebookUIDAndTag mocks base method.
-func (m *MockService) FindByCodebookUIDAndTag(ctx context.Context, codebookUID, tag string) (domain.Runner, error) {
+// FindByCodebookIDAndTag mocks base method.
+func (m *MockService) FindByCodebookIDAndTag(ctx context.Context, codebookID int64, tag string) (domain.Runner, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindByCodebookUIDAndTag", ctx, codebookUID, tag)
+	ret := m.ctrl.Call(m, "FindByCodebookIDAndTag", ctx, codebookID, tag)
 	ret0, _ := ret[0].(domain.Runner)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FindByCodebookUIDAndTag indicates an expected call of FindByCodebookUIDAndTag.
-func (mr *MockServiceMockRecorder) FindByCodebookUIDAndTag(ctx, codebookUID, tag any) *MockServiceFindByCodebookUIDAndTagCall {
+// FindByCodebookIDAndTag indicates an expected call of FindByCodebookIDAndTag.
+func (mr *MockServiceMockRecorder) FindByCodebookIDAndTag(ctx, codebookID, tag any) *MockServiceFindByCodebookIDAndTagCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByCodebookUIDAndTag", reflect.TypeOf((*MockService)(nil).FindByCodebookUIDAndTag), ctx, codebookUID, tag)
-	return &MockServiceFindByCodebookUIDAndTagCall{Call: call}
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByCodebookIDAndTag", reflect.TypeOf((*MockService)(nil).FindByCodebookIDAndTag), ctx, codebookID, tag)
+	return &MockServiceFindByCodebookIDAndTagCall{Call: call}
 }
 
-// MockServiceFindByCodebookUIDAndTagCall wrap *gomock.Call
-type MockServiceFindByCodebookUIDAndTagCall struct {
+// MockServiceFindByCodebookIDAndTagCall wrap *gomock.Call
+type MockServiceFindByCodebookIDAndTagCall struct {
 	*gomock.Call
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockServiceFindByCodebookUIDAndTagCall) Return(arg0 domain.Runner, arg1 error) *MockServiceFindByCodebookUIDAndTagCall {
+func (c *MockServiceFindByCodebookIDAndTagCall) Return(arg0 domain.Runner, arg1 error) *MockServiceFindByCodebookIDAndTagCall {
 	c.Call = c.Call.Return(arg0, arg1)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockServiceFindByCodebookUIDAndTagCall) Do(f func(context.Context, string, string) (domain.Runner, error)) *MockServiceFindByCodebookUIDAndTagCall {
+func (c *MockServiceFindByCodebookIDAndTagCall) Do(f func(context.Context, int64, string) (domain.Runner, error)) *MockServiceFindByCodebookIDAndTagCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceFindByCodebookUIDAndTagCall) DoAndReturn(f func(context.Context, string, string) (domain.Runner, error)) *MockServiceFindByCodebookUIDAndTagCall {
+func (c *MockServiceFindByCodebookIDAndTagCall) DoAndReturn(f func(context.Context, int64, string) (domain.Runner, error)) *MockServiceFindByCodebookIDAndTagCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
@@ -276,81 +237,81 @@ func (c *MockServiceListCall) DoAndReturn(f func(context.Context, int64, int64, 
 	return c
 }
 
-// ListByCodebookUID mocks base method.
-func (m *MockService) ListByCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, int64, error) {
+// ListByCodebookID mocks base method.
+func (m *MockService) ListByCodebookID(ctx context.Context, offset, limit, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListByCodebookUID", ctx, offset, limit, codebookUID, keyword, kind)
+	ret := m.ctrl.Call(m, "ListByCodebookID", ctx, offset, limit, codebookID, keyword, kind)
 	ret0, _ := ret[0].([]domain.Runner)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-// ListByCodebookUID indicates an expected call of ListByCodebookUID.
-func (mr *MockServiceMockRecorder) ListByCodebookUID(ctx, offset, limit, codebookUID, keyword, kind any) *MockServiceListByCodebookUIDCall {
+// ListByCodebookID indicates an expected call of ListByCodebookID.
+func (mr *MockServiceMockRecorder) ListByCodebookID(ctx, offset, limit, codebookID, keyword, kind any) *MockServiceListByCodebookIDCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByCodebookUID", reflect.TypeOf((*MockService)(nil).ListByCodebookUID), ctx, offset, limit, codebookUID, keyword, kind)
-	return &MockServiceListByCodebookUIDCall{Call: call}
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByCodebookID", reflect.TypeOf((*MockService)(nil).ListByCodebookID), ctx, offset, limit, codebookID, keyword, kind)
+	return &MockServiceListByCodebookIDCall{Call: call}
 }
 
-// MockServiceListByCodebookUIDCall wrap *gomock.Call
-type MockServiceListByCodebookUIDCall struct {
+// MockServiceListByCodebookIDCall wrap *gomock.Call
+type MockServiceListByCodebookIDCall struct {
 	*gomock.Call
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockServiceListByCodebookUIDCall) Return(arg0 []domain.Runner, arg1 int64, arg2 error) *MockServiceListByCodebookUIDCall {
+func (c *MockServiceListByCodebookIDCall) Return(arg0 []domain.Runner, arg1 int64, arg2 error) *MockServiceListByCodebookIDCall {
 	c.Call = c.Call.Return(arg0, arg1, arg2)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockServiceListByCodebookUIDCall) Do(f func(context.Context, int64, int64, string, string, string) ([]domain.Runner, int64, error)) *MockServiceListByCodebookUIDCall {
+func (c *MockServiceListByCodebookIDCall) Do(f func(context.Context, int64, int64, int64, string, string) ([]domain.Runner, int64, error)) *MockServiceListByCodebookIDCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceListByCodebookUIDCall) DoAndReturn(f func(context.Context, int64, int64, string, string, string) ([]domain.Runner, int64, error)) *MockServiceListByCodebookUIDCall {
+func (c *MockServiceListByCodebookIDCall) DoAndReturn(f func(context.Context, int64, int64, int64, string, string) ([]domain.Runner, int64, error)) *MockServiceListByCodebookIDCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
 
-// ListByCodebookUIDs mocks base method.
-func (m *MockService) ListByCodebookUIDs(ctx context.Context, codebookUIDs []string) ([]domain.Runner, error) {
+// ListByCodebookIDs mocks base method.
+func (m *MockService) ListByCodebookIDs(ctx context.Context, codebookIDs []int64) ([]domain.Runner, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListByCodebookUIDs", ctx, codebookUIDs)
+	ret := m.ctrl.Call(m, "ListByCodebookIDs", ctx, codebookIDs)
 	ret0, _ := ret[0].([]domain.Runner)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByCodebookUIDs indicates an expected call of ListByCodebookUIDs.
-func (mr *MockServiceMockRecorder) ListByCodebookUIDs(ctx, codebookUIDs any) *MockServiceListByCodebookUIDsCall {
+// ListByCodebookIDs indicates an expected call of ListByCodebookIDs.
+func (mr *MockServiceMockRecorder) ListByCodebookIDs(ctx, codebookIDs any) *MockServiceListByCodebookIDsCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByCodebookUIDs", reflect.TypeOf((*MockService)(nil).ListByCodebookUIDs), ctx, codebookUIDs)
-	return &MockServiceListByCodebookUIDsCall{Call: call}
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByCodebookIDs", reflect.TypeOf((*MockService)(nil).ListByCodebookIDs), ctx, codebookIDs)
+	return &MockServiceListByCodebookIDsCall{Call: call}
 }
 
-// MockServiceListByCodebookUIDsCall wrap *gomock.Call
-type MockServiceListByCodebookUIDsCall struct {
+// MockServiceListByCodebookIDsCall wrap *gomock.Call
+type MockServiceListByCodebookIDsCall struct {
 	*gomock.Call
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockServiceListByCodebookUIDsCall) Return(arg0 []domain.Runner, arg1 error) *MockServiceListByCodebookUIDsCall {
+func (c *MockServiceListByCodebookIDsCall) Return(arg0 []domain.Runner, arg1 error) *MockServiceListByCodebookIDsCall {
 	c.Call = c.Call.Return(arg0, arg1)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockServiceListByCodebookUIDsCall) Do(f func(context.Context, []string) ([]domain.Runner, error)) *MockServiceListByCodebookUIDsCall {
+func (c *MockServiceListByCodebookIDsCall) Do(f func(context.Context, []int64) ([]domain.Runner, error)) *MockServiceListByCodebookIDsCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceListByCodebookUIDsCall) DoAndReturn(f func(context.Context, []string) ([]domain.Runner, error)) *MockServiceListByCodebookUIDsCall {
+func (c *MockServiceListByCodebookIDsCall) DoAndReturn(f func(context.Context, []int64) ([]domain.Runner, error)) *MockServiceListByCodebookIDsCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
@@ -394,42 +355,42 @@ func (c *MockServiceListByIDsCall) DoAndReturn(f func(context.Context, []int64) 
 	return c
 }
 
-// ListExcludeCodebookUID mocks base method.
-func (m *MockService) ListExcludeCodebookUID(ctx context.Context, offset, limit int64, codebookUID, keyword, kind string) ([]domain.Runner, int64, error) {
+// ListExcludeCodebookID mocks base method.
+func (m *MockService) ListExcludeCodebookID(ctx context.Context, offset, limit, codebookID int64, keyword, kind string) ([]domain.Runner, int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListExcludeCodebookUID", ctx, offset, limit, codebookUID, keyword, kind)
+	ret := m.ctrl.Call(m, "ListExcludeCodebookID", ctx, offset, limit, codebookID, keyword, kind)
 	ret0, _ := ret[0].([]domain.Runner)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-// ListExcludeCodebookUID indicates an expected call of ListExcludeCodebookUID.
-func (mr *MockServiceMockRecorder) ListExcludeCodebookUID(ctx, offset, limit, codebookUID, keyword, kind any) *MockServiceListExcludeCodebookUIDCall {
+// ListExcludeCodebookID indicates an expected call of ListExcludeCodebookID.
+func (mr *MockServiceMockRecorder) ListExcludeCodebookID(ctx, offset, limit, codebookID, keyword, kind any) *MockServiceListExcludeCodebookIDCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListExcludeCodebookUID", reflect.TypeOf((*MockService)(nil).ListExcludeCodebookUID), ctx, offset, limit, codebookUID, keyword, kind)
-	return &MockServiceListExcludeCodebookUIDCall{Call: call}
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListExcludeCodebookID", reflect.TypeOf((*MockService)(nil).ListExcludeCodebookID), ctx, offset, limit, codebookID, keyword, kind)
+	return &MockServiceListExcludeCodebookIDCall{Call: call}
 }
 
-// MockServiceListExcludeCodebookUIDCall wrap *gomock.Call
-type MockServiceListExcludeCodebookUIDCall struct {
+// MockServiceListExcludeCodebookIDCall wrap *gomock.Call
+type MockServiceListExcludeCodebookIDCall struct {
 	*gomock.Call
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockServiceListExcludeCodebookUIDCall) Return(arg0 []domain.Runner, arg1 int64, arg2 error) *MockServiceListExcludeCodebookUIDCall {
+func (c *MockServiceListExcludeCodebookIDCall) Return(arg0 []domain.Runner, arg1 int64, arg2 error) *MockServiceListExcludeCodebookIDCall {
 	c.Call = c.Call.Return(arg0, arg1, arg2)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockServiceListExcludeCodebookUIDCall) Do(f func(context.Context, int64, int64, string, string, string) ([]domain.Runner, int64, error)) *MockServiceListExcludeCodebookUIDCall {
+func (c *MockServiceListExcludeCodebookIDCall) Do(f func(context.Context, int64, int64, int64, string, string) ([]domain.Runner, int64, error)) *MockServiceListExcludeCodebookIDCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceListExcludeCodebookUIDCall) DoAndReturn(f func(context.Context, int64, int64, string, string, string) ([]domain.Runner, int64, error)) *MockServiceListExcludeCodebookUIDCall {
+func (c *MockServiceListExcludeCodebookIDCall) DoAndReturn(f func(context.Context, int64, int64, int64, string, string) ([]domain.Runner, int64, error)) *MockServiceListExcludeCodebookIDCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

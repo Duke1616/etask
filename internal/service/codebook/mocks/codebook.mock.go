@@ -41,6 +41,45 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
+// Children mocks base method.
+func (m *MockService) Children(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Children", ctx, projectID, parentID)
+	ret0, _ := ret[0].([]domain.Codebook)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Children indicates an expected call of Children.
+func (mr *MockServiceMockRecorder) Children(ctx, projectID, parentID any) *MockServiceChildrenCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Children", reflect.TypeOf((*MockService)(nil).Children), ctx, projectID, parentID)
+	return &MockServiceChildrenCall{Call: call}
+}
+
+// MockServiceChildrenCall wrap *gomock.Call
+type MockServiceChildrenCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceChildrenCall) Return(arg0 []domain.Codebook, arg1 error) *MockServiceChildrenCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceChildrenCall) Do(f func(context.Context, int64, int64) ([]domain.Codebook, error)) *MockServiceChildrenCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceChildrenCall) DoAndReturn(f func(context.Context, int64, int64) ([]domain.Codebook, error)) *MockServiceChildrenCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // Create mocks base method.
 func (m *MockService) Create(ctx context.Context, req domain.Codebook) (int64, error) {
 	m.ctrl.T.Helper()
@@ -76,6 +115,84 @@ func (c *MockServiceCreateCall) Do(f func(context.Context, domain.Codebook) (int
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockServiceCreateCall) DoAndReturn(f func(context.Context, domain.Codebook) (int64, error)) *MockServiceCreateCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// CreateProject mocks base method.
+func (m *MockService) CreateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateProject", ctx, req)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateProject indicates an expected call of CreateProject.
+func (mr *MockServiceMockRecorder) CreateProject(ctx, req any) *MockServiceCreateProjectCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateProject", reflect.TypeOf((*MockService)(nil).CreateProject), ctx, req)
+	return &MockServiceCreateProjectCall{Call: call}
+}
+
+// MockServiceCreateProjectCall wrap *gomock.Call
+type MockServiceCreateProjectCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceCreateProjectCall) Return(arg0 int64, arg1 error) *MockServiceCreateProjectCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceCreateProjectCall) Do(f func(context.Context, domain.CodebookProject) (int64, error)) *MockServiceCreateProjectCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceCreateProjectCall) DoAndReturn(f func(context.Context, domain.CodebookProject) (int64, error)) *MockServiceCreateProjectCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// CreateVersion mocks base method.
+func (m *MockService) CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateVersion", ctx, req)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateVersion indicates an expected call of CreateVersion.
+func (mr *MockServiceMockRecorder) CreateVersion(ctx, req any) *MockServiceCreateVersionCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVersion", reflect.TypeOf((*MockService)(nil).CreateVersion), ctx, req)
+	return &MockServiceCreateVersionCall{Call: call}
+}
+
+// MockServiceCreateVersionCall wrap *gomock.Call
+type MockServiceCreateVersionCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceCreateVersionCall) Return(arg0 int64, arg1 error) *MockServiceCreateVersionCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceCreateVersionCall) Do(f func(context.Context, domain.CodebookVersion) (int64, error)) *MockServiceCreateVersionCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceCreateVersionCall) DoAndReturn(f func(context.Context, domain.CodebookVersion) (int64, error)) *MockServiceCreateVersionCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
@@ -119,6 +236,45 @@ func (c *MockServiceDeleteCall) DoAndReturn(f func(context.Context, int64) (int6
 	return c
 }
 
+// DeleteProject mocks base method.
+func (m *MockService) DeleteProject(ctx context.Context, id int64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteProject", ctx, id)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteProject indicates an expected call of DeleteProject.
+func (mr *MockServiceMockRecorder) DeleteProject(ctx, id any) *MockServiceDeleteProjectCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProject", reflect.TypeOf((*MockService)(nil).DeleteProject), ctx, id)
+	return &MockServiceDeleteProjectCall{Call: call}
+}
+
+// MockServiceDeleteProjectCall wrap *gomock.Call
+type MockServiceDeleteProjectCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceDeleteProjectCall) Return(arg0 int64, arg1 error) *MockServiceDeleteProjectCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceDeleteProjectCall) Do(f func(context.Context, int64) (int64, error)) *MockServiceDeleteProjectCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceDeleteProjectCall) DoAndReturn(f func(context.Context, int64) (int64, error)) *MockServiceDeleteProjectCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // GetByID mocks base method.
 func (m *MockService) GetByID(ctx context.Context, id int64) (domain.Codebook, error) {
 	m.ctrl.T.Helper()
@@ -158,41 +314,80 @@ func (c *MockServiceGetByIDCall) DoAndReturn(f func(context.Context, int64) (dom
 	return c
 }
 
-// GetByIdentifier mocks base method.
-func (m *MockService) GetByIdentifier(ctx context.Context, identifier string) (domain.Codebook, error) {
+// GetProjectByID mocks base method.
+func (m *MockService) GetProjectByID(ctx context.Context, id int64) (domain.CodebookProject, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByIdentifier", ctx, identifier)
-	ret0, _ := ret[0].(domain.Codebook)
+	ret := m.ctrl.Call(m, "GetProjectByID", ctx, id)
+	ret0, _ := ret[0].(domain.CodebookProject)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByIdentifier indicates an expected call of GetByIdentifier.
-func (mr *MockServiceMockRecorder) GetByIdentifier(ctx, identifier any) *MockServiceGetByIdentifierCall {
+// GetProjectByID indicates an expected call of GetProjectByID.
+func (mr *MockServiceMockRecorder) GetProjectByID(ctx, id any) *MockServiceGetProjectByIDCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByIdentifier", reflect.TypeOf((*MockService)(nil).GetByIdentifier), ctx, identifier)
-	return &MockServiceGetByIdentifierCall{Call: call}
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProjectByID", reflect.TypeOf((*MockService)(nil).GetProjectByID), ctx, id)
+	return &MockServiceGetProjectByIDCall{Call: call}
 }
 
-// MockServiceGetByIdentifierCall wrap *gomock.Call
-type MockServiceGetByIdentifierCall struct {
+// MockServiceGetProjectByIDCall wrap *gomock.Call
+type MockServiceGetProjectByIDCall struct {
 	*gomock.Call
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockServiceGetByIdentifierCall) Return(arg0 domain.Codebook, arg1 error) *MockServiceGetByIdentifierCall {
+func (c *MockServiceGetProjectByIDCall) Return(arg0 domain.CodebookProject, arg1 error) *MockServiceGetProjectByIDCall {
 	c.Call = c.Call.Return(arg0, arg1)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockServiceGetByIdentifierCall) Do(f func(context.Context, string) (domain.Codebook, error)) *MockServiceGetByIdentifierCall {
+func (c *MockServiceGetProjectByIDCall) Do(f func(context.Context, int64) (domain.CodebookProject, error)) *MockServiceGetProjectByIDCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceGetByIdentifierCall) DoAndReturn(f func(context.Context, string) (domain.Codebook, error)) *MockServiceGetByIdentifierCall {
+func (c *MockServiceGetProjectByIDCall) DoAndReturn(f func(context.Context, int64) (domain.CodebookProject, error)) *MockServiceGetProjectByIDCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// GetVersionByID mocks base method.
+func (m *MockService) GetVersionByID(ctx context.Context, id int64) (domain.CodebookVersion, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVersionByID", ctx, id)
+	ret0, _ := ret[0].(domain.CodebookVersion)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVersionByID indicates an expected call of GetVersionByID.
+func (mr *MockServiceMockRecorder) GetVersionByID(ctx, id any) *MockServiceGetVersionByIDCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionByID", reflect.TypeOf((*MockService)(nil).GetVersionByID), ctx, id)
+	return &MockServiceGetVersionByIDCall{Call: call}
+}
+
+// MockServiceGetVersionByIDCall wrap *gomock.Call
+type MockServiceGetVersionByIDCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceGetVersionByIDCall) Return(arg0 domain.CodebookVersion, arg1 error) *MockServiceGetVersionByIDCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceGetVersionByIDCall) Do(f func(context.Context, int64) (domain.CodebookVersion, error)) *MockServiceGetVersionByIDCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceGetVersionByIDCall) DoAndReturn(f func(context.Context, int64) (domain.CodebookVersion, error)) *MockServiceGetVersionByIDCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
@@ -237,6 +432,162 @@ func (c *MockServiceListCall) DoAndReturn(f func(context.Context, int64, int64) 
 	return c
 }
 
+// ListProjects mocks base method.
+func (m *MockService) ListProjects(ctx context.Context, offset, limit int64) ([]domain.CodebookProject, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListProjects", ctx, offset, limit)
+	ret0, _ := ret[0].([]domain.CodebookProject)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListProjects indicates an expected call of ListProjects.
+func (mr *MockServiceMockRecorder) ListProjects(ctx, offset, limit any) *MockServiceListProjectsCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListProjects", reflect.TypeOf((*MockService)(nil).ListProjects), ctx, offset, limit)
+	return &MockServiceListProjectsCall{Call: call}
+}
+
+// MockServiceListProjectsCall wrap *gomock.Call
+type MockServiceListProjectsCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceListProjectsCall) Return(arg0 []domain.CodebookProject, arg1 int64, arg2 error) *MockServiceListProjectsCall {
+	c.Call = c.Call.Return(arg0, arg1, arg2)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceListProjectsCall) Do(f func(context.Context, int64, int64) ([]domain.CodebookProject, int64, error)) *MockServiceListProjectsCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceListProjectsCall) DoAndReturn(f func(context.Context, int64, int64) ([]domain.CodebookProject, int64, error)) *MockServiceListProjectsCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// ListVersions mocks base method.
+func (m *MockService) ListVersions(ctx context.Context, nodeID int64) ([]domain.CodebookVersion, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListVersions", ctx, nodeID)
+	ret0, _ := ret[0].([]domain.CodebookVersion)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListVersions indicates an expected call of ListVersions.
+func (mr *MockServiceMockRecorder) ListVersions(ctx, nodeID any) *MockServiceListVersionsCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListVersions", reflect.TypeOf((*MockService)(nil).ListVersions), ctx, nodeID)
+	return &MockServiceListVersionsCall{Call: call}
+}
+
+// MockServiceListVersionsCall wrap *gomock.Call
+type MockServiceListVersionsCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceListVersionsCall) Return(arg0 []domain.CodebookVersion, arg1 error) *MockServiceListVersionsCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceListVersionsCall) Do(f func(context.Context, int64) ([]domain.CodebookVersion, error)) *MockServiceListVersionsCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceListVersionsCall) DoAndReturn(f func(context.Context, int64) ([]domain.CodebookVersion, error)) *MockServiceListVersionsCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// Sort mocks base method.
+func (m *MockService) Sort(ctx context.Context, id, targetParentID, targetPosition int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Sort", ctx, id, targetParentID, targetPosition)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Sort indicates an expected call of Sort.
+func (mr *MockServiceMockRecorder) Sort(ctx, id, targetParentID, targetPosition any) *MockServiceSortCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sort", reflect.TypeOf((*MockService)(nil).Sort), ctx, id, targetParentID, targetPosition)
+	return &MockServiceSortCall{Call: call}
+}
+
+// MockServiceSortCall wrap *gomock.Call
+type MockServiceSortCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceSortCall) Return(arg0 error) *MockServiceSortCall {
+	c.Call = c.Call.Return(arg0)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceSortCall) Do(f func(context.Context, int64, int64, int64) error) *MockServiceSortCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceSortCall) DoAndReturn(f func(context.Context, int64, int64, int64) error) *MockServiceSortCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// Tree mocks base method.
+func (m *MockService) Tree(ctx context.Context, projectID int64, scope domain.CodebookScope) ([]domain.Codebook, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Tree", ctx, projectID, scope)
+	ret0, _ := ret[0].([]domain.Codebook)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Tree indicates an expected call of Tree.
+func (mr *MockServiceMockRecorder) Tree(ctx, projectID, scope any) *MockServiceTreeCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tree", reflect.TypeOf((*MockService)(nil).Tree), ctx, projectID, scope)
+	return &MockServiceTreeCall{Call: call}
+}
+
+// MockServiceTreeCall wrap *gomock.Call
+type MockServiceTreeCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceTreeCall) Return(arg0 []domain.Codebook, arg1 error) *MockServiceTreeCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceTreeCall) Do(f func(context.Context, int64, domain.CodebookScope) ([]domain.Codebook, error)) *MockServiceTreeCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceTreeCall) DoAndReturn(f func(context.Context, int64, domain.CodebookScope) ([]domain.Codebook, error)) *MockServiceTreeCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // Update mocks base method.
 func (m *MockService) Update(ctx context.Context, req domain.Codebook) (int64, error) {
 	m.ctrl.T.Helper()
@@ -272,6 +623,84 @@ func (c *MockServiceUpdateCall) Do(f func(context.Context, domain.Codebook) (int
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockServiceUpdateCall) DoAndReturn(f func(context.Context, domain.Codebook) (int64, error)) *MockServiceUpdateCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// UpdateProject mocks base method.
+func (m *MockService) UpdateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateProject", ctx, req)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateProject indicates an expected call of UpdateProject.
+func (mr *MockServiceMockRecorder) UpdateProject(ctx, req any) *MockServiceUpdateProjectCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProject", reflect.TypeOf((*MockService)(nil).UpdateProject), ctx, req)
+	return &MockServiceUpdateProjectCall{Call: call}
+}
+
+// MockServiceUpdateProjectCall wrap *gomock.Call
+type MockServiceUpdateProjectCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceUpdateProjectCall) Return(arg0 int64, arg1 error) *MockServiceUpdateProjectCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceUpdateProjectCall) Do(f func(context.Context, domain.CodebookProject) (int64, error)) *MockServiceUpdateProjectCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceUpdateProjectCall) DoAndReturn(f func(context.Context, domain.CodebookProject) (int64, error)) *MockServiceUpdateProjectCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// UseVersion mocks base method.
+func (m *MockService) UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UseVersion", ctx, nodeID, versionID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UseVersion indicates an expected call of UseVersion.
+func (mr *MockServiceMockRecorder) UseVersion(ctx, nodeID, versionID any) *MockServiceUseVersionCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UseVersion", reflect.TypeOf((*MockService)(nil).UseVersion), ctx, nodeID, versionID)
+	return &MockServiceUseVersionCall{Call: call}
+}
+
+// MockServiceUseVersionCall wrap *gomock.Call
+type MockServiceUseVersionCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceUseVersionCall) Return(arg0 int64, arg1 error) *MockServiceUseVersionCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceUseVersionCall) Do(f func(context.Context, int64, int64) (int64, error)) *MockServiceUseVersionCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceUseVersionCall) DoAndReturn(f func(context.Context, int64, int64) (int64, error)) *MockServiceUseVersionCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

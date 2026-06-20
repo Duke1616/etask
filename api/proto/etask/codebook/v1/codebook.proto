@@ -9,21 +9,19 @@ message Codebook {
   string name = 2;
   string owner = 3;
   string code = 4;
-  string language = 5;
-  string secret = 6;
-  string identifier = 7;
-  int64 ctime = 8;
-  int64 utime = 9;
+  string secret = 5;
+  int64 ctime = 6;
+  int64 utime = 7;
 }
 
-message GetCodebookByIdentifierRequest {
-  string identifier = 1;
+message GetCodebookByIDRequest {
+  int64 id = 1;
 }
 
-message GetCodebookByIdentifierResponse {
+message GetCodebookByIDResponse {
   Codebook codebook = 1;
 }
 
 service CodebookService {
-  rpc GetCodebookByIdentifier(GetCodebookByIdentifierRequest) returns (GetCodebookByIdentifierResponse);
+  rpc GetCodebookByID(GetCodebookByIDRequest) returns (GetCodebookByIDResponse);
 }
