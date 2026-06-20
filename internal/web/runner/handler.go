@@ -49,13 +49,12 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.DELETE("/delete/:id", h.Capability("删除执行单元", "delete").
 		Handle(ginx.W(h.Delete)),
 	)
-	g.POST("/list/by_ids", h.Capability("批量查询执行单元", "view_by_ids").
+	g.POST("/list/by_ids", h.Capability("批量查询执行单元", "ids").
 		NoSync().
 		Handle(ginx.B[ListRunnerByIDsReq](h.ListByIDs)),
 	)
 	g.GET("/list/:codebook_id", h.Capability("当前绑定执行单元", "view_by_codebook_id").
-		Module("codebook").
-		Group("脚本模板").
+		NoSync().
 		Handle(ginx.W(h.ListByCodebookID)),
 	)
 	g.POST("/list/exclude_codebook_id", h.Capability("复用执行单元", "view_exclude_codebook_id").
