@@ -34,14 +34,14 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 		return h.Capability(name, code).Group("脚本引擎/脚本模板")
 	}
 	version := func(name, code string) *capability.Builder {
-		return h.Capability(name, code).Group("脚本引擎/脚本版本")
+		return h.Capability(name, code).Group("脚本引擎/版本管理")
 	}
 	project := func(name, code string) *capability.Builder {
-		return h.Capability(name, code).Group("脚本引擎/脚本项目")
+		return h.Capability(name, code).Group("脚本引擎/项目管理")
 	}
 
 	g := server.Group("/api/codebook")
-	g.POST("/create", cb("创建脚本模板", "add").
+	g.POST("/create", cb("创建模板", "add").
 		Handle(ginx.B[CreateReq](h.Create)),
 	)
 	g.POST("/children", cb("代码资源子节点", "children").
@@ -52,13 +52,13 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 		Needs("task:codebook:children").
 		Handle(ginx.W(h.Tree)),
 	)
-	g.GET("/detail/:id", cb("脚本模板详情", "get").
+	g.GET("/detail/:id", cb("模板详情", "get").
 		Handle(ginx.W(h.Detail)),
 	)
-	g.POST("/update", cb("更新脚本模板", "edit").
+	g.POST("/update", cb("更新模板", "edit").
 		Handle(ginx.B[UpdateReq](h.Update)),
 	)
-	g.POST("/sort", cb("脚本模板排序", "sort").
+	g.POST("/sort", cb("模板排序", "sort").
 		Handle(ginx.B[SortReq](h.Sort)),
 	)
 	g.DELETE("/delete/:id", cb("删除脚本模板", "delete").
@@ -66,31 +66,31 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	)
 
 	vg := g.Group("/version")
-	vg.POST("/create", version("创建脚本版本", "create_version").
+	vg.POST("/create", version("创建版本", "add_version").
 		Handle(ginx.B[CreateVersionReq](h.CreateVersion)),
 	)
-	vg.POST("/list", version("脚本版本列表", "view_version").
+	vg.POST("/list", version("版本列表", "view_version").
 		Handle(ginx.B[ListVersionsReq](h.ListVersions)),
 	)
-	vg.GET("/detail/:id", version("脚本版本详情", "get_version").
+	vg.GET("/detail/:id", version("版本详情", "get_version").
 		Handle(ginx.W(h.VersionDetail)),
 	)
-	vg.POST("/use", version("使用脚本版本", "use_version").
+	vg.POST("/use", version("使用版本", "use_version").
 		Handle(ginx.B[UseVersionReq](h.UseVersion)),
 	)
 
 	// 项目路由
 	pg := g.Group("/project")
-	pg.POST("/create", project("创建脚本项目", "add_project").
+	pg.POST("/create", project("创建项目", "add_project").
 		Handle(ginx.B[CreateProjectReq](h.CreateProject)),
 	)
-	pg.POST("/list", project("脚本项目列表", "view_project").
+	pg.POST("/list", project("项目列表", "view_project").
 		Handle(ginx.B[ListReq](h.ListProject)),
 	)
-	pg.POST("/update", project("更新脚本项目", "edit_project").
+	pg.POST("/update", project("更新项目", "edit_project").
 		Handle(ginx.B[UpdateProjectReq](h.UpdateProject)),
 	)
-	pg.DELETE("/delete/:id", project("删除脚本项目", "delete_project").
+	pg.DELETE("/delete/:id", project("删除项目", "delete_project").
 		Handle(ginx.W(h.DeleteProject)),
 	)
 }

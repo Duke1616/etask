@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	codebookcmd "github.com/Duke1616/etask/cmd/codebook"
 	"github.com/Duke1616/etask/cmd/migrate"
 	"github.com/Duke1616/etask/ioc"
 	"github.com/fsnotify/fsnotify"
@@ -42,6 +43,7 @@ func main() {
 	serverCmd.Flags().StringSliceVar(&modes, "mode", []string{"all"}, "启动模式 (all | scheduler | agent | executor)")
 
 	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(codebookcmd.NewCommand())
 	rootCmd.AddCommand(migrate.NewCommand())
 
 	if err := rootCmd.Execute(); err != nil {

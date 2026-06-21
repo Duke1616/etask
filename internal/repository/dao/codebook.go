@@ -8,11 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/samber/lo"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+const defaultCodebookAuthorUserID int64 = 1
 
 // Codebook 映射代码资源节点表，目录和文件统一建模。
 type Codebook struct {
@@ -258,13 +261,14 @@ func (g *GORMCodebookDAO) Create(ctx context.Context, c Codebook, code string) (
 			return nil
 		}
 		version := CodebookVersion{
-			NodeID:    c.ID,
-			TenantID:  c.TenantID,
-			Scope:     c.Scope,
-			VersionNo: 1,
-			Code:      code,
-			Hash:      hashCode(code),
-			CTime:     now,
+			NodeID:       c.ID,
+			TenantID:     c.TenantID,
+			Scope:        c.Scope,
+			VersionNo:    1,
+			Code:         code,
+			Hash:         hashCode(code),
+			AuthorUserID: codebookAuthorUserID(ctx),
+			CTime:        now,
 		}
 		if err := tx.Create(&version).Error; err != nil {
 			return err
@@ -369,11 +373,11 @@ func (g *GORMCodebookDAO) ListChildrenBySpace(ctx context.Context, projectID, pa
 	return res, err
 }
 
-// Tree 查询指定项目视图下的节点树，系统组件库由租户插件透出。
+// Tree 查询指定项目视图下的节点树，SYSTEM 组件库由租户插件透出。
 func (g *GORMCodebookDAO) Tree(ctx context.Context, projectID int64) ([]Codebook, error) {
 	var res []Codebook
 	err := g.dbWithContext(ctx).
-		Where("scope = ? AND project_id = ?", domain.CodebookScopeTenant.String(), projectID).
+		Where("project_id IN ?", []int64{projectID, 0}).
 		Order("path_ids ASC, sort_no ASC, kind ASC, name ASC, id ASC").
 		Find(&res).Error
 	return res, err
@@ -441,6 +445,9 @@ func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, version CodebookVer
 		version.TenantID = node.TenantID
 		version.Scope = node.Scope
 		version.VersionNo = maxVersionNo + 1
+		if version.AuthorUserID == 0 {
+			version.AuthorUserID = codebookAuthorUserID(ctx)
+		}
 		version.CTime = now
 		version.Hash = hashCode(version.Code)
 		return tx.Create(&version).Error
@@ -584,4 +591,12 @@ func (g *GORMCodebookDAO) updateSortInTx(tx *gorm.DB, item CodebookSortItem) err
 func hashCode(code string) string {
 	sum := sha256.Sum256([]byte(code))
 	return hex.EncodeToString(sum[:])
+}
+
+func codebookAuthorUserID(ctx context.Context) int64 {
+	userID := ctxutil.GetUserID(ctx).Int64()
+	if userID > 0 {
+		return userID
+	}
+	return defaultCodebookAuthorUserID
 }
