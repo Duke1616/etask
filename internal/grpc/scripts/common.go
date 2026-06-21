@@ -169,6 +169,9 @@ func streamOutput(ctx *executor.Context, reader io.Reader, wg *sync.WaitGroup) {
 	for scanner.Scan() {
 		ctx.Log(scanner.Text())
 	}
+	if err := scanner.Err(); err != nil {
+		ctx.Logger().Error("读取脚本输出失败", elog.FieldErr(err))
+	}
 }
 
 // streamResult 核心方法：使用 json.Decoder 流式捕获并合并 NDJSON 结果
