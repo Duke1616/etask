@@ -27,8 +27,6 @@ var (
 	)
 
 	WebSetup = wire.NewSet(
-		InitECMDBGrpcClient,
-		InitEndpointServiceClient,
 		InitPolicySDK,
 		InitPermSyncer,
 		InitProviders,

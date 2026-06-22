@@ -3,7 +3,6 @@ package ioc
 import (
 	"context"
 
-	endpointv1 "github.com/Duke1616/ecmdb/api/proto/gen/ecmdb/endpoint/v1"
 	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
@@ -128,8 +127,7 @@ type Base struct {
 
 // WebModule Web 模块资源
 type WebModule struct {
-	Web         *egin.Component
-	EndpointSvc endpointv1.EndpointServiceClient
+	Web *egin.Component
 }
 
 // SchedulerModule 调度中心模块资源

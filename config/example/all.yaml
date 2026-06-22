@@ -52,7 +52,7 @@ web:
   host: "0.0.0.0"
   port: 8765
 
-# 策略鉴权：ECMDB 服务地址，用于登录验证与权限鉴权
+# 策略鉴权：登录验证与权限鉴权服务地址
 policy:
   auth_url: http://127.0.0.1:8000
 
@@ -72,10 +72,6 @@ grpc:
       advertise_addr: ""  # 广播地址
       auth_token: "" # JWT 认证 Token
   client:
-    # 外部依赖服务客户端
-    ecmdb:
-      name: "ecmdb" # ECMDB 服务名
-      auth_token: "1234567890" # 访问 Token
     # 内部调度中心客户端 (用于执行器上报结果)
     scheduler:
       name: "scheduler"

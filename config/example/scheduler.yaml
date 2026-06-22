@@ -36,9 +36,6 @@ grpc:
       advertise_addr: ""  # 可选：广播地址,留空则自动检测
       auth_token: "" # 可选：开启认证
   client:
-    ecmdb:
-      name: "ecmdb"
-      auth_token: "1234567890"
 
 scheduler:
   batchTimeout: 3000000000
