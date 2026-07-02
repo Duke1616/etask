@@ -156,7 +156,12 @@ func (repo *runnerRepository) FindByCodebookIDAndTag(ctx context.Context, codebo
 	if err != nil {
 		return domain.Runner{}, err
 	}
-	return repo.toDomain(r), nil
+	res := repo.toDomain(r)
+	res.Variables, err = repo.ListMergedVariables(ctx, res.ID)
+	if err != nil {
+		return domain.Runner{}, err
+	}
+	return res, nil
 }
 
 func (repo *runnerRepository) ListMergedVariables(ctx context.Context, runnerID int64) ([]domain.RunnerVariable, error) {
