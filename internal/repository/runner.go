@@ -107,9 +107,10 @@ func (repo *runnerRepository) ListByCodebookID(ctx context.Context, codebookID i
 	if err != nil {
 		return nil, err
 	}
-	return slice.Map(rs, func(_ int, src dao.Runner) domain.Runner {
+	runners := slice.Map(rs, func(_ int, src dao.Runner) domain.Runner {
 		return repo.toDomain(src)
-	}), nil
+	})
+	return repo.fillMergedVariables(ctx, runners)
 }
 
 // ListExcludeCodebookID 查询未绑定指定脚本模板 ID 的执行单元。
@@ -162,6 +163,17 @@ func (repo *runnerRepository) FindByCodebookIDAndTag(ctx context.Context, codebo
 		return domain.Runner{}, err
 	}
 	return res, nil
+}
+
+func (repo *runnerRepository) fillMergedVariables(ctx context.Context, runners []domain.Runner) ([]domain.Runner, error) {
+	for idx := range runners {
+		variables, err := repo.ListMergedVariables(ctx, runners[idx].ID)
+		if err != nil {
+			return nil, err
+		}
+		runners[idx].Variables = variables
+	}
+	return runners, nil
 }
 
 func (repo *runnerRepository) ListMergedVariables(ctx context.Context, runnerID int64) ([]domain.RunnerVariable, error) {
