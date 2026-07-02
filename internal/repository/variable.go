@@ -2,11 +2,11 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Duke1616/ecmdb/pkg/cryptox"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/repository/dao"
-	"github.com/samber/lo"
 )
 
 type VariableRepository interface {
@@ -39,7 +39,11 @@ func (repo *variableRepository) CreateGlobalVariable(ctx context.Context, variab
 	if err := variable.Validate(); err != nil {
 		return 0, err
 	}
-	return repo.dao.Create(ctx, repo.toDAO(variable))
+	po, err := repo.toDAO(variable)
+	if err != nil {
+		return 0, err
+	}
+	return repo.dao.Create(ctx, po)
 }
 
 // FindGlobalVariable 根据主键 ID 查询全局变量。
@@ -51,7 +55,10 @@ func (repo *variableRepository) FindGlobalVariable(ctx context.Context, id int64
 	if err != nil {
 		return domain.Variable{}, err
 	}
-	res := repo.toDomain(variable)
+	res, err := repo.toDomain(variable)
+	if err != nil {
+		return domain.Variable{}, err
+	}
 	if err = res.ValidateGlobalScope(); err != nil {
 		return domain.Variable{}, err
 	}
@@ -67,7 +74,11 @@ func (repo *variableRepository) UpdateGlobalVariable(ctx context.Context, variab
 	if err := variable.Validate(); err != nil {
 		return 0, err
 	}
-	return repo.dao.Update(ctx, repo.toDAO(variable))
+	po, err := repo.toDAO(variable)
+	if err != nil {
+		return 0, err
+	}
+	return repo.dao.Update(ctx, po)
 }
 
 // DeleteGlobalVariable 根据主键 ID 删除全局变量。
@@ -84,9 +95,7 @@ func (repo *variableRepository) ListGlobalVariables(ctx context.Context, offset,
 	if err != nil {
 		return nil, err
 	}
-	return lo.Map(variables, func(src dao.Variable, _ int) domain.Variable {
-		return repo.toDomain(src)
-	}), nil
+	return repo.toDomains(variables)
 }
 
 // CountGlobalVariables 统计全局变量数量。
@@ -94,52 +103,72 @@ func (repo *variableRepository) CountGlobalVariables(ctx context.Context, keywor
 	return repo.dao.CountByScope(ctx, domain.VariableScopeGlobal.String(), domain.VariableGlobalTarget, keyword)
 }
 
-func (repo *variableRepository) toDAO(src domain.Variable) dao.Variable {
+func (repo *variableRepository) toDAO(src domain.Variable) (dao.Variable, error) {
+	value, err := repo.encryptSecretValue(src.Key, src.Value, src.Secret)
+	if err != nil {
+		return dao.Variable{}, err
+	}
 	return dao.Variable{
 		ID:       src.ID,
 		TenantID: src.TenantID,
 		Scope:    src.Scope.String(),
 		TargetID: src.TargetID,
 		Key:      src.Key,
-		Value:    repo.encryptSecretValue(src.Value, src.Secret),
+		Value:    value,
 		Secret:   src.Secret,
 		CTime:    src.CTime,
 		UTime:    src.UTime,
-	}
+	}, nil
 }
 
-func (repo *variableRepository) toDomain(src dao.Variable) domain.Variable {
+func (repo *variableRepository) toDomain(src dao.Variable) (domain.Variable, error) {
+	value, err := repo.decryptSecretValue(src.Key, src.Value, src.Secret)
+	if err != nil {
+		return domain.Variable{}, err
+	}
 	return domain.Variable{
 		ID:       src.ID,
 		TenantID: src.TenantID,
 		Scope:    domain.VariableScope(src.Scope),
 		TargetID: src.TargetID,
 		Key:      src.Key,
-		Value:    repo.decryptSecretValue(src.Value, src.Secret),
+		Value:    value,
 		Secret:   src.Secret,
 		CTime:    src.CTime,
 		UTime:    src.UTime,
-	}
+	}, nil
 }
 
-func (repo *variableRepository) encryptSecretValue(value string, secret bool) string {
+func (repo *variableRepository) toDomains(variables []dao.Variable) ([]domain.Variable, error) {
+	res := make([]domain.Variable, 0, len(variables))
+	for _, variable := range variables {
+		item, err := repo.toDomain(variable)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (repo *variableRepository) encryptSecretValue(key, value string, secret bool) (string, error) {
 	if !secret || value == "" {
-		return value
+		return value, nil
 	}
 	encVal, err := repo.crypto.Encrypt(value)
 	if err != nil {
-		return value
+		return "", fmt.Errorf("encrypt variable %q failed: %w", key, err)
 	}
-	return encVal
+	return encVal, nil
 }
 
-func (repo *variableRepository) decryptSecretValue(value string, secret bool) string {
+func (repo *variableRepository) decryptSecretValue(key, value string, secret bool) (string, error) {
 	if !secret || value == "" {
-		return value
+		return value, nil
 	}
 	decVal, err := repo.crypto.Decrypt(value)
 	if err != nil {
-		return value
+		return "", fmt.Errorf("decrypt variable %q failed: %w", key, err)
 	}
-	return decVal
+	return decVal, nil
 }

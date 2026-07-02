@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Duke1616/ecmdb/pkg/cryptox"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/pkg/sqlx"
 	"github.com/ecodeclub/ekit/slice"
-	"github.com/samber/lo"
 	"gorm.io/gorm"
 )
 
@@ -58,12 +58,20 @@ func NewRunnerRepository(runnerDAO dao.RunnerDAO, variableDAO dao.VariableDAO, c
 
 // Create 保存执行单元。
 func (repo *runnerRepository) Create(ctx context.Context, req domain.Runner) (int64, error) {
-	return repo.runnerDAO.CreateWithVariables(ctx, repo.toEntity(req), repo.toVariables(req.ID, req.Variables))
+	variables, err := repo.toVariables(req.ID, req.Variables)
+	if err != nil {
+		return 0, err
+	}
+	return repo.runnerDAO.CreateWithVariables(ctx, repo.toEntity(req), variables)
 }
 
 // Update 更新执行单元可变字段。
 func (repo *runnerRepository) Update(ctx context.Context, req domain.Runner) (int64, error) {
-	return repo.runnerDAO.UpdateWithVariables(ctx, repo.toEntity(req), repo.toVariables(req.ID, req.Variables))
+	variables, err := repo.toVariables(req.ID, req.Variables)
+	if err != nil {
+		return 0, err
+	}
+	return repo.runnerDAO.UpdateWithVariables(ctx, repo.toEntity(req), variables)
 }
 
 // Delete 根据主键 ID 删除执行单元。
@@ -181,7 +189,7 @@ func (repo *runnerRepository) ListMergedVariables(ctx context.Context, runnerID 
 	if err != nil {
 		return nil, err
 	}
-	return repo.toRunnerVariables(mergeVariablesByKey(variables)), nil
+	return repo.toRunnerVariables(mergeVariablesByKey(variables))
 }
 
 func mergeVariablesByKey(variables []dao.Variable) []dao.Variable {
@@ -239,7 +247,7 @@ func (repo *runnerRepository) toDomain(req dao.Runner) domain.Runner {
 	return r
 }
 
-func (repo *runnerRepository) toVariables(targetID int64, variables []domain.RunnerVariable) []dao.Variable {
+func (repo *runnerRepository) toVariables(targetID int64, variables []domain.RunnerVariable) ([]dao.Variable, error) {
 	merged := make(map[string]domain.RunnerVariable, len(variables))
 	keys := make([]string, 0, len(variables))
 	for _, src := range variables {
@@ -251,22 +259,26 @@ func (repo *runnerRepository) toVariables(targetID int64, variables []domain.Run
 		}
 		merged[src.Key] = src
 	}
-	return lo.Map(keys, func(key string, _ int) dao.Variable {
+	res := make([]dao.Variable, 0, len(keys))
+	for _, key := range keys {
 		src := merged[key]
 		value := src.Value
 		if src.Secret && value != "" {
-			if encVal, err := repo.crypto.Encrypt(value); err == nil {
-				value = encVal
+			encVal, err := repo.crypto.Encrypt(value)
+			if err != nil {
+				return nil, fmt.Errorf("encrypt runner variable %q failed: %w", src.Key, err)
 			}
+			value = encVal
 		}
-		return dao.Variable{
+		res = append(res, dao.Variable{
 			Scope:    domain.VariableScopeRunner.String(),
 			TargetID: targetID,
 			Key:      src.Key,
 			Value:    value,
 			Secret:   src.Secret,
-		}
-	})
+		})
+	}
+	return res, nil
 }
 
 func (repo *runnerRepository) listRunnerVariables(ctx context.Context, runnerID int64) ([]domain.RunnerVariable, error) {
@@ -274,21 +286,25 @@ func (repo *runnerRepository) listRunnerVariables(ctx context.Context, runnerID 
 	if err != nil {
 		return nil, err
 	}
-	return repo.toRunnerVariables(variables), nil
+	return repo.toRunnerVariables(variables)
 }
 
-func (repo *runnerRepository) toRunnerVariables(variables []dao.Variable) []domain.RunnerVariable {
-	return lo.Map(variables, func(src dao.Variable, _ int) domain.RunnerVariable {
+func (repo *runnerRepository) toRunnerVariables(variables []dao.Variable) ([]domain.RunnerVariable, error) {
+	res := make([]domain.RunnerVariable, 0, len(variables))
+	for _, src := range variables {
 		value := src.Value
 		if src.Secret && value != "" {
-			if decVal, err := repo.crypto.Decrypt(value); err == nil {
-				value = decVal
+			decVal, err := repo.crypto.Decrypt(value)
+			if err != nil {
+				return nil, fmt.Errorf("decrypt runner variable %q failed: %w", src.Key, err)
 			}
+			value = decVal
 		}
-		return domain.RunnerVariable{
+		res = append(res, domain.RunnerVariable{
 			Key:    src.Key,
 			Value:  value,
 			Secret: src.Secret,
-		}
-	})
+		})
+	}
+	return res, nil
 }

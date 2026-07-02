@@ -17,10 +17,10 @@ func InitCrypto() cryptox.Crypto {
 		panic(err)
 	}
 	if cfg.Version == "" {
-		cfg.Version = "V1"
+		panic("missing required config: encryption.version")
 	}
 	if cfg.Key == "" {
-		cfg.Key = "1234567890"
+		panic("missing required config: encryption.key")
 	}
 
 	return cryptox.NewCryptoManager("V2").
