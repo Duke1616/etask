@@ -317,6 +317,94 @@ func (x *FindRunnerByCodebookIdAndTagResponse) GetRunner() *Runner {
 	return nil
 }
 
+type FindRunnerByIDRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FindRunnerByIDRequest) Reset() {
+	*x = FindRunnerByIDRequest{}
+	mi := &file_etask_runner_v1_runner_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FindRunnerByIDRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FindRunnerByIDRequest) ProtoMessage() {}
+
+func (x *FindRunnerByIDRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_runner_v1_runner_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FindRunnerByIDRequest.ProtoReflect.Descriptor instead.
+func (*FindRunnerByIDRequest) Descriptor() ([]byte, []int) {
+	return file_etask_runner_v1_runner_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FindRunnerByIDRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type FindRunnerByIDResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Runner        *Runner                `protobuf:"bytes,1,opt,name=runner,proto3" json:"runner,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FindRunnerByIDResponse) Reset() {
+	*x = FindRunnerByIDResponse{}
+	mi := &file_etask_runner_v1_runner_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FindRunnerByIDResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FindRunnerByIDResponse) ProtoMessage() {}
+
+func (x *FindRunnerByIDResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_etask_runner_v1_runner_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FindRunnerByIDResponse.ProtoReflect.Descriptor instead.
+func (*FindRunnerByIDResponse) Descriptor() ([]byte, []int) {
+	return file_etask_runner_v1_runner_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *FindRunnerByIDResponse) GetRunner() *Runner {
+	if x != nil {
+		return x.Runner
+	}
+	return nil
+}
+
 var File_etask_runner_v1_runner_proto protoreflect.FileDescriptor
 
 const file_etask_runner_v1_runner_proto_rawDesc = "" +
@@ -347,9 +435,14 @@ const file_etask_runner_v1_runner_proto_rawDesc = "" +
 	"codebookId\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\"W\n" +
 	"$FindRunnerByCodebookIdAndTagResponse\x12/\n" +
-	"\x06runner\x18\x01 \x01(\v2\x17.etask.runner.v1.RunnerR\x06runner2\x9d\x01\n" +
+	"\x06runner\x18\x01 \x01(\v2\x17.etask.runner.v1.RunnerR\x06runner\"'\n" +
+	"\x15FindRunnerByIDRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"I\n" +
+	"\x16FindRunnerByIDResponse\x12/\n" +
+	"\x06runner\x18\x01 \x01(\v2\x17.etask.runner.v1.RunnerR\x06runner2\x80\x02\n" +
 	"\rRunnerService\x12\x8b\x01\n" +
-	"\x1cFindRunnerByCodebookIdAndTag\x124.etask.runner.v1.FindRunnerByCodebookIdAndTagRequest\x1a5.etask.runner.v1.FindRunnerByCodebookIdAndTagResponseB\xc2\x01\n" +
+	"\x1cFindRunnerByCodebookIdAndTag\x124.etask.runner.v1.FindRunnerByCodebookIdAndTagRequest\x1a5.etask.runner.v1.FindRunnerByCodebookIdAndTagResponse\x12a\n" +
+	"\x0eFindRunnerByID\x12&.etask.runner.v1.FindRunnerByIDRequest\x1a'.etask.runner.v1.FindRunnerByIDResponseB\xc2\x01\n" +
 	"\x13com.etask.runner.v1B\vRunnerProtoP\x01Z@github.com/Duke1616/etask/api/proto/gen/etask/runner/v1;runnerv1\xa2\x02\x03ERX\xaa\x02\x0fEtask.Runner.V1\xca\x02\x0fEtask\\Runner\\V1\xe2\x02\x1bEtask\\Runner\\V1\\GPBMetadata\xea\x02\x11Etask::Runner::V1b\x06proto3"
 
 var (
@@ -364,23 +457,28 @@ func file_etask_runner_v1_runner_proto_rawDescGZIP() []byte {
 	return file_etask_runner_v1_runner_proto_rawDescData
 }
 
-var file_etask_runner_v1_runner_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_etask_runner_v1_runner_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_etask_runner_v1_runner_proto_goTypes = []any{
 	(*Variable)(nil), // 0: etask.runner.v1.Variable
 	(*Runner)(nil),   // 1: etask.runner.v1.Runner
 	(*FindRunnerByCodebookIdAndTagRequest)(nil),  // 2: etask.runner.v1.FindRunnerByCodebookIdAndTagRequest
 	(*FindRunnerByCodebookIdAndTagResponse)(nil), // 3: etask.runner.v1.FindRunnerByCodebookIdAndTagResponse
+	(*FindRunnerByIDRequest)(nil),                // 4: etask.runner.v1.FindRunnerByIDRequest
+	(*FindRunnerByIDResponse)(nil),               // 5: etask.runner.v1.FindRunnerByIDResponse
 }
 var file_etask_runner_v1_runner_proto_depIdxs = []int32{
 	0, // 0: etask.runner.v1.Runner.variables:type_name -> etask.runner.v1.Variable
 	1, // 1: etask.runner.v1.FindRunnerByCodebookIdAndTagResponse.runner:type_name -> etask.runner.v1.Runner
-	2, // 2: etask.runner.v1.RunnerService.FindRunnerByCodebookIdAndTag:input_type -> etask.runner.v1.FindRunnerByCodebookIdAndTagRequest
-	3, // 3: etask.runner.v1.RunnerService.FindRunnerByCodebookIdAndTag:output_type -> etask.runner.v1.FindRunnerByCodebookIdAndTagResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // 2: etask.runner.v1.FindRunnerByIDResponse.runner:type_name -> etask.runner.v1.Runner
+	2, // 3: etask.runner.v1.RunnerService.FindRunnerByCodebookIdAndTag:input_type -> etask.runner.v1.FindRunnerByCodebookIdAndTagRequest
+	4, // 4: etask.runner.v1.RunnerService.FindRunnerByID:input_type -> etask.runner.v1.FindRunnerByIDRequest
+	3, // 5: etask.runner.v1.RunnerService.FindRunnerByCodebookIdAndTag:output_type -> etask.runner.v1.FindRunnerByCodebookIdAndTagResponse
+	5, // 6: etask.runner.v1.RunnerService.FindRunnerByID:output_type -> etask.runner.v1.FindRunnerByIDResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_etask_runner_v1_runner_proto_init() }
@@ -394,7 +492,7 @@ func file_etask_runner_v1_runner_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_etask_runner_v1_runner_proto_rawDesc), len(file_etask_runner_v1_runner_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

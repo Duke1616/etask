@@ -40,6 +40,18 @@ func (s *RunnerServer) FindRunnerByCodebookIdAndTag(ctx context.Context, req *ru
 	return &runnerv1.FindRunnerByCodebookIdAndTagResponse{Runner: s.toProto(r)}, nil
 }
 
+// FindRunnerByID 根据执行单元 ID 获取执行单元。
+func (s *RunnerServer) FindRunnerByID(ctx context.Context, req *runnerv1.FindRunnerByIDRequest) (*runnerv1.FindRunnerByIDResponse, error) {
+	r, err := s.svc.FindByID(ctx, req.GetId())
+	if err != nil {
+		s.logger.Error("获取执行单元失败",
+			elog.Int64("runnerID", req.GetId()),
+			elog.FieldErr(err))
+		return nil, status.Errorf(codes.NotFound, "runner not found: %v", err)
+	}
+	return &runnerv1.FindRunnerByIDResponse{Runner: s.toProto(r)}, nil
+}
+
 func (s *RunnerServer) toProto(r domain.Runner) *runnerv1.Runner {
 	return &runnerv1.Runner{
 		Id:             r.ID,

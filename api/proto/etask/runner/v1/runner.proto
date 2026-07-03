@@ -35,6 +35,15 @@ message FindRunnerByCodebookIdAndTagResponse {
   Runner runner = 1;
 }
 
+message FindRunnerByIDRequest {
+  int64 id = 1;
+}
+
+message FindRunnerByIDResponse {
+  Runner runner = 1;
+}
+
 service RunnerService {
   rpc FindRunnerByCodebookIdAndTag(FindRunnerByCodebookIdAndTagRequest) returns (FindRunnerByCodebookIdAndTagResponse);
+  rpc FindRunnerByID(FindRunnerByIDRequest) returns (FindRunnerByIDResponse);
 }
