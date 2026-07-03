@@ -217,7 +217,7 @@ func (repo *codebookRepository) Update(ctx context.Context, req domain.Codebook)
 	entity.Kind = old.Kind
 	entity.Secret = old.Secret
 	entity.CurrentVersionID = old.CurrentVersionID
-	return repo.dao.Update(ctx, entity)
+	return repo.dao.Update(ctx, entity, req.Code)
 }
 
 // CreateVersion 创建代码版本。

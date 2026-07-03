@@ -16,6 +16,7 @@ type UpdateReq struct {
 	ProjectID int64  `json:"project_id"`
 	Name      string `json:"name"`
 	Owner     string `json:"owner"`
+	Code      string `json:"code"`
 	Scope     string `json:"scope"`
 	SortNo    int64  `json:"sort_no"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -130,7 +131,7 @@ type CodebookDAO interface {
 	// GetMaxSortNo 查询指定空间和父节点下最大的排序号。
 	GetMaxSortNo(ctx context.Context, projectID, parentID int64, scope string) (int64, error)
 	// Update 更新代码节点可变字段。
-	Update(ctx context.Context, c Codebook) (int64, error)
+	Update(ctx context.Context, c Codebook, code string) (int64, error)
 	// CreateVersion 创建代码版本。
 	CreateVersion(ctx context.Context, version CodebookVersion) (int64, error)
 	// UseVersion 设置代码节点当前使用版本。
@@ -402,7 +403,7 @@ func (g *GORMCodebookDAO) GetMaxSortNo(ctx context.Context, projectID, parentID 
 }
 
 // Update 更新代码节点可变字段。
-func (g *GORMCodebookDAO) Update(ctx context.Context, c Codebook) (int64, error) {
+func (g *GORMCodebookDAO) Update(ctx context.Context, c Codebook, code string) (int64, error) {
 	now := time.Now().UnixMilli()
 	updates := map[string]any{
 		"tenant_id": c.TenantID,
@@ -413,14 +414,78 @@ func (g *GORMCodebookDAO) Update(ctx context.Context, c Codebook) (int64, error)
 		"sort_no":   c.SortNo,
 		"utime":     now,
 	}
-	res := g.dbWithContext(ctx).Model(&Codebook{}).Where("id = ?", c.ID).Updates(updates)
-	if res.Error != nil {
-		return 0, res.Error
+	var rowsAffected int64
+	err := g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&Codebook{}).Where("id = ?", c.ID).Updates(updates)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		rowsAffected = res.RowsAffected
+
+		if c.Kind != domain.CodebookKindFile.String() || strings.TrimSpace(code) == "" {
+			return nil
+		}
+		return g.updateCurrentVersionCode(ctx, tx, c, code, now)
+	})
+	return rowsAffected, err
+}
+
+func (g *GORMCodebookDAO) updateCurrentVersionCode(ctx context.Context, tx *gorm.DB, c Codebook, code string, now int64) error {
+	var version CodebookVersion
+	if c.CurrentVersionID > 0 {
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND node_id = ?", c.CurrentVersionID, c.ID).
+			First(&version).Error
+		if err == nil {
+			return g.updateVersionCode(tx, version.ID, c.ID, code)
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
 	}
-	if res.RowsAffected == 0 {
-		return 0, gorm.ErrRecordNotFound
+
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("node_id = ?", c.ID).
+		Order("version_no DESC, id DESC").
+		First(&version).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		version = CodebookVersion{
+			NodeID:       c.ID,
+			TenantID:     c.TenantID,
+			Scope:        c.Scope,
+			VersionNo:    1,
+			Code:         code,
+			Hash:         hashCode(code),
+			AuthorUserID: codebookAuthorUserID(ctx),
+			CTime:        now,
+		}
+		if err = tx.Create(&version).Error; err != nil {
+			return err
+		}
+		return tx.Model(&Codebook{}).
+			Where("id = ?", c.ID).
+			Updates(map[string]any{
+				"current_version_id": version.ID,
+				"utime":              now,
+			}).Error
 	}
-	return res.RowsAffected, nil
+	if err != nil {
+		return err
+	}
+
+	return g.updateVersionCode(tx, version.ID, c.ID, code)
+}
+
+func (g *GORMCodebookDAO) updateVersionCode(tx *gorm.DB, versionID, nodeID int64, code string) error {
+	return tx.Model(&CodebookVersion{}).
+		Where("id = ? AND node_id = ?", versionID, nodeID).
+		Updates(map[string]any{
+			"code": code,
+			"hash": hashCode(code),
+		}).Error
 }
 
 // CreateVersion 创建代码版本。

@@ -265,6 +265,7 @@ func (h *Handler) toUpdateDomain(req UpdateReq) domain.Codebook {
 		ProjectID: req.ProjectID,
 		Name:      req.Name,
 		Owner:     req.Owner,
+		Code:      req.Code,
 		Scope:     domain.CodebookScope(req.Scope),
 		SortNo:    req.SortNo,
 	}
