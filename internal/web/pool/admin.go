@@ -44,6 +44,7 @@ func (h *AdminHandler) PrivateRoutes(server *gin.Engine) {
 		Handle(ginx.B[ListPoolsReq](h.ListPools)),
 	)
 	g.POST("/bindings/list", h.Capability("资源池绑定管理列表", "admin_bindings_view").
+		Needs("iam:tenant:view_by_ids").
 		Handle(ginx.B[ListBindingsReq](h.ListBindings)),
 	)
 	g.POST("/bindings/bind", h.Capability("管理绑定资源池", "admin_bind").
