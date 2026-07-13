@@ -8,6 +8,7 @@ import (
 	"github.com/Duke1616/etask/internal/agent/domain"
 	event2 "github.com/Duke1616/etask/internal/agent/event"
 	"github.com/Duke1616/etask/internal/agent/service"
+	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
 	"github.com/ecodeclub/mq-api"
@@ -18,10 +19,11 @@ import (
 )
 
 type Instance struct {
-	Name        string `yaml:"name" json:"name"`                 // 实例名称
-	Desc        string `yaml:"desc" json:"desc"`                 // 注解
-	Topic       string `yaml:"topic" json:"topic"`               // 建立 Topic 通道
-	WorkerCount int    `yaml:"worker_count" json:"worker_count"` // 并发工作协程数量
+	Name           string `yaml:"name" json:"name"`                       // 实例名称
+	Desc           string `yaml:"desc" json:"desc"`                       // 注解
+	Topic          string `yaml:"topic" json:"topic"`                     // 建立 Topic 通道
+	WorkerCount    int    `yaml:"worker_count" json:"worker_count"`       // 并发工作协程数量
+	IsolationLevel string `yaml:"isolation_level" json:"isolation_level"` // 资源池隔离级别: SHARED 或 DEDICATED
 }
 
 var ProviderSet = wire.NewSet(
@@ -69,6 +71,7 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event2.TaskExecu
 			"desc":               cfg.Desc,
 			"topic":              cfg.Topic,
 			"supported_handlers": string(handlerMetas),
+			"isolation_level":    cfg.IsolationLevel,
 		},
 	}
 

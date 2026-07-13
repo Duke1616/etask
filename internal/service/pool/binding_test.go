@@ -171,6 +171,46 @@ func TestBindingServiceBindManyRejectsUnsupportedHandler(t *testing.T) {
 	}
 }
 
+func TestBindingServiceBindManyRejectsDedicatedPoolOccupiedByAnotherTenant(t *testing.T) {
+	bindingRepo := newFakeBindingRepo()
+	bindingRepo.occupiedPoolNames = map[string]bool{"dedicated": true}
+	svc := NewBindingService(&fakePoolRepo{pools: map[string]domain.ExecutionPool{
+		"dedicated": {
+			Name:           "dedicated",
+			Status:         domain.ExecutionPoolStatusEnabled,
+			IsolationLevel: domain.ExecutionPoolIsolationDedicated,
+		},
+	}}, bindingRepo)
+
+	err := svc.BindMany(context.Background(), BindingManyRequest{
+		TenantID:     2,
+		PoolName:     "dedicated",
+		HandlerNames: []string{"*"},
+	})
+	if !errors.Is(err, errs.ErrInvalidParameter) {
+		t.Fatalf("BindMany() error = %v, want invalid parameter", err)
+	}
+}
+
+func TestBindingServiceBindManyIsAtomic(t *testing.T) {
+	bindingRepo := newFakeBindingRepo()
+	bindingRepo.batchErr = errors.New("database unavailable")
+	svc := NewBindingService(&fakePoolRepo{pools: map[string]domain.ExecutionPool{
+		"default": enabledPool("default"),
+	}}, bindingRepo)
+
+	err := svc.BindMany(context.Background(), BindingManyRequest{
+		PoolName:     "default",
+		HandlerNames: []string{"run", "stop"},
+	})
+	if err == nil {
+		t.Fatal("BindMany() error = nil, want error")
+	}
+	if len(bindingRepo.bindings) != 0 {
+		t.Fatalf("len(bindings) = %d, want 0", len(bindingRepo.bindings))
+	}
+}
+
 func TestBindingServiceIsAllowedByExactBinding(t *testing.T) {
 	svc := newTestBindingService(
 		map[string]domain.ExecutionPool{"default": enabledPool("default")},
@@ -419,8 +459,10 @@ type bindingKey struct {
 }
 
 type fakeBindingRepo struct {
-	bindings  map[bindingKey]domain.ExecutionPoolBinding
-	poolNames []string
+	bindings          map[bindingKey]domain.ExecutionPoolBinding
+	poolNames         []string
+	occupiedPoolNames map[string]bool
+	batchErr          error
 }
 
 func newFakeBindingRepo() *fakeBindingRepo {
@@ -447,6 +489,24 @@ func (f *fakeBindingRepo) Create(_ context.Context, binding domain.ExecutionPool
 	}
 	binding.HandlerName = key.handlerName
 	f.bindings[key] = binding
+	return nil
+}
+
+func (f *fakeBindingRepo) CreateBatch(ctx context.Context, bindings []domain.ExecutionPoolBinding) error {
+	if f.batchErr != nil {
+		return f.batchErr
+	}
+	for _, binding := range bindings {
+		key := bindingKey{poolName: binding.PoolName, handlerName: domain.NormalizeExecutionPoolHandlerName(binding.HandlerName)}
+		if _, ok := f.bindings[key]; ok {
+			return errs.ErrInvalidParameter
+		}
+	}
+	for _, binding := range bindings {
+		if err := f.Create(ctx, binding); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -496,6 +556,18 @@ func (f *fakeBindingRepo) FindEffective(
 		return binding, err
 	}
 	return f.Find(ctx, poolName, "")
+}
+
+func (f *fakeBindingRepo) CreateDedicatedBatch(
+	ctx context.Context,
+	_ int64,
+	poolName string,
+	bindings []domain.ExecutionPoolBinding,
+) (bool, error) {
+	if f.occupiedPoolNames[poolName] {
+		return true, nil
+	}
+	return false, f.CreateBatch(ctx, bindings)
 }
 
 func (f *fakeBindingRepo) List(context.Context, domain.ExecutionPoolBindingStatus) ([]domain.ExecutionPoolBinding, error) {

@@ -58,6 +58,8 @@ type CatalogService interface {
 	ListPools(ctx context.Context, req PoolListRequest) (PoolPage, error)
 	// ListNodes 查询资源池当前在线节点。
 	ListNodes(ctx context.Context, pool domain.ExecutionPool) ([]Node, error)
+	// ListNodesForPools 批量查询资源池当前在线节点。
+	ListNodesForPools(ctx context.Context, pools []domain.ExecutionPool) (map[string][]Node, error)
 }
 
 type catalogService struct {

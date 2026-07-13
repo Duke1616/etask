@@ -76,7 +76,7 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 		AppSet,
 		ProducerSet,
 		// 从 Base 中提取依赖
-		wire.FieldsOf(new(*Base), "Registry", "MQ", "Etcd"),
+		wire.FieldsOf(new(*Base), "Registry", "MQ"),
 	)
 	return nil
 }

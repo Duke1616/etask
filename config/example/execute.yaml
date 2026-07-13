@@ -13,6 +13,8 @@ executor:
   mode: "PULL"
   # 执行器集群功能描述。
   desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
+  # 资源池隔离级别：SHARED（默认）或 DEDICATED（仅可授权一个租户）。
+  isolation_level: "SHARED"
 
 etcd:
   endpoints:

@@ -73,6 +73,10 @@ type ExecutionPoolDAO interface {
 type ExecutionPoolBindingDAO interface {
 	// Create 为当前上下文租户创建执行资源池绑定，tenant_id 由 GORM 租户插件自动填充。
 	Create(ctx context.Context, binding ExecutionPoolBinding) (int64, error)
+	// CreateBatch 原子创建当前上下文租户的一组资源池绑定。
+	CreateBatch(ctx context.Context, bindings []ExecutionPoolBinding) error
+	// CreateDedicatedBatch 原子检查并创建专属资源池绑定；occupied 为 true 表示已被其他租户占用。
+	CreateDedicatedBatch(ctx context.Context, tenantID int64, poolName string, bindings []ExecutionPoolBinding) (occupied bool, err error)
 	// Upsert 为当前上下文租户创建或更新执行资源池绑定。
 	Upsert(ctx context.Context, binding ExecutionPoolBinding) error
 	// SetStatus 更新当前上下文租户下指定资源池绑定的启停状态。
@@ -248,6 +252,62 @@ func (g *GORMExecutionPoolBindingDAO) Create(ctx context.Context, binding Execut
 	}
 	err := g.db.WithContext(ctx).Create(&binding).Error
 	return binding.ID, err
+}
+
+func (g *GORMExecutionPoolBindingDAO) CreateBatch(ctx context.Context, bindings []ExecutionPoolBinding) error {
+	if len(bindings) == 0 {
+		return nil
+	}
+	now := time.Now().UnixMilli()
+	for i := range bindings {
+		bindings[i].CTime, bindings[i].UTime = now, now
+		if bindings[i].Status == "" {
+			bindings[i].Status = domain.ExecutionPoolBindingStatusEnabled.String()
+		}
+	}
+	return g.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return tx.Create(&bindings).Error
+	})
+}
+
+func (g *GORMExecutionPoolBindingDAO) CreateDedicatedBatch(
+	ctx context.Context,
+	tenantID int64,
+	poolName string,
+	bindings []ExecutionPoolBinding,
+) (bool, error) {
+	if len(bindings) == 0 {
+		return false, nil
+	}
+	now := time.Now().UnixMilli()
+	for i := range bindings {
+		bindings[i].TenantID = tenantID
+		bindings[i].CTime, bindings[i].UTime = now, now
+		if bindings[i].Status == "" {
+			bindings[i].Status = domain.ExecutionPoolBindingStatusEnabled.String()
+		}
+	}
+
+	var occupied bool
+	err := g.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 对 pool 行加锁，使“检查其他租户 + 创建绑定”对同一资源池串行化。
+		var pool ExecutionPool
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("name = ?", poolName).First(&pool).Error; err != nil {
+			return err
+		}
+		var count int64
+		if err := tx.Model(&ExecutionPoolBinding{}).
+			Where("pool_name = ? AND tenant_id <> ?", poolName, tenantID).
+			Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			occupied = true
+			return nil
+		}
+		return tx.Create(&bindings).Error
+	})
+	return occupied, err
 }
 
 func (g *GORMExecutionPoolBindingDAO) Upsert(ctx context.Context, binding ExecutionPoolBinding) error {

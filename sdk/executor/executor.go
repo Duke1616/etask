@@ -20,10 +20,11 @@ import (
 const RoleName = "executor"
 
 type Config struct {
-	Mode   string // 执行模式: "PUSH" (默认) 或 "PULL"
-	Desc   string // 执行器的全局描述
-	Server grpcpkg.ServerConfig
-	Client grpcpkg.ClientConfig
+	Mode           string // 执行模式: "PUSH" (默认) 或 "PULL"
+	Desc           string // 执行器的全局描述
+	IsolationLevel string // 资源池隔离级别: SHARED (默认) 或 DEDICATED
+	Server         grpcpkg.ServerConfig
+	Client         grpcpkg.ClientConfig
 }
 
 // Executor 极简 Executor 实现
@@ -152,6 +153,7 @@ func (e *Executor) buildMetadata() map[string]any {
 		"desc":               e.config.Desc, // 执行器集群总体功能描述
 		"supported_handlers": string(bytes), // 支持的任务处理器列表
 		"mode":               e.config.Mode, // 执行模式: PUSH 或 PULL，供调度中心感知
+		"isolation_level":    e.config.IsolationLevel,
 	}
 }
 

@@ -13,13 +13,14 @@ type ListResp struct {
 }
 
 type ResourceVO struct {
-	Name     string          `json:"name"`
-	Desc     string          `json:"desc"`
-	Kind     string          `json:"kind"`
-	Mode     string          `json:"mode"`
-	Topic    string          `json:"topic"`
-	Handlers []HandlerDetail `json:"handlers"`
-	Nodes    []NodeDetail    `json:"nodes"`
+	Name           string          `json:"name"`
+	Desc           string          `json:"desc"`
+	Kind           string          `json:"kind"`
+	Mode           string          `json:"mode"`
+	IsolationLevel string          `json:"isolation_level"`
+	Topic          string          `json:"topic"`
+	Handlers       []HandlerDetail `json:"handlers"`
+	Nodes          []NodeDetail    `json:"nodes"`
 }
 
 type NodeDetail struct {

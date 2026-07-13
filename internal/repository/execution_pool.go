@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/Duke1616/eiam/pkg/gormx"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/pkg/sqlx"
@@ -64,6 +65,10 @@ type ExecutionPoolBindingRepository interface {
 	Bind(ctx context.Context, binding domain.ExecutionPoolBinding) error
 	// Create 创建当前上下文租户的资源池绑定；已存在时由唯一索引返回冲突错误。
 	Create(ctx context.Context, binding domain.ExecutionPoolBinding) error
+	// CreateBatch 原子创建当前上下文租户的一组资源池绑定。
+	CreateBatch(ctx context.Context, bindings []domain.ExecutionPoolBinding) error
+	// CreateDedicatedBatch 原子检查并创建专属资源池绑定；occupied 为 true 表示已被其他租户占用。
+	CreateDedicatedBatch(ctx context.Context, tenantID int64, poolName string, bindings []domain.ExecutionPoolBinding) (occupied bool, err error)
 	// Unbind 删除当前上下文租户下指定资源池绑定。
 	Unbind(ctx context.Context, poolName, handlerName string) error
 	// SetStatus 更新当前上下文租户下指定资源池绑定的启停状态。
@@ -230,6 +235,29 @@ func (r *executionPoolBindingRepository) Create(ctx context.Context, binding dom
 	binding.HandlerName = domain.NormalizeExecutionPoolHandlerName(binding.HandlerName)
 	_, err := r.bindingDAO.Create(ctx, r.toDAO(binding))
 	return err
+}
+
+func (r *executionPoolBindingRepository) CreateBatch(ctx context.Context, bindings []domain.ExecutionPoolBinding) error {
+	entities := make([]dao.ExecutionPoolBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		binding.HandlerName = domain.NormalizeExecutionPoolHandlerName(binding.HandlerName)
+		entities = append(entities, r.toDAO(binding))
+	}
+	return r.bindingDAO.CreateBatch(ctx, entities)
+}
+
+func (r *executionPoolBindingRepository) CreateDedicatedBatch(
+	ctx context.Context,
+	tenantID int64,
+	poolName string,
+	bindings []domain.ExecutionPoolBinding,
+) (bool, error) {
+	entities := make([]dao.ExecutionPoolBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		binding.HandlerName = domain.NormalizeExecutionPoolHandlerName(binding.HandlerName)
+		entities = append(entities, r.toDAO(binding))
+	}
+	return r.bindingDAO.CreateDedicatedBatch(gormx.IgnoreTenantContext(ctx), tenantID, poolName, entities)
 }
 
 func (r *executionPoolBindingRepository) Unbind(ctx context.Context, poolName, handlerName string) error {

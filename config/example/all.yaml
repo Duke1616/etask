@@ -9,6 +9,7 @@ agent:
   name: Kafka-Agent # 实例显示名称
   topic: agent_execute # 监听的任务消息队列 Topic
   desc: 异步任务执行代理：负责从消息队列拉取并执行来自调度中心的任务指令 # 描述信息，展示在管理后台
+  isolation_level: "SHARED" # 资源池隔离级别：SHARED 或 DEDICATED
 
 # 执行节点集群配置
 executor:
@@ -22,6 +23,7 @@ executor:
   mode: "PULL"
   # 执行器集群功能描述。
   desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
+  isolation_level: "SHARED" # 资源池隔离级别：SHARED 或 DEDICATED
 
 # 数据库配置 (MySQL)
 mysql:

@@ -53,6 +53,22 @@ func TestBuildExecutorPoolNormalizesMode(t *testing.T) {
 	}
 }
 
+func TestBuildExecutorPoolReadsIsolationLevelFromRegistration(t *testing.T) {
+	pool, ok := buildExecutorPool(registry.ServiceInstance{
+		Name: "dedicated-executor",
+		Metadata: map[string]any{
+			"role":            "executor",
+			"isolation_level": "dedicated",
+		},
+	})
+	if !ok {
+		t.Fatal("buildExecutorPool() returned ok=false")
+	}
+	if pool.IsolationLevel != domain.ExecutionPoolIsolationDedicated {
+		t.Fatalf("IsolationLevel = %s, want %s", pool.IsolationLevel, domain.ExecutionPoolIsolationDedicated)
+	}
+}
+
 func TestBuildExecutorPoolRejectsNonExecutor(t *testing.T) {
 	_, ok := buildExecutorPool(registry.ServiceInstance{
 		Name: "scheduler",

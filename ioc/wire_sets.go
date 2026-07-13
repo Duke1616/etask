@@ -126,7 +126,6 @@ var (
 
 	AgentSet = wire.NewSet(
 		agentSvc.InitModule,
-		wire.FieldsOf(new(*agentSvc.Module), "Hdl"),
 	)
 
 	CompensatorSet = wire.NewSet(

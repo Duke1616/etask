@@ -51,12 +51,13 @@ func (h *Handler) List(ctx *ginx.Context, req ListReq) (ginx.Result, error) {
 	}
 
 	matcher := poolSvc.NewBindingMatcher(page.Bindings)
+	nodesByPool, err := h.catalogSvc.ListNodesForPools(ctx, page.Pools)
+	if err != nil {
+		return systemErrorResult, err
+	}
 	resources := make([]ResourceVO, 0, len(page.Pools))
 	for _, pool := range page.Pools {
-		resource, err := h.toVO(ctx, pool)
-		if err != nil {
-			return systemErrorResult, err
-		}
+		resource := h.toVO(pool, nodesByPool[pool.Name])
 		if len(resource.Handlers) == 0 {
 			if matcher.Allow(pool.Name, "") {
 				resources = append(resources, resource)
@@ -80,20 +81,17 @@ func (h *Handler) List(ctx *ginx.Context, req ListReq) (ginx.Result, error) {
 	}, nil
 }
 
-func (h *Handler) toVO(ctx *ginx.Context, pool domain.ExecutionPool) (ResourceVO, error) {
-	nodes, err := h.catalogSvc.ListNodes(ctx, pool)
-	if err != nil {
-		return ResourceVO{}, err
-	}
+func (h *Handler) toVO(pool domain.ExecutionPool, nodes []poolSvc.Node) ResourceVO {
 	return ResourceVO{
-		Name:     pool.Name,
-		Desc:     pool.Desc,
-		Kind:     pool.Kind.String(),
-		Mode:     pool.Mode.String(),
-		Topic:    pool.Metadata["topic"],
-		Handlers: parseHandlers(pool.Metadata["supported_handlers"]),
-		Nodes:    toNodeDetails(nodes),
-	}, nil
+		Name:           pool.Name,
+		Desc:           pool.Desc,
+		Kind:           pool.Kind.String(),
+		Mode:           pool.Mode.String(),
+		IsolationLevel: pool.IsolationLevel.String(),
+		Topic:          pool.Metadata["topic"],
+		Handlers:       parseHandlers(pool.Metadata["supported_handlers"]),
+		Nodes:          toNodeDetails(nodes),
+	}
 }
 
 func toNodeDetails(nodes []poolSvc.Node) []NodeDetail {

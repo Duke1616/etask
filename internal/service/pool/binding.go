@@ -117,19 +117,28 @@ func (s *bindingService) BindMany(ctx context.Context, req BindingManyRequest) e
 	if err = s.ensureBindingCreatable(ctx, poolName, handlerNames); err != nil {
 		return err
 	}
-
 	desc := strings.TrimSpace(req.Desc)
+	bindings := make([]domain.ExecutionPoolBinding, 0, len(handlerNames))
 	for _, name := range handlerNames {
-		if err = s.bindingRepo.Create(ctx, domain.ExecutionPoolBinding{
+		bindings = append(bindings, domain.ExecutionPoolBinding{
 			PoolName:    poolName,
 			HandlerName: name,
 			Status:      domain.ExecutionPoolBindingStatusEnabled,
 			Desc:        desc,
-		}); err != nil {
+		})
+	}
+	if pool.IsolationLevel == domain.ExecutionPoolIsolationDedicated {
+		tenantID := ctxutil.GetTenantID(ctx).Int64()
+		occupied, err := s.bindingRepo.CreateDedicatedBatch(ctx, tenantID, poolName, bindings)
+		if err != nil {
 			return err
 		}
+		if occupied {
+			return fmt.Errorf("%w: 专属资源池 %s 已被其他租户占用", errs.ErrInvalidParameter, poolName)
+		}
+		return nil
 	}
-	return nil
+	return s.bindingRepo.CreateBatch(ctx, bindings)
 }
 
 func (s *bindingService) Unbind(ctx context.Context, req BindingKey) error {

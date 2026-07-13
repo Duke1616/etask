@@ -34,10 +34,11 @@ func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 	}
 
 	cfg := executor.Config{
-		Mode:   resolveMode(),
-		Desc:   viper.GetString("executor.desc"),
-		Server: resolveServer(serverCfg),
-		Client: clientCfg,
+		Mode:           resolveMode(),
+		Desc:           viper.GetString("executor.desc"),
+		IsolationLevel: viper.GetString("executor.isolation_level"),
+		Server:         resolveServer(serverCfg),
+		Client:         clientCfg,
 	}
 
 	reg := InitExecutorRegistry(etcdClient)

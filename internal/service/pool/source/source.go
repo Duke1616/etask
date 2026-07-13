@@ -31,10 +31,23 @@ func newPool(name string, kind domain.ExecutionPoolKind, mode domain.ExecutionPo
 		Name:           name,
 		Kind:           kind,
 		Mode:           mode,
-		IsolationLevel: domain.ExecutionPoolIsolationShared,
+		IsolationLevel: normalizeIsolationLevel(inst),
 		Desc:           metadataString(inst.Metadata, "desc"),
 		Status:         domain.ExecutionPoolStatusEnabled,
 		Metadata:       metadataColumn(inst),
+	}
+}
+
+// normalizeIsolationLevel 从注册元数据读取资源池隔离级别；缺省时保持向后兼容为 SHARED。
+// 注册协议使用 metadata.isolation_level，支持 SHARED 和 DEDICATED。
+func normalizeIsolationLevel(inst registry.ServiceInstance) domain.ExecutionPoolIsolation {
+	switch strings.ToUpper(metadataString(inst.Metadata, "isolation_level")) {
+	case domain.ExecutionPoolIsolationDedicated.String():
+		return domain.ExecutionPoolIsolationDedicated
+	case domain.ExecutionPoolIsolationShared.String(), "":
+		return domain.ExecutionPoolIsolationShared
+	default:
+		return domain.ExecutionPoolIsolationShared
 	}
 }
 
