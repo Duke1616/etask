@@ -279,7 +279,7 @@ func TestCatalogServiceListAuthorizedPoolsFiltersByPoolState(t *testing.T) {
 	}
 	bindingRepo := newFakeBindingRepo()
 	bindingRepo.poolNames = []string{"agent", "disabled", "executor"}
-	svc := NewCatalogService(poolRepo, bindingRepo)
+	svc := NewCatalogService(poolRepo, bindingRepo, nil)
 
 	page, err := svc.ListAuthorizedPools(context.Background(), CatalogListRequest{
 		Kind:  domain.ExecutionPoolKindExecutor,

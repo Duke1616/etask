@@ -7,6 +7,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/samber/lo"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const defaultCatalogLimit int64 = 10
@@ -43,27 +44,38 @@ type PoolPage struct {
 	Total int64
 }
 
+// Node 描述注册中心里当前在线的资源实例。
+type Node struct {
+	ID      string
+	Address string
+}
+
 // CatalogService 提供当前租户可见执行资源目录。
 type CatalogService interface {
 	// ListAuthorizedPools 分页查询当前租户有权使用的可用资源池。
 	ListAuthorizedPools(ctx context.Context, req CatalogListRequest) (CatalogPage, error)
 	// ListPools 分页查询资源池，供管理端使用。
 	ListPools(ctx context.Context, req PoolListRequest) (PoolPage, error)
+	// ListNodes 查询资源池当前在线节点。
+	ListNodes(ctx context.Context, pool domain.ExecutionPool) ([]Node, error)
 }
 
 type catalogService struct {
 	poolRepo    repository.ExecutionPoolRepository
 	bindingRepo repository.ExecutionPoolBindingRepository
+	etcd        *clientv3.Client
 }
 
 // NewCatalogService 创建执行资源目录服务。
 func NewCatalogService(
 	poolRepo repository.ExecutionPoolRepository,
 	bindingRepo repository.ExecutionPoolBindingRepository,
+	etcd *clientv3.Client,
 ) CatalogService {
 	return &catalogService{
 		poolRepo:    poolRepo,
 		bindingRepo: bindingRepo,
+		etcd:        etcd,
 	}
 }
 

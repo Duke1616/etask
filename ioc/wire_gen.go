@@ -189,7 +189,8 @@ func InitWebModule(base *Base) *WebModule {
 	variableRepository := repository.NewVariableRepository(variableDAO, crypto)
 	variableService := variable.NewService(variableRepository)
 	variableHandler := variable2.NewHandler(variableService)
-	catalogService := pool.NewCatalogService(executionPoolRepository, executionPoolBindingRepository)
+	client := base.Etcd
+	catalogService := pool.NewCatalogService(executionPoolRepository, executionPoolBindingRepository, client)
 	adminHandler := pool2.NewAdminHandler(bindingService, catalogService)
 	resourceHandler := resource.NewHandler(catalogService)
 	listener := InitListener()

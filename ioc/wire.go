@@ -76,7 +76,7 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 		AppSet,
 		ProducerSet,
 		// 从 Base 中提取依赖
-		wire.FieldsOf(new(*Base), "Registry", "MQ"),
+		wire.FieldsOf(new(*Base), "Registry", "MQ", "Etcd"),
 	)
 	return nil
 }
@@ -96,7 +96,7 @@ func InitWebModule(base *Base) *WebModule {
 		InitNodeID,
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
-		wire.FieldsOf(new(*Base), "Registry", "MQ"),
+		wire.FieldsOf(new(*Base), "Registry", "MQ", "Etcd"),
 		wire.Struct(new(WebModule), "*"),
 	)
 	return nil
