@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/Duke1616/etask/internal/agent/domain"
@@ -22,14 +20,10 @@ type Service interface {
 
 	// ListHandlers 列出支持的任务处理器详情
 	ListHandlers() []executor.HandlerMeta
-
-	// ListAgents 列出在线代理节点
-	ListAgents(ctx context.Context, limit int64, cursor string, keyword string) (domain.AgentList, error)
 }
 
 type service struct {
 	mq       mq.MQ
-	reg      registry.Registry
 	registry *executor.HandlerRegistry
 	logger   *elog.Component
 }
@@ -38,10 +32,9 @@ func (s *service) ListHandlers() []executor.HandlerMeta {
 	return s.registry.ListMetas()
 }
 
-func NewService(mq mq.MQ, reg registry.Registry) Service {
+func NewService(mq mq.MQ, _ registry.Registry) Service {
 	s := &service{
 		mq:       mq,
-		reg:      reg,
 		registry: executor.NewHandlerRegistry(),
 		logger:   elog.DefaultLogger.With(elog.FieldComponentName("execute.service")),
 	}
@@ -52,150 +45,6 @@ func NewService(mq mq.MQ, reg registry.Registry) Service {
 
 func (s *service) registerHandler(handlers ...executor.TaskHandler) {
 	s.registry.Register(handlers...)
-}
-
-func (s *service) ListAgents(ctx context.Context, limit int64, cursor string, keyword string) (domain.AgentList, error) {
-	instances, err := s.reg.ListServices(ctx, domain.ServiceName)
-	if err != nil {
-		return domain.AgentList{}, err
-	}
-	agents := s.groupAgents(instances)
-	agents = s.filterAgents(agents, strings.TrimSpace(keyword))
-	return s.pageAgents(agents, normalizeLimit(limit), cursor), nil
-}
-
-func (s *service) groupAgents(instances []registry.ServiceInstance) []domain.Agent {
-	type aggregate struct {
-		desc     string
-		topic    string
-		handlers []domain.HandlerDetail
-		nodes    []domain.NodeDetail
-	}
-
-	grouped := make(map[string]*aggregate)
-	for _, inst := range instances {
-		if inst.Metadata == nil {
-			continue
-		}
-
-		agentName := s.getStringMetadata(inst.Metadata, "name")
-		if agentName == "" {
-			agentName = inst.Name
-		}
-
-		agg, exists := grouped[agentName]
-		if !exists {
-			agg = &aggregate{
-				desc:     s.getStringMetadata(inst.Metadata, "desc"),
-				topic:    s.getStringMetadata(inst.Metadata, "topic"),
-				handlers: s.parseHandlers(inst.Metadata["supported_handlers"]),
-			}
-			grouped[agentName] = agg
-		}
-
-		agg.nodes = append(agg.nodes, domain.NodeDetail{
-			ID:      inst.ID,
-			Address: inst.Address,
-		})
-	}
-
-	agents := make([]domain.Agent, 0, len(grouped))
-	for name, agg := range grouped {
-		agents = append(agents, domain.Agent{
-			Name:     name,
-			Desc:     agg.desc,
-			Topic:    agg.topic,
-			Handlers: agg.handlers,
-			Nodes:    agg.nodes,
-		})
-	}
-	return agents
-}
-
-func (s *service) filterAgents(agents []domain.Agent, keyword string) []domain.Agent {
-	if keyword == "" {
-		return agents
-	}
-	keyword = strings.ToLower(keyword)
-	res := make([]domain.Agent, 0, len(agents))
-	for _, agent := range agents {
-		if s.matchAgent(agent, keyword) {
-			res = append(res, agent)
-		}
-	}
-	return res
-}
-
-func (s *service) matchAgent(agent domain.Agent, keyword string) bool {
-	if strings.Contains(strings.ToLower(agent.Name), keyword) ||
-		strings.Contains(strings.ToLower(agent.Desc), keyword) ||
-		strings.Contains(strings.ToLower(agent.Topic), keyword) {
-		return true
-	}
-	for _, handler := range agent.Handlers {
-		if strings.Contains(strings.ToLower(handler.Name), keyword) ||
-			strings.Contains(strings.ToLower(handler.Desc), keyword) {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *service) pageAgents(agents []domain.Agent, limit int64, cursor string) domain.AgentList {
-	sort.Slice(agents, func(i, j int) bool {
-		return agents[i].Name < agents[j].Name
-	})
-
-	start := 0
-	if cursor != "" {
-		start = sort.Search(len(agents), func(i int) bool {
-			return agents[i].Name > cursor
-		})
-	}
-
-	end := start + int(limit)
-	if end > len(agents) {
-		end = len(agents)
-	}
-
-	nextCursor := ""
-	if end < len(agents) && end > start {
-		nextCursor = agents[end-1].Name
-	}
-
-	return domain.AgentList{
-		Agents:     agents[start:end],
-		NextCursor: nextCursor,
-	}
-}
-
-func normalizeLimit(limit int64) int64 {
-	if limit <= 0 {
-		return 20
-	}
-	return limit
-}
-
-func (s *service) getStringMetadata(metadata map[string]any, key string) string {
-	v, ok := metadata[key]
-	if !ok {
-		return ""
-	}
-	res, _ := v.(string)
-	return res
-}
-
-func (s *service) parseHandlers(data any) []domain.HandlerDetail {
-	str, ok := data.(string)
-	if !ok || str == "" {
-		return nil
-	}
-
-	var handlers []domain.HandlerDetail
-	if err := json.Unmarshal([]byte(str), &handlers); err != nil {
-		return nil
-	}
-	return handlers
 }
 
 func (s *service) Receive(ctx context.Context, req domain.ExecuteReceive) (string, string, domain.Status, error) {

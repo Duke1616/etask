@@ -5,7 +5,6 @@ import (
 
 	"github.com/Duke1616/etask/internal/agent/event"
 	"github.com/Duke1616/etask/internal/agent/service"
-	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/gotomicro/ego/core/constant"
 	"github.com/gotomicro/ego/server"
 )
@@ -17,7 +16,6 @@ type Consumer interface {
 
 type Module struct {
 	Svc    service.Service
-	Hdl    *web.Handler
 	C      *event.ExecuteConsumer
 	ctx    context.Context
 	cancel context.CancelFunc

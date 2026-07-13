@@ -15,30 +15,6 @@ const (
 	FAILED Status = 2
 )
 
-type AgentList struct {
-	Agents     []Agent
-	NextCursor string
-}
-
-type Agent struct {
-	Name     string
-	Desc     string
-	Topic    string
-	Status   Status
-	Handlers []HandlerDetail
-	Nodes    []NodeDetail
-}
-
-type NodeDetail struct {
-	ID      string
-	Address string
-}
-
-type HandlerDetail struct {
-	Name string
-	Desc string
-}
-
 type ExecuteReceive struct {
 	TaskId    int64  // 任务ID
 	Language  string // 使用语言

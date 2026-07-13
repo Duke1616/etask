@@ -8,6 +8,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/repository"
+	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -39,20 +40,27 @@ type Service interface {
 	Stop(ctx context.Context, id int64) error
 	// Run 运行任务（从停止状态恢复）。一次性任务可传入 cronExpr 修改下次执行时间。
 	Run(ctx context.Context, id int64, cronExpr string) error
+	// AuthorizeExecutionPool 校验任务是否被授权使用配置的执行资源池。
+	AuthorizeExecutionPool(ctx context.Context, task domain.Task) error
 }
 
 type service struct {
-	repo repository.TaskRepository
+	repo       repository.TaskRepository
+	bindingSvc poolSvc.BindingService
 }
 
 // NewService 创建任务服务实例
-func NewService(repo repository.TaskRepository) Service {
+func NewService(repo repository.TaskRepository, bindingSvc poolSvc.BindingService) Service {
 	return &service{
-		repo: repo,
+		repo:       repo,
+		bindingSvc: bindingSvc,
 	}
 }
 
 func (s *service) Create(ctx context.Context, task domain.Task) (domain.Task, error) {
+	if err := s.AuthorizeExecutionPool(ctx, task); err != nil {
+		return domain.Task{}, err
+	}
 	if err := s.setNextScheduleTime(&task); err != nil {
 		return domain.Task{}, err
 	}
@@ -125,6 +133,9 @@ func (s *service) retry(ctx context.Context, task domain.Task) (domain.Task, err
 	if task.Status == domain.TaskStatusPreempted {
 		return domain.Task{}, fmt.Errorf("任务正在运行中，请等结束后再重试")
 	}
+	if err := s.AuthorizeExecutionPool(ctx, task); err != nil {
+		return domain.Task{}, err
+	}
 
 	// 重置为立即执行
 	return s.repo.Retry(ctx, task.ID, task.Version, time.Now().UnixMilli())
@@ -156,6 +167,12 @@ func (s *service) Update(ctx context.Context, task domain.Task) error {
 	// 1. 获取原任务信息用于比对
 	oldTask, err := s.repo.GetByID(ctx, task.ID)
 	if err != nil {
+		return err
+	}
+	if task.TenantID == 0 {
+		task.TenantID = oldTask.TenantID
+	}
+	if err = s.AuthorizeExecutionPool(ctx, task); err != nil {
 		return err
 	}
 
@@ -207,11 +224,15 @@ func (s *service) Stop(ctx context.Context, id int64) error {
 }
 
 func (s *service) Run(ctx context.Context, id int64, cronExpr string) error {
+	task, err := s.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err = s.AuthorizeExecutionPool(ctx, task); err != nil {
+		return err
+	}
+
 	if cronExpr != "" {
-		task, err := s.GetByID(ctx, id)
-		if err != nil {
-			return err
-		}
 		if !task.Type.IsOneTime() {
 			return fmt.Errorf("只有一次性任务支持传递执行时间表达式")
 		}
@@ -229,6 +250,29 @@ func (s *service) Run(ctx context.Context, id int64, cronExpr string) error {
 		}
 	}
 
-	_, err := s.repo.UpdateStatus(ctx, id, domain.TaskStatusActive)
+	_, err = s.repo.UpdateStatus(ctx, id, domain.TaskStatusActive)
 	return err
+}
+
+func (s *service) AuthorizeExecutionPool(ctx context.Context, task domain.Task) error {
+	if task.GrpcConfig == nil || s.bindingSvc == nil {
+		return nil
+	}
+
+	allowed, err := s.bindingSvc.IsAllowed(ctx, poolSvc.CheckBindingRequest{
+		TenantID:    task.TenantID,
+		PoolName:    task.GrpcConfig.ServiceName,
+		HandlerName: task.GrpcConfig.HandlerName,
+	})
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return fmt.Errorf("%w: pool=%s handler=%s",
+			errs.ErrExecutionPoolNotAllowed,
+			task.GrpcConfig.ServiceName,
+			task.GrpcConfig.HandlerName,
+		)
+	}
+	return nil
 }

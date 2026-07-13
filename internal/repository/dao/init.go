@@ -10,6 +10,8 @@ func InitTables(db *gorm.DB) error {
 		&CodebookVersion{},
 		&Runner{},
 		&Variable{},
+		&ExecutionPool{},
+		&ExecutionPoolBinding{},
 		&TaskExecution{},
 		&TaskExecutionLog{},
 	)

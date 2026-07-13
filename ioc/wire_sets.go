@@ -6,14 +6,15 @@ import (
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	codebookSvc "github.com/Duke1616/etask/internal/service/codebook"
-	executorSvc "github.com/Duke1616/etask/internal/service/executor"
+	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	taskBinding "github.com/Duke1616/etask/internal/service/task/binding"
 	variableSvc "github.com/Duke1616/etask/internal/service/variable"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
-	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
+	poolWeb "github.com/Duke1616/etask/internal/web/pool"
+	resourceWeb "github.com/Duke1616/etask/internal/web/resource"
 	runnerWeb "github.com/Duke1616/etask/internal/web/runner"
 	variableWeb "github.com/Duke1616/etask/internal/web/variable"
 	"github.com/google/wire"
@@ -85,9 +86,27 @@ var (
 		taskBinding.NewScriptBindingResolvers,
 	)
 
+	ExecutionPoolCoreSet = wire.NewSet(
+		dao.NewGORMExecutionPoolDAO,
+		dao.NewGORMExecutionPoolBindingDAO,
+		repository.NewExecutionPoolRepository,
+		repository.NewExecutionPoolBindingRepository,
+	)
+
+	ExecutionPoolBindingSet = wire.NewSet(
+		ExecutionPoolCoreSet,
+		poolSvc.NewBindingService,
+		poolSvc.NewCatalogService,
+		poolWeb.NewAdminHandler,
+	)
+
+	ExecutionPoolSet = wire.NewSet(
+		ExecutionPoolBindingSet,
+		poolSvc.NewSyncer,
+	)
+
 	ExecutorSet = wire.NewSet(
-		executorSvc.NewService,
-		executor.NewHandler,
+		resourceWeb.NewHandler,
 	)
 
 	TaskExecutionSet = wire.NewSet(
@@ -108,11 +127,6 @@ var (
 	AgentSet = wire.NewSet(
 		agentSvc.InitModule,
 		wire.FieldsOf(new(*agentSvc.Module), "Hdl"),
-	)
-
-	// AgentWebSet 专门用于 Scheduler 等只需要查看 Agent 状态而不运行 Agent 的场景
-	AgentWebSet = wire.NewSet(
-		agentSvc.InitWebHandler,
 	)
 
 	CompensatorSet = wire.NewSet(

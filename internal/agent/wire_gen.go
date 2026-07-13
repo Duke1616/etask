@@ -11,7 +11,6 @@ import (
 	"github.com/Duke1616/etask/internal/agent/domain"
 	"github.com/Duke1616/etask/internal/agent/event"
 	"github.com/Duke1616/etask/internal/agent/service"
-	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
 	"github.com/ecodeclub/mq-api"
@@ -28,11 +27,9 @@ func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
 	serviceService := service.NewService(q, registry)
 	taskExecuteResultProducer := initExecuteProducer(q)
 	executeConsumer := initExecuteConsumer(q, serviceService, taskExecuteResultProducer, registry)
-	handler := web.NewHandler(serviceService)
 	module := &Module{
 		Svc: serviceService,
 		C:   executeConsumer,
-		Hdl: handler,
 	}
 	return module
 }
@@ -49,12 +46,6 @@ type Instance struct {
 var ProviderSet = wire.NewSet(
 	InitRegistry, service.NewService,
 )
-
-func InitWebHandler(q mq.MQ, etcdClient *clientv3.Client) *web.Handler {
-	reg := InitRegistry(etcdClient)
-	svc := service.NewService(q, reg)
-	return web.NewHandler(svc)
-}
 
 func initExecuteProducer(q mq.MQ) event.TaskExecuteResultProducer {
 	producer, err := event.NewExecuteResultEventProducer(q)

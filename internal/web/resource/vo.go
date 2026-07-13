@@ -1,21 +1,23 @@
-package executor
+package resource
 
-type ListExecutorsReq struct {
+type ListReq struct {
+	Offset  int64  `form:"offset"`
 	Limit   int64  `form:"limit"`
-	Cursor  string `form:"cursor"`
 	Keyword string `form:"keyword"`
+	Kind    string `form:"kind"`
 }
 
-type ListExecutorsResp struct {
-	Executors  []ExecutorVO `json:"executors"`
-	NextCursor string       `json:"next_cursor,omitempty"`
-	HasMore    bool         `json:"has_more"`
+type ListResp struct {
+	Resources []ResourceVO `json:"resources"`
+	Total     int64        `json:"total"`
 }
 
-type ExecutorVO struct {
+type ResourceVO struct {
 	Name     string          `json:"name"`
 	Desc     string          `json:"desc"`
+	Kind     string          `json:"kind"`
 	Mode     string          `json:"mode"`
+	Topic    string          `json:"topic"`
 	Handlers []HandlerDetail `json:"handlers"`
 	Nodes    []NodeDetail    `json:"nodes"`
 }

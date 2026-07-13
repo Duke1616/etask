@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"github.com/Duke1616/etask/internal/compensator"
+	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 )
 
 func InitTasks(
@@ -9,11 +10,13 @@ func InitTasks(
 	t2 *compensator.RescheduleCompensator,
 	t3 *compensator.InterruptCompensator,
 	t4 *CompleteConsumer,
+	t5 *poolSvc.Syncer,
 ) []Task {
 	return []Task{
 		t1,
 		t2,
 		t3,
 		t4,
+		t5,
 	}
 }

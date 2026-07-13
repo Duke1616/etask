@@ -8,7 +8,6 @@ import (
 	"github.com/Duke1616/etask/internal/agent/domain"
 	event2 "github.com/Duke1616/etask/internal/agent/event"
 	"github.com/Duke1616/etask/internal/agent/service"
-	"github.com/Duke1616/etask/internal/agent/web"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
 	"github.com/ecodeclub/mq-api"
@@ -29,21 +28,14 @@ var ProviderSet = wire.NewSet(
 	InitRegistry,
 	service.NewService)
 
-func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
+func InitModule(q mq.MQ, etcdClient *clientv3.Client, catalogSvc poolSvc.CatalogService) *Module {
 	wire.Build(
 		ProviderSet,
-		web.NewHandler,
 		initExecuteConsumer,
 		initExecuteProducer,
-		wire.Struct(new(Module), "Svc", "C", "Hdl"),
+		wire.Struct(new(Module), "Svc", "C"),
 	)
 	return new(Module)
-}
-
-func InitWebHandler(q mq.MQ, etcdClient *clientv3.Client) *web.Handler {
-	reg := InitRegistry(etcdClient)
-	svc := service.NewService(q, reg)
-	return web.NewHandler(svc)
 }
 
 func initExecuteProducer(q mq.MQ) event2.TaskExecuteResultProducer {

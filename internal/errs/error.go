@@ -3,7 +3,7 @@ package errs
 import "errors"
 
 var (
-	ErrInvalidParameter             = errors.New("参数非法")
+	ErrInvalidParameter               = errors.New("参数非法")
 	ErrTaskPreemptFailed              = errors.New("任务抢占失败")
 	ErrTaskRenewFailed                = errors.New("任务续约失败")
 	ErrTaskReleaseFailed              = errors.New("任务释放失败")
@@ -34,4 +34,6 @@ var (
 	ErrExceedLimit    = errors.New("抢资源超出限制")
 
 	ErrTaskNameDuplicate = errors.New("任务名称重复")
+
+	ErrExecutionPoolNotAllowed = errors.New("未授权使用执行资源池")
 )

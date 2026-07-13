@@ -8,10 +8,10 @@ import (
 	"github.com/Duke1616/eiam/pkg/web/capability"
 	"github.com/Duke1616/eiam/pkg/web/middleware"
 	"github.com/Duke1616/eiam/pkg/web/sdk"
-	"github.com/Duke1616/etask/internal/agent/web"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
-	"github.com/Duke1616/etask/internal/web/executor"
 	"github.com/Duke1616/etask/internal/web/manager"
+	poolWeb "github.com/Duke1616/etask/internal/web/pool"
+	resourceWeb "github.com/Duke1616/etask/internal/web/resource"
 	runnerWeb "github.com/Duke1616/etask/internal/web/runner"
 	variableWeb "github.com/Duke1616/etask/internal/web/variable"
 	"github.com/gin-gonic/gin"
@@ -25,7 +25,8 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	syncer capability.Syncer, providers []capability.PermissionProvider,
 	taskHdl *manager.Handler, codebookHdl *codebookWeb.Handler,
 	runnerHdl *runnerWeb.Handler, variableHdl *variableWeb.Handler,
-	executorHdl *executor.Handler, agentHdl *web.Handler, listener net.Listener) *egin.Component {
+	poolAdminHdl *poolWeb.AdminHandler,
+	resourceHdl *resourceWeb.Handler, listener net.Listener) *egin.Component {
 
 	server := egin.Load("server.egin").Build(egin.WithListener(listener))
 	// 开启 ContextWithFallback：使 ctx.Context.Value() 自动 fallback 到 ctx.Request.Context().Value()
@@ -37,8 +38,8 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	codebookHdl.PublicRoutes(server.Engine)
 	runnerHdl.PublicRoutes(server.Engine)
 	variableHdl.PublicRoutes(server.Engine)
-	executorHdl.PublicRoutes(server.Engine)
-	agentHdl.PublicRoutes(server.Engine)
+	poolAdminHdl.PublicRoutes(server.Engine)
+	resourceHdl.PublicRoutes(server.Engine)
 
 	// 登录检查
 	server.Use(sdk.CheckLogin())
@@ -48,6 +49,8 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	codebookHdl.IdentifyRoutes(server.Engine)
 	runnerHdl.IdentifyRoutes(server.Engine)
 	variableHdl.IdentifyRoutes(server.Engine)
+	poolAdminHdl.IdentifyRoutes(server.Engine)
+	resourceHdl.IdentifyRoutes(server.Engine)
 
 	// 权限策略检查
 	server.Use(sdk.CheckPolicy())
@@ -57,8 +60,8 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	codebookHdl.PrivateRoutes(server.Engine)
 	runnerHdl.PrivateRoutes(server.Engine)
 	variableHdl.PrivateRoutes(server.Engine)
-	executorHdl.PrivateRoutes(server.Engine)
-	agentHdl.PrivateRoutes(server.Engine)
+	poolAdminHdl.PrivateRoutes(server.Engine)
+	resourceHdl.PrivateRoutes(server.Engine)
 
 	// 异步启动 EIAM 资产注册控制器
 	go func() {

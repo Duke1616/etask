@@ -5,25 +5,37 @@ import (
 	"time"
 
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
+	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/repository"
+	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"
+	"github.com/samber/lo"
 )
 
 // AgentServer 实现调度中心的 Agent 拉取服务
 type AgentServer struct {
 	executorv1.UnimplementedAgentServiceServer
 	executorv1.UnimplementedTaskExecutionServiceServer
-	execRepo repository.TaskExecutionRepository
-	logSvc   task.LogService
-	logger   *elog.Component
+	execRepo   repository.TaskExecutionRepository
+	execSvc    task.ExecutionService
+	logSvc     task.LogService
+	bindingSvc poolSvc.BindingService
+	logger     *elog.Component
 }
 
-func NewAgentServer(execRepo repository.TaskExecutionRepository, logSvc task.LogService) *AgentServer {
+func NewAgentServer(
+	execRepo repository.TaskExecutionRepository,
+	execSvc task.ExecutionService,
+	logSvc task.LogService,
+	bindingSvc poolSvc.BindingService,
+) *AgentServer {
 	return &AgentServer{
-		execRepo: execRepo,
-		logSvc:   logSvc,
-		logger:   elog.DefaultLogger.With(elog.FieldComponentName("grpc.AgentServer")),
+		execRepo:   execRepo,
+		execSvc:    execSvc,
+		logSvc:     logSvc,
+		bindingSvc: bindingSvc,
+		logger:     elog.DefaultLogger.With(elog.FieldComponentName("grpc.AgentServer")),
 	}
 }
 
@@ -50,6 +62,15 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 		// 这里将 nodeId 真实落库记录为 executor_node_id
 		exec, err := s.execRepo.ClaimPullTask(timeoutCtx, serviceName, nodeId)
 		if err == nil {
+			allowed, authErr := s.isExecutionAllowed(timeoutCtx, exec)
+			if authErr != nil {
+				return nil, authErr
+			}
+			if !allowed {
+				s.rejectClaimedExecution(timeoutCtx, exec, nodeId)
+				continue
+			}
+
 			handlerName := ""
 			if exec.Task.GrpcConfig != nil {
 				handlerName = exec.Task.GrpcConfig.HandlerName
@@ -83,6 +104,34 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 	}
 }
 
+func (s *AgentServer) isExecutionAllowed(ctx context.Context, exec domain.TaskExecution) (bool, error) {
+	if exec.Task.GrpcConfig == nil || s.bindingSvc == nil {
+		return true, nil
+	}
+	return s.bindingSvc.IsAllowed(ctx, poolSvc.CheckBindingRequest{
+		TenantID:    exec.TenantID,
+		PoolName:    exec.Task.GrpcConfig.ServiceName,
+		HandlerName: exec.Task.GrpcConfig.HandlerName,
+	})
+}
+
+func (s *AgentServer) rejectClaimedExecution(ctx context.Context, exec domain.TaskExecution, nodeID string) {
+	err := s.execSvc.UpdateState(ctx, domain.ExecutionState{
+		ID:             exec.ID,
+		TaskID:         exec.Task.ID,
+		TaskName:       exec.Task.Name,
+		Status:         domain.TaskExecutionStatusFailed,
+		ExecutorNodeID: nodeID,
+		TaskResult:     "execution pool binding revoked",
+	})
+	if err != nil {
+		s.logger.Error("拒绝未授权 pull 任务失败",
+			elog.Int64("taskID", exec.Task.ID),
+			elog.Int64("executionID", exec.ID),
+			elog.FieldErr(err))
+	}
+}
+
 // ListTaskExecutions 列出任务执行记录
 func (s *AgentServer) ListTaskExecutions(ctx context.Context, req *executorv1.ListTaskExecutionsRequest) (*executorv1.ListTaskExecutionsResponse, error) {
 	executions, err := s.execRepo.FindByTaskID(ctx, req.GetTaskId())
@@ -91,23 +140,10 @@ func (s *AgentServer) ListTaskExecutions(ctx context.Context, req *executorv1.Li
 		return nil, err
 	}
 
-	pbExecutions := make([]*executorv1.TaskExecution, len(executions))
-	for i, e := range executions {
-		pbExecutions[i] = &executorv1.TaskExecution{
-			Id:              e.ID,
-			TaskId:          e.Task.ID,
-			TaskName:        e.Task.Name,
-			StartTime:       e.StartTime,
-			EndTime:         e.EndTime,
-			Status:          executorv1.ExecutionStatus(executorv1.ExecutionStatus_value[e.Status.String()]),
-			RunningProgress: e.RunningProgress,
-			ExecutorNodeId:  e.ExecutorNodeID,
-			TaskResult:      e.TaskResult,
-		}
-	}
-
 	return &executorv1.ListTaskExecutionsResponse{
-		Executions: pbExecutions,
+		Executions: lo.Map(executions, func(e domain.TaskExecution, _ int) *executorv1.TaskExecution {
+			return toProtoTaskExecution(e)
+		}),
 	}, nil
 }
 
@@ -119,18 +155,19 @@ func (s *AgentServer) GetExecutionLogs(ctx context.Context, req *executorv1.GetE
 		return nil, err
 	}
 
-	pbLogs := make([]*executorv1.ExecutionLog, len(logs))
-	var maxID int64
-	for i, l := range logs {
-		pbLogs[i] = &executorv1.ExecutionLog{
+	pbLogs := lo.Map(logs, func(l domain.TaskExecutionLog, _ int) *executorv1.ExecutionLog {
+		return &executorv1.ExecutionLog{
 			Id:      l.ID,
 			Time:    l.CTime,
 			Content: l.Content,
 		}
+	})
+	maxID := lo.Reduce(logs, func(maxID int64, l domain.TaskExecutionLog, _ int) int64 {
 		if l.ID > maxID {
-			maxID = l.ID
+			return l.ID
 		}
-	}
+		return maxID
+	}, int64(0))
 
 	return &executorv1.GetExecutionLogsResponse{
 		Logs:  pbLogs,
@@ -143,12 +180,7 @@ func (s *AgentServer) BatchListTaskExecutions(ctx context.Context, req *executor
 	taskIDs := req.GetTaskIds()
 
 	// 过滤掉无效的 task_id (如 0 或负数)，防止数据库产生无意义的扫描
-	validTaskIDs := make([]int64, 0, len(taskIDs))
-	for _, id := range taskIDs {
-		if id > 0 {
-			validTaskIDs = append(validTaskIDs, id)
-		}
-	}
+	validTaskIDs := lo.Filter(taskIDs, func(id int64, _ int) bool { return id > 0 })
 
 	if len(validTaskIDs) == 0 {
 		return &executorv1.BatchListTaskExecutionsResponse{
@@ -164,17 +196,7 @@ func (s *AgentServer) BatchListTaskExecutions(ctx context.Context, req *executor
 
 	results := make(map[int64]*executorv1.TaskExecutionList)
 	for _, e := range executions {
-		pbExec := &executorv1.TaskExecution{
-			Id:              e.ID,
-			TaskId:          e.Task.ID,
-			TaskName:        e.Task.Name,
-			StartTime:       e.StartTime,
-			EndTime:         e.EndTime,
-			Status:          executorv1.ExecutionStatus(executorv1.ExecutionStatus_value[e.Status.String()]),
-			RunningProgress: e.RunningProgress,
-			ExecutorNodeId:  e.ExecutorNodeID,
-			TaskResult:      e.TaskResult,
-		}
+		pbExec := toProtoTaskExecution(e)
 
 		if list, ok := results[e.Task.ID]; ok {
 			list.Executions = append(list.Executions, pbExec)
@@ -188,4 +210,18 @@ func (s *AgentServer) BatchListTaskExecutions(ctx context.Context, req *executor
 	return &executorv1.BatchListTaskExecutionsResponse{
 		Results: results,
 	}, nil
+}
+
+func toProtoTaskExecution(e domain.TaskExecution) *executorv1.TaskExecution {
+	return &executorv1.TaskExecution{
+		Id:              e.ID,
+		TaskId:          e.Task.ID,
+		TaskName:        e.Task.Name,
+		StartTime:       e.StartTime,
+		EndTime:         e.EndTime,
+		Status:          executorv1.ExecutionStatus(executorv1.ExecutionStatus_value[e.Status.String()]),
+		RunningProgress: e.RunningProgress,
+		ExecutorNodeId:  e.ExecutorNodeID,
+		TaskResult:      e.TaskResult,
+	}
 }

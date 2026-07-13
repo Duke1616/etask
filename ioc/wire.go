@@ -5,6 +5,7 @@ package ioc
 
 import (
 	"github.com/Duke1616/etask/internal/agent"
+	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/google/wire"
@@ -29,11 +30,12 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 		ConsumerSet,
 		ProducerSet,
 		GrpcSet,
+		ExecutionPoolSet,
 		MaterializerCoreSet,
 		InitDispatcher,
 		InitInvoker,
 		// 从 Base 中提取基础资源
-		wire.FieldsOf(new(*Base), "Registry", "MQ"),
+		wire.FieldsOf(new(*Base), "Registry", "MQ", "Etcd"),
 		InitTasks,
 		wire.Struct(new(SchedulerModule), "Svc", "Tasks"),
 	)
@@ -53,6 +55,9 @@ func InitExecutorModule(base *Base) *executor.Executor {
 func InitAgentModule(base *Base) *agent.Module {
 	wire.Build(
 		AgentSet,
+		InitDB,
+		ExecutionPoolCoreSet,
+		poolSvc.NewCatalogService,
 		wire.FieldsOf(new(*Base), "MQ", "Etcd"),
 	)
 	return nil
@@ -64,6 +69,7 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 		TaskSet,
 		CodebookSet,
 		RunnerSet,
+		ExecutionPoolBindingSet,
 		BindingResolverSet,
 		TaskExecutionSet,
 		SchedulerSet,
@@ -84,13 +90,13 @@ func InitWebModule(base *Base) *WebModule {
 		TaskExecutionSet,
 		BindingResolverSet,
 		ExecutorSet,
-		AgentWebSet,
+		ExecutionPoolBindingSet,
 		WebSetup,
 		ProducerSet,
 		InitNodeID,
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
-		wire.FieldsOf(new(*Base), "Registry", "Etcd", "MQ"),
+		wire.FieldsOf(new(*Base), "Registry", "MQ"),
 		wire.Struct(new(WebModule), "*"),
 	)
 	return nil

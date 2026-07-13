@@ -112,6 +112,9 @@ func (s *executionService) buildTaskSnapshot(ctx context.Context, task domain.Ta
 	}
 
 	snapshot.UpdateScheduleParams(task.ScheduleParams)
+	if err = s.taskSvc.AuthorizeExecutionPool(ctx, snapshot); err != nil {
+		return domain.Task{}, err
+	}
 
 	if snapshot.GrpcConfig == nil || s.resolvers == nil {
 		return snapshot, nil
