@@ -1,5 +1,0 @@
-{
-		"namespace": "sre",
-		"pod_name": "nginx",
-		"user_info": "{\"id\":1,\"username\":\"demo\",\"display_name\":\"演示用户\",\"email\":\"demo@example.com\"}"
-	}
