@@ -1,6 +1,23 @@
 log:
   debug: true
 
+# 制品仓库可选择本地持久化目录或 MinIO 存储。
+artifact:
+  temp_dir: "/tmp/etask/artifacts"
+  storage:
+    driver: "local"
+    local:
+      root: "/var/lib/etask/artifact-store"
+    s3:
+      endpoint: "http://minio:9000"
+      secure: false
+      region: "us-east-1"
+      bucket: "etask-artifacts"
+      prefix: "codebook"
+      access_key: ""
+      secret_key: ""
+      session_token: ""
+
 mysql:
   dsn: "root:123456@tcp(127.0.0.1:3306)/etask?charset=utf8mb4&collation=utf8mb4_general_ci&parseTime=True&loc=Local&timeout=1s&readTimeout=3s&writeTimeout=3s&multiStatements=true&interpolateParams=true"
 

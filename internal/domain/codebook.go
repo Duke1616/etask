@@ -2,10 +2,13 @@ package domain
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/Duke1616/etask/internal/errs"
 )
+
+var artifactNamespacePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 type CodebookScope string
 
@@ -20,6 +23,20 @@ func (s CodebookScope) String() string {
 
 func (s CodebookScope) Valid() bool {
 	return s == CodebookScopeSystem || s == CodebookScopeTenant
+}
+
+// ValidateWriteAccess 校验租户是否可以写入当前代码资源作用域。
+func (s CodebookScope) ValidateWriteAccess(tenantID, systemTenantID int64) error {
+	if !s.Valid() {
+		return fmt.Errorf("%w: 不支持的作用域: %s", errs.ErrInvalidParameter, s)
+	}
+	if tenantID <= 0 {
+		return fmt.Errorf("%w: 缺少租户上下文，不能写入该作用域", errs.ErrInvalidParameter)
+	}
+	if s == CodebookScopeSystem && tenantID != systemTenantID {
+		return fmt.Errorf("%w: 只有系统租户可以写入 SYSTEM 作用域", errs.ErrInvalidParameter)
+	}
+	return nil
 }
 
 type CodebookKind string
@@ -50,15 +67,18 @@ func (s CodebookProjectStatus) String() string {
 
 // CodebookProject 表示租户级代码资源项目，系统组件库不归属具体项目。
 type CodebookProject struct {
-	ID       int64
-	TenantID int64
-	Scope    CodebookScope
-	Name     string
-	Desc     string
-	SortNo   int64
-	Status   CodebookProjectStatus
-	CTime    int64
-	UTime    int64
+	ID                int64
+	TenantID          int64
+	Scope             CodebookScope
+	Name              string
+	Desc              string
+	SortNo            int64
+	Status            CodebookProjectStatus
+	ArtifactEnabled   bool
+	ArtifactNamespace string
+	SourceRevision    int64
+	CTime             int64
+	UTime             int64
 }
 
 // Codebook 表示 etask 负责维护的代码节点，目录和文件统一建模。
@@ -123,6 +143,7 @@ func (p *CodebookProject) FillDefaults() {
 	}
 	p.Name = strings.TrimSpace(p.Name)
 	p.Desc = strings.TrimSpace(p.Desc)
+	p.ArtifactNamespace = strings.TrimSpace(p.ArtifactNamespace)
 }
 
 func (p *CodebookProject) Validate() error {
@@ -136,22 +157,25 @@ func (p *CodebookProject) Validate() error {
 	if p.Name == "" {
 		return fmt.Errorf("%w: 项目名称不能为空", errs.ErrInvalidParameter)
 	}
+	if p.ArtifactEnabled {
+		if p.ArtifactNamespace == "" {
+			return fmt.Errorf("%w: 制品库导入命名空间不能为空", errs.ErrInvalidParameter)
+		}
+	}
+	if p.ArtifactNamespace != "" && !artifactNamespacePattern.MatchString(p.ArtifactNamespace) {
+		return fmt.Errorf("%w: 制品库导入命名空间只能包含小写英文字母、数字和下划线，且必须以字母开头",
+			errs.ErrInvalidParameter)
+	}
+	if p.ArtifactNamespace == "etask" {
+		return fmt.Errorf("%w: etask 是 SYSTEM 组件库保留命名空间", errs.ErrInvalidParameter)
+	}
 	return nil
 }
 
 func (p *CodebookProject) MergeForUpdate(old CodebookProject) {
-	if p.TenantID == 0 {
-		p.TenantID = old.TenantID
-	}
-	if p.Scope == "" {
-		p.Scope = old.Scope
-	}
-	if p.Status == "" {
-		p.Status = old.Status
-	}
-	if p.Name == "" {
-		p.Name = old.Name
-	}
+	p.TenantID = old.TenantID
+	p.Scope = old.Scope
+	p.Status = old.Status
 	if p.SortNo == 0 {
 		p.SortNo = old.SortNo
 	}
@@ -334,9 +358,6 @@ func (v *CodebookVersion) PrepareForNode(node Codebook) error {
 	}
 	if v.NodeID <= 0 {
 		return fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, v.NodeID)
-	}
-	if strings.TrimSpace(v.Code) == "" {
-		return fmt.Errorf("%w: 版本代码不能为空", errs.ErrInvalidParameter)
 	}
 	if !node.IsFile() {
 		return fmt.Errorf("%w: 目录不能创建版本", errs.ErrInvalidParameter)

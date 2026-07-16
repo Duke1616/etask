@@ -1,84 +1,67 @@
 # Executor SDK
 
-极简 Executor SDK - 让你只关注业务逻辑,零样板代码。
+Executor SDK 将任务处理器 API 与 gRPC、制品缓存、执行状态等基础设施隔离。业务处理器只依赖 `TaskHandler` 和 `Context`。
 
-## 快速开始
+Shell/Python 处理器支持的运行时环境变量、Runner 变量读取方式和制品路径约定见 [`internal/grpc/scripts/README.md`](../../internal/grpc/scripts/README.md)。
 
-### 1. 创建业务处理函数
+## 定义处理器
 
 ```go
 package handler
 
-import "github.com/Duke1616/ework-runner/sdk/executor"
+import "github.com/Duke1616/etask/sdk/executor"
 
-// ProcessTask 处理任务的业务逻辑
-func ProcessTask(ctx *executor.Context) error {
-    // 获取参数
+type SyncHandler struct{}
+
+func (SyncHandler) Name() string { return "sync" }
+func (SyncHandler) Desc() string { return "同步业务数据" }
+func (SyncHandler) Metadata() []executor.Parameter { return nil }
+
+func (SyncHandler) Run(ctx *executor.Context) error {
     action := ctx.Param("action")
-    
-    // 执行业务逻辑
-    switch action {
-    case "sync_db":
-        sql := ctx.Param("sql")
-        return db.Exec(sql)
-        
-    case "batch_process":
-        items := loadItems()
-        for i, item := range items {
-            process(item)
-            // 可选:上报进度
-            ctx.ReportProgress((i+1) * 100 / len(items))
-        }
-        return nil
-        
-    default:
-        return fmt.Errorf("unknown action: %s", action)
+    if action == "sync_db" {
+        return db.Exec(ctx.Param("sql"))
     }
+    return fmt.Errorf("不支持的操作: %s", action)
 }
 ```
 
-### 2. 启动 Executor
+## 核心 API
 
-```go
-package main
+### Context
 
-import "github.com/Duke1616/ework-runner/sdk/executor"
+- `Param`、`ParamInt`、`ParamInt64`、`ParamBool`：读取任务参数。
+- `GetResolvedParam`：按参数绑定模式读取最终值。
+- `SetResult`、`SetResults`、`AddResult`：写入结构化结果。
+- `ArtifactRoots`：读取已准备的系统制品层和具名依赖聚合目录。
+- `Context`：获取承载取消信号和租户信息的原生上下文。
+- `Log`、`Logger`：记录任务日志和系统日志。
 
-func main() {
-    cfg := &executor.Config{
-        NodeID:              "cmdb-executor-001",
-        ServiceName:         "cmdb",
-        Addr:                "0.0.0.0:9020",
-        EtcdEndpoints:       []string{"localhost:2379"},
-        ReporterServiceName: "scheduler",  // 使用服务发现连接 Reporter
-    }
-    
-    exec := executor.MustNewExecutor(cfg)
-    exec.RegisterHandler(handler.ProcessTask)
-    exec.Start()  // 启动并阻塞
-}
+### Executor
+
+- `NewExecutor(config, registry)`：创建执行节点。
+- `RegisterHandler(handlers...)`：注册任务处理器。
+- `InitComponents()`：初始化缓存、客户端和 gRPC Server。
+- `Server()`：返回供应用启动的 gRPC Server。
+
+## 内部结构
+
+```text
+executor
+├── context.go              # 公开任务上下文
+├── handler.go              # Handler、Parameter 等公开契约
+├── binding.go              # 参数绑定公开契约
+├── config.go               # Executor 公开配置
+├── executor.go             # Executor 构造入口
+├── README.md
+└── internal
+    ├── task                # Context、日志和 Handler 注册实现
+    ├── binding             # 调度侧参数绑定解析实现
+    ├── runtime             # gRPC、PULL、执行编排和生命周期
+    ├── artifactport        # SDK 与可选制品实现之间的接口
+    └── execution           # 执行状态与取消生命周期
 ```
 
-## API
+公开概念保留在根目录，只有实现细节进入 `internal`。业务代码统一导入 `sdk/executor`，不需要了解内部组合关系。
 
-### executor.Context
-
-- `Param(key string) string` - 获取字符串参数
-- `ParamInt(key string) int` - 获取整数参数
-- `ParamInt64(key string) int64` - 获取 int64 参数
-- `ParamBool(key string) bool` - 获取布尔参数
-- `ReportProgress(progress int) error` - 上报进度(可选)
-- `Logger() *elog.Component` - 获取日志
-
-### executor.Executor
-
-- `NewExecutor(cfg *Config) (*Executor, error)` - 创建 Executor
-- `MustNewExecutor(cfg *Config) *Executor` - 创建 Executor(panic on error)
-- `RegisterHandler(handler func(*Context) error) *Executor` - 注册处理函数
-- `Start() error` - 启动并阻塞
-
-## 设计原则
-
-- **极简**: 用户只写业务逻辑,SDK 处理所有基础设施
-- **可选进度**: ReportProgress 是可选的,不调用也OK
-- **自动上报**: SDK 自动上报最终结果(成功/失败)
+具体的制品缓存和本地物化属于 etask Executor 基础设施，位于 `internal/executor/artifact`，通过 `ArtifactPreparer` 接口注入 SDK。制品作用域、项目和租户规则由 `internal/domain` 与 `internal/service/artifact` 负责。

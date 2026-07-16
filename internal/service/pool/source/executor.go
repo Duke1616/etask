@@ -58,7 +58,8 @@ func buildExecutorPool(inst registry.ServiceInstance) (domain.ExecutionPool, boo
 		return domain.ExecutionPool{}, false
 	}
 
-	return newPool(name, domain.ExecutionPoolKindExecutor, normalizeExecutorMode(inst), inst), true
+	return newPool(name, domain.ExecutionPoolKindExecutor, domain.ExecutionTransportGRPC,
+		normalizeExecutorMode(inst), inst), true
 }
 
 func executorPoolName(inst registry.ServiceInstance) string {
@@ -69,13 +70,13 @@ func isExecutorInstance(inst registry.ServiceInstance) bool {
 	return metadataString(inst.Metadata, "role") == "executor"
 }
 
-func normalizeExecutorMode(inst registry.ServiceInstance) domain.ExecutionPoolMode {
+func normalizeExecutorMode(inst registry.ServiceInstance) domain.ExecMode {
 	switch strings.ToUpper(metadataString(inst.Metadata, "mode")) {
-	case domain.ExecutionPoolModePull.String():
-		return domain.ExecutionPoolModePull
-	case domain.ExecutionPoolModePush.String(), "":
-		return domain.ExecutionPoolModePush
+	case domain.ExecModePull.String():
+		return domain.ExecModePull
+	case domain.ExecModePush.String(), "":
+		return domain.ExecModePush
 	default:
-		return domain.ExecutionPoolModePush
+		return domain.ExecModePush
 	}
 }

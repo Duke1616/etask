@@ -9,6 +9,7 @@ import (
 )
 
 type CompleteProducer interface {
+	// Produce 发布一条任务完成事件。
 	Produce(ctx context.Context, evt Event) error
 }
 
@@ -27,7 +28,7 @@ func (c *completeProducer) Produce(ctx context.Context, evt Event) error {
 	if err != nil {
 		return err
 	}
-	
+
 	msg := &mq.Message{
 		Value: val,
 	}

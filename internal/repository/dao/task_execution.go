@@ -27,18 +27,22 @@ const (
 type TaskExecution struct {
 	ID       int64 `gorm:"type:bigint;primaryKey;autoIncrement;"`
 	TenantID int64 `gorm:"type:bigint unsigned;not null;default:0;index;comment:租户ID"`
+	// Source 标识执行记录来自正式任务还是 Codebook 试运行。
+	Source string `gorm:"type:varchar(32);not null;default:'TASK';index;comment:'执行来源：TASK-正式任务，CODEBOOK_PREVIEW-Codebook 试运行'"`
 	// 下面都是创建当前 TaskExecution 时从对应的Task直接拷贝过来的冗余信息
-	TaskID                  int64                               `gorm:"type:bigint;not null;comment:'任务ID'"`
-	TaskName                string                              `gorm:"type:varchar(255);not null;comment:'任务名称'"`
-	TaskType                string                              `gorm:"type:ENUM('RECURRING', 'ONE_TIME');not null;default:'RECURRING';comment:'任务类型: RECURRING-定时任务(循环执行), ONE_TIME-一次性任务(执行一次后停止)'"`
-	TaskCronExpr            string                              `gorm:"type:varchar(100);not null;comment:'cron表达式'"`
-	TaskGrpcConfig          sqlx.JSONColumn[domain.GrpcConfig]  `gorm:"type:json;comment:'gRPC配置：{\"serviceName\": \"user-service\"}'"`
-	TaskHTTPConfig          sqlx.JSONColumn[domain.HTTPConfig]  `gorm:"type:json;comment:'HTTP配置：{\"endpoint\": \"https://host:port/api\"}'"`
-	TaskRetryConfig         sqlx.JSONColumn[domain.RetryConfig] `gorm:"type:json;comment:'重试配置'"`
-	TaskMaxExecutionSeconds int64                               `gorm:"type:bigint;not null;default:86400;comment:'最大执行秒数，默认24小时'"`
-	TaskVersion             int64                               `gorm:"type:bigint;not null;comment:'创建时Task的版本号'"`
-	TaskScheduleNodeID      string                              `gorm:"type:varchar(255);not null;comment:'创建此执行的调度节点ID'"`
-	TaskScheduleParams      sqlx.JSONColumn[map[string]string]  `gorm:"type:json;comment:'创建时Task的调度参数快照'"`
+	TaskID                  int64                                  `gorm:"type:bigint;not null;comment:'任务ID'"`
+	TaskName                string                                 `gorm:"type:varchar(255);not null;comment:'任务名称'"`
+	TaskType                string                                 `gorm:"type:ENUM('RECURRING', 'ONE_TIME');not null;default:'RECURRING';comment:'任务类型: RECURRING-定时任务(循环执行), ONE_TIME-一次性任务(执行一次后停止)'"`
+	TaskCronExpr            string                                 `gorm:"type:varchar(100);not null;comment:'cron表达式'"`
+	TaskGrpcConfig          sqlx.JSONColumn[domain.GrpcConfig]     `gorm:"type:json;comment:'gRPC配置：{\"serviceName\": \"user-service\"}'"`
+	TaskHTTPConfig          sqlx.JSONColumn[domain.HTTPConfig]     `gorm:"type:json;comment:'HTTP配置：{\"endpoint\": \"https://host:port/api\"}'"`
+	TaskRetryConfig         sqlx.JSONColumn[domain.RetryConfig]    `gorm:"type:json;comment:'重试配置'"`
+	TaskMaxExecutionSeconds int64                                  `gorm:"type:bigint;not null;default:86400;comment:'最大执行秒数，默认24小时'"`
+	TaskVersion             int64                                  `gorm:"type:bigint;not null;comment:'创建时Task的版本号'"`
+	TaskScheduleNodeID      string                                 `gorm:"type:varchar(255);not null;comment:'创建此执行的调度节点ID'"`
+	TaskScheduleParams      sqlx.JSONColumn[map[string]string]     `gorm:"type:json;comment:'创建时Task的调度参数快照'"`
+	Artifact                sqlx.JSONColumn[[]domain.ArtifactRef]  `gorm:"type:json;comment:'本次执行固定的代码制品层'"`
+	ExecutionRoute          sqlx.JSONColumn[domain.ExecutionRoute] `gorm:"type:json;comment:'本次执行固定的传输和派发路由'"`
 
 	// 下面这些是 TaskExecution 的自身信息
 	ExecutorNodeID  sql.NullString `gorm:"type:varchar(255);comment:'执行节点的 nodeID，用于记录是哪个节点处理了任务'"`
@@ -96,8 +100,9 @@ type TaskExecutionDAO interface {
 	FindExecutionByTaskIDAndPlanExecID(ctx context.Context, taskID int64, planExecID int64) (TaskExecution, error)
 	// FindTimeoutExecutions 查找超时的执行记录
 	FindTimeoutExecutions(ctx context.Context, limit int) ([]TaskExecution, error)
-	// ClaimPullTask 原子抢占一个等待拉取的任务
-	ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (TaskExecution, error)
+	// ClaimPullTask 原子抢占一个当前节点支持的等待拉取任务。
+	ClaimPullTask(ctx context.Context, serviceName, executorNodeID string,
+		handlerNames []string) (TaskExecution, error)
 }
 
 type GORMTaskExecutionDAO struct {
@@ -385,7 +390,11 @@ func (g *GORMTaskExecutionDAO) FindTimeoutExecutions(ctx context.Context, limit 
 	return executions, err
 }
 
-func (g *GORMTaskExecutionDAO) ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (TaskExecution, error) {
+func (g *GORMTaskExecutionDAO) ClaimPullTask(ctx context.Context, serviceName, executorNodeID string,
+	handlerNames []string) (TaskExecution, error) {
+	if len(handlerNames) == 0 {
+		return TaskExecution{}, errs.ErrExecutionNotFound
+	}
 	now := time.Now().UnixMilli()
 
 	// 1. 获取一个属于该 serviceName 且尚未被领取的任务
@@ -394,6 +403,7 @@ func (g *GORMTaskExecutionDAO) ClaimPullTask(ctx context.Context, serviceName st
 	err := g.db.WithContext(ctx).
 		Where("status = ?", TaskExecutionStatusWaitingPull).
 		Where("task_grpc_config->>'$.serviceName' = ?", serviceName).
+		Where("task_grpc_config->>'$.handlerName' IN ?", handlerNames).
 		Order("ctime ASC").
 		First(&exec).Error
 
@@ -423,7 +433,7 @@ func (g *GORMTaskExecutionDAO) ClaimPullTask(ctx context.Context, serviceName st
 
 	// 3. 如果没更新到，说明产生了并发冲突被别的节点抢走了
 	if result.RowsAffected == 0 {
-		return TaskExecution{}, errors.New("concurrent modification: task claimed by another node")
+		return TaskExecution{}, errs.ErrExecutionClaimConflict
 	}
 
 	// 更新成功，把需要返回的值补齐（因为 Updates 只修改了数据库，内存里的 struct 还需手动同步新状态）

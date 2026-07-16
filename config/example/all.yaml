@@ -8,8 +8,34 @@ log:
 agent:
   name: Kafka-Agent # 实例显示名称
   topic: agent_execute # 监听的任务消息队列 Topic
+  worker_count: 4 # 同一 Agent 进程内并发消费协程数
   desc: 异步任务执行代理：负责从消息队列拉取并执行来自调度中心的任务指令 # 描述信息，展示在管理后台
   isolation_level: "SHARED" # 资源池隔离级别：SHARED 或 DEDICATED
+  artifact_cache:
+    dir: "/var/lib/etask/agent-artifact-cache"
+    max_download_size: 536870912 # 单个压缩制品最大 512MB
+    max_unpacked_size: 2147483648 # 单个制品最大解压 2GB
+    max_file_count: 10000
+    max_cache_size: 10737418240 # 本地制品缓存最大 10GB
+
+# Agent 与 Executor 共享脚本处理器实现，但各自在自己的进程内创建运行时。
+runtime:
+  script:
+    workspace_dir: "/tmp/etask/runs"
+    workspace_max_age: 24h
+    python_binary: "python"
+    shell_binary: "/bin/bash"
+    max_code_size: 4194304
+    max_args_size: 1048576
+    max_variables_size: 1048576
+    max_log_line_size: 1048576
+    max_result_size: 4194304
+    archive:
+      enabled: true
+      failed_only: false
+      dir: "/var/lib/etask/script-archive"
+      max_age: 168h
+      max_size: 10737418240
 
 # 执行节点集群配置
 executor:
@@ -24,6 +50,28 @@ executor:
   # 执行器集群功能描述。
   desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
   isolation_level: "SHARED" # 资源池隔离级别：SHARED 或 DEDICATED
+  artifact_cache:
+    dir: "/var/lib/etask/artifact-cache"
+    max_download_size: 536870912 # 单个压缩制品最大 512MB
+    max_unpacked_size: 2147483648 # 单个制品最大解压 2GB
+    max_file_count: 10000
+    max_cache_size: 10737418240 # 本地制品缓存最大 10GB
+# 制品仓库配置。普通项目保持单文件运行；租户内全部已发布制品库按各自命名空间自动注入。
+artifact:
+  temp_dir: "/tmp/etask/artifacts"
+  storage:
+    driver: "local" # local 或 s3
+    local:
+      root: "/var/lib/etask/artifact-store"
+    s3:
+      endpoint: "http://minio:9000"
+      secure: false # endpoint 未携带协议时使用；携带 http/https 时以协议为准
+      region: "us-east-1"
+      bucket: "etask-artifacts"
+      prefix: "codebook"
+      access_key: ""
+      secret_key: ""
+      session_token: ""
 
 # 数据库配置 (MySQL)
 mysql:

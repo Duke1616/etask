@@ -5,19 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/Duke1616/etask/internal/agent/domain"
+	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/agent/service"
+	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
+	"github.com/Duke1616/etask/pkg/mpx"
 	"github.com/ecodeclub/mq-api"
 	"github.com/gotomicro/ego/core/elog"
 )
 
+// ExecuteConsumer 消费 Agent 执行命令并发布结果。
 type ExecuteConsumer struct {
 	consumer    mq.Consumer
-	producer    TaskExecuteResultProducer
+	producer    ExecuteResultProducer
 	svc         service.Service
 	reg         registry.Registry
 	instance    registry.ServiceInstance
@@ -25,146 +27,93 @@ type ExecuteConsumer struct {
 	logger      *elog.Component
 }
 
-func NewExecuteConsumer(q mq.MQ, svc service.Service, topic string, producer TaskExecuteResultProducer,
+// NewExecuteConsumer 创建指定 Topic 的 Agent 消费者。
+func NewExecuteConsumer(q mq.MQ, svc service.Service, topic string, producer ExecuteResultProducer,
 	reg registry.Registry, instance registry.ServiceInstance, workerCount int) (*ExecuteConsumer, error) {
-	groupID := "task_receive_execute"
-	consumer, err := q.Consumer(topic, groupID)
+	consumer, err := q.Consumer(topic, "agent-execution-"+topic)
 	if err != nil {
 		return nil, err
 	}
-
 	if workerCount <= 0 {
 		workerCount = 1
 	}
-
 	return &ExecuteConsumer{
-		consumer:    consumer,
-		producer:    producer,
-		svc:         svc,
-		reg:         reg,
-		instance:    instance,
+		consumer: consumer, producer: producer, svc: svc, reg: reg, instance: instance,
 		workerCount: workerCount,
 		logger:      elog.DefaultLogger.With(elog.FieldComponentName("agent.consumer")),
 	}, nil
 }
 
-func (c *ExecuteConsumer) Start(ctx context.Context) {
-	// 1. 服务注册
-	regCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+// Start 启动 Kafka 数据面，并尽力将 Agent 能力注册到控制面。
+func (c *ExecuteConsumer) Start(ctx context.Context) error {
+	// Worker 先进入消费状态，避免注册信息可见后出现无人消费的短暂窗口。
+	for workerID := 0; workerID < c.workerCount; workerID++ {
+		go c.consumeLoop(ctx, workerID)
+	}
+	// Etcd 只承担能力发现；短暂故障不应关闭已经建立的 Kafka 数据面。
+	regCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	if err := c.reg.Register(regCtx, c.instance); err != nil {
-		c.logger.Error("agent_register_failed", elog.FieldErr(err))
+		c.logger.Warn("注册 Agent 控制面失败，Kafka 消费继续运行", elog.FieldErr(err))
 	}
+	return nil
+}
 
-	// 2. 启动 worker 协程
-	for i := 0; i < c.workerCount; i++ {
-		go func(workerID int) {
-			c.logger.Info("启动任务工作协程", elog.Int("worker", workerID))
-
-			for {
-				if err := c.Consume(ctx); err != nil {
-					// 核心退出判断：如果是 Context 取消，优雅退出循环
-					if errors.Is(err, context.Canceled) || ctx.Err() != nil {
-						c.logger.Info("工作协程退出", elog.Int("worker", workerID))
-						return
-					}
-
-					c.logger.Error("处理失败",
-						elog.Int("worker", workerID),
-						elog.FieldErr(err))
-				}
+func (c *ExecuteConsumer) consumeLoop(ctx context.Context, workerID int) {
+	for {
+		if err := c.Consume(ctx); err != nil {
+			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+				return
 			}
-		}(i)
+			c.logger.Error("处理 Agent 命令失败", elog.Int("worker", workerID), elog.FieldErr(err))
+		}
 	}
 }
 
+// Consume 消费并同步处理一条命令。
 func (c *ExecuteConsumer) Consume(ctx context.Context) error {
-	cm, err := c.consumer.Consume(ctx)
+	message, err := c.consumer.Consume(ctx)
 	if err != nil {
-		return fmt.Errorf("获取消息失败: %w", err)
+		return fmt.Errorf("获取 Agent 执行命令失败: %w", err)
 	}
-	var evt ExecuteReceive
-	if err = json.Unmarshal(cm.Value, &evt); err != nil {
-		return fmt.Errorf("解析消息失败: %w", err)
+	// 恢复生产端传播的链路和租户上下文，再解析业务命令。
+	ctx = mqx.ExtractContext(ctx, message)
+	var command ExecuteCommand
+	if err = json.Unmarshal(message.Value, &command); err != nil {
+		return fmt.Errorf("解析 Agent 执行命令失败: %w", err)
 	}
-
-	// 封转成 Json 数据
-	args, err := json.Marshal(evt.Args)
-	if err != nil {
+	if err = command.Validate(); err != nil {
 		return err
 	}
-
-	c.logger.Info("开始执行任务", elog.Int64("任务ID", evt.TaskId))
-
-	// 执行任务，返回 (结构化结果, 原始日志, 状态, 错误)
-	structResult, output, status, err := c.svc.Receive(ctx, domain.ExecuteReceive{
-		TaskId:    evt.TaskId,
-		Language:  evt.Language,
-		Handler:   evt.Handler,
-		Code:      evt.Code,
-		Args:      string(args),
-		Variables: evt.Variables,
+	if ctxutil.GetTenantID(ctx).Int64() == 0 {
+		// 传播头缺失时使用已校验的命令租户，保证后续租户插件仍受约束。
+		ctx = ctxutil.WithTenantID(ctx, command.TenantID)
+		ctx = ctxutil.WithOriginTenantID(ctx, command.TenantID)
+	}
+	// Agent 同步执行并捕获日志，最终只通过结果 Topic 回传状态。
+	output, executeErr := c.svc.Receive(ctx, command.DispatchID, command.Execution())
+	status := domain.TaskExecutionStatusSuccess
+	result := output.Result
+	if executeErr != nil {
+		status = domain.TaskExecutionStatusFailed
+		if result == "" {
+			result = executeErr.Error()
+		}
+	}
+	return c.producer.Produce(ctx, ExecuteResult{
+		DispatchID: command.DispatchID,
+		State: domain.ExecutionState{
+			ID: command.ExecutionID, TaskID: command.TaskID, TaskName: command.TaskName,
+			Status: status, ExecutorNodeID: c.instance.ID, TaskResult: result,
+		},
+		Logs: output.Logs,
 	})
-
-	if err != nil {
-		c.logger.Error("执行任务失败", elog.Any("错误", err), elog.Any("任务ID", evt.TaskId))
-	} else {
-		c.logger.Info("执行任务完成", elog.Int64("任务ID", evt.TaskId))
-	}
-
-	// 最终结果提取策略：
-	finalResult := structResult
-	if finalResult == "" {
-		// 降级：如果 FD 3 通道没传数据，则回退到扫描 Stdout 最后一行
-		finalResult = c.wantResult(output)
-	}
-
-	err = c.producer.Produce(ctx, ExecuteResultEvent{
-		TaskId:     evt.TaskId,
-		WantResult: finalResult,
-		Result:     output,
-		Status:     Status(status),
-	})
-
-	if err != nil {
-		c.logger.Error("发送消息队列失败", elog.Any("错误", err), elog.Any("任务ID", evt.TaskId))
-	}
-
-	return err
 }
 
-func (c *ExecuteConsumer) wantResult(input string) string {
-	input = strings.TrimSpace(input)
-
-	// 1. 彻底为空的兜底
-	if input == "" {
-		return `{"status": "no_result_detected"}`
-	}
-
-	// 2. 尝试判定是否已经是合法的 JSON
-	var js json.RawMessage
-	if err := json.Unmarshal([]byte(input), &js); err == nil {
-		// 已经是合法 JSON，直接返回
-		return input
-	}
-
-	// 3. 如果是普通文本，则进行强约束封装
-	// 这样可以确保调度端在解析结果时，永远不会因为格式问题报错
-	res := map[string]any{
-		"status":  "unstructured_fallback",
-		"content": input,
-	}
-
-	bytes, _ := json.Marshal(res)
-	return string(bytes)
-}
-
+// Stop 注销 Agent 并关闭消费者。
 func (c *ExecuteConsumer) Stop(ctx context.Context) error {
-	// 1. 服务注销
-	if err := c.reg.UnRegister(ctx, c.instance); err != nil {
-		c.logger.Error("agent_unregister_failed", elog.FieldErr(err))
-	}
-
-	// 2. 关闭消费者
-	return c.consumer.Close()
+	return errors.Join(
+		c.reg.UnRegister(ctx, c.instance),
+		c.consumer.Close(),
+	)
 }

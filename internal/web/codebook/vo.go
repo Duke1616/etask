@@ -56,6 +56,41 @@ type ChildrenReq struct {
 	ParentID  int64 `json:"parent_id"`
 }
 
+type WorkspaceFileReq struct {
+	ProjectID    int64  `json:"project_id"`
+	ReleaseID    int64  `json:"release_id"`
+	Digest       string `json:"digest"`
+	ArtifactPath string `json:"artifact_path"`
+}
+
+type WorkspaceFileResp struct {
+	Code string `json:"code"`
+}
+
+type WorkspaceTreeResp struct {
+	Nodes []WorkspaceNode `json:"nodes"`
+}
+
+type WorkspaceNode struct {
+	Key          string          `json:"key"`
+	SourceID     int64           `json:"source_id"`
+	ReleaseID    int64           `json:"release_id"`
+	Digest       string          `json:"digest"`
+	ArtifactPath string          `json:"artifact_path"`
+	Name         string          `json:"name"`
+	Owner        string          `json:"owner"`
+	Kind         string          `json:"kind"`
+	Scope        string          `json:"scope"`
+	Layer        string          `json:"layer"`
+	RuntimePath  string          `json:"runtime_path"`
+	Readonly     bool            `json:"readonly"`
+	ProjectID    int64           `json:"project_id"`
+	ParentID     int64           `json:"parent_id"`
+	SortNo       int64           `json:"sort_no"`
+	Namespace    string          `json:"namespace"`
+	Children     []WorkspaceNode `json:"children"`
+}
+
 type Codebook struct {
 	ID               int64  `json:"id"`
 	TenantID         int64  `json:"tenant_id"`
@@ -99,27 +134,34 @@ type ListVersionsResp struct {
 }
 
 type CreateProjectReq struct {
-	Name string `json:"name"`
-	Desc string `json:"desc"`
+	Name              string `json:"name"`
+	Desc              string `json:"desc"`
+	ArtifactEnabled   bool   `json:"artifact_enabled"`
+	ArtifactNamespace string `json:"artifact_namespace"`
 }
 
 type UpdateProjectReq struct {
-	ID     int64  `json:"id"`
-	Name   string `json:"name"`
-	Desc   string `json:"desc"`
-	SortNo int64  `json:"sort_no"`
+	ID                int64  `json:"id"`
+	Name              string `json:"name"`
+	Desc              string `json:"desc"`
+	SortNo            int64  `json:"sort_no"`
+	ArtifactEnabled   bool   `json:"artifact_enabled"`
+	ArtifactNamespace string `json:"artifact_namespace"`
 }
 
 type Project struct {
-	ID       int64  `json:"id"`
-	TenantID int64  `json:"tenant_id"`
-	Scope    string `json:"scope"`
-	Name     string `json:"name"`
-	Desc     string `json:"desc"`
-	SortNo   int64  `json:"sort_no"`
-	Status   string `json:"status"`
-	CTime    int64  `json:"ctime"`
-	UTime    int64  `json:"utime"`
+	ID                int64  `json:"id"`
+	TenantID          int64  `json:"tenant_id"`
+	Scope             string `json:"scope"`
+	Name              string `json:"name"`
+	Desc              string `json:"desc"`
+	SortNo            int64  `json:"sort_no"`
+	Status            string `json:"status"`
+	ArtifactEnabled   bool   `json:"artifact_enabled"`
+	ArtifactNamespace string `json:"artifact_namespace"`
+	SourceRevision    int64  `json:"source_revision"`
+	CTime             int64  `json:"ctime"`
+	UTime             int64  `json:"utime"`
 }
 
 type ListProjectsResp struct {

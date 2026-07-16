@@ -21,6 +21,19 @@ func (k RunnerKind) String() string {
 	return string(k)
 }
 
+// IsValid 判断执行单元通道类型是否受支持。
+func (k RunnerKind) IsValid() bool {
+	return k == RunnerKindGRPC || k == RunnerKindKafka
+}
+
+// Transport 返回执行单元期望使用的传输通道。
+func (k RunnerKind) Transport() ExecutionTransport {
+	if k == RunnerKindKafka {
+		return ExecutionTransportMQ
+	}
+	return ExecutionTransportGRPC
+}
+
 // RunnerAction 描述执行单元的注册状态。
 type RunnerAction uint8
 
@@ -69,8 +82,8 @@ func (r *Runner) Validate() error {
 	if r.CodebookID <= 0 {
 		return fmt.Errorf("%w: codebook_id = %d", errs.ErrInvalidParameter, r.CodebookID)
 	}
-	if r.Kind == "" {
-		return fmt.Errorf("%w: kind is empty", errs.ErrInvalidParameter)
+	if !r.Kind.IsValid() {
+		return fmt.Errorf("%w: unsupported kind %s", errs.ErrInvalidParameter, r.Kind)
 	}
 	if r.Target == "" {
 		return fmt.Errorf("%w: target is empty", errs.ErrInvalidParameter)

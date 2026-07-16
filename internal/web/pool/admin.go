@@ -63,12 +63,13 @@ func (h *AdminHandler) PrivateRoutes(server *gin.Engine) {
 
 func (h *AdminHandler) ListPools(ctx *ginx.Context, req ListPoolsReq) (ginx.Result, error) {
 	page, err := h.catalogSvc.ListPools(ctx, poolSvc.PoolListRequest{
-		Offset:  req.Offset,
-		Limit:   req.Limit,
-		Keyword: req.Keyword,
-		Kind:    domain.ExecutionPoolKind(req.Kind),
-		Mode:    domain.ExecutionPoolMode(req.Mode),
-		Status:  domain.ExecutionPoolStatus(req.Status),
+		Offset:       req.Offset,
+		Limit:        req.Limit,
+		Keyword:      req.Keyword,
+		Kind:         domain.ExecutionPoolKind(req.Kind),
+		Transport:    domain.ExecutionTransport(req.Transport),
+		DispatchMode: domain.ExecMode(req.DispatchMode),
+		Status:       domain.ExecutionPoolStatus(req.Status),
 	})
 	if err != nil {
 		return h.translateError(err), err
@@ -180,7 +181,8 @@ func (h *AdminHandler) toPoolVO(pool domain.ExecutionPool) PoolVO {
 		ID:             pool.ID,
 		Name:           pool.Name,
 		Kind:           pool.Kind.String(),
-		Mode:           pool.Mode.String(),
+		Transport:      pool.Transport.String(),
+		DispatchMode:   pool.DispatchMode.String(),
 		IsolationLevel: pool.IsolationLevel.String(),
 		Desc:           pool.Desc,
 		Status:         pool.Status.String(),

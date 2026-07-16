@@ -31,7 +31,7 @@ type ICodebookRepository interface {
 	ListChildren(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error)
 	// ListChildrenByScope 查询指定租户项目或系统作用域下的子节点。
 	ListChildrenByScope(ctx context.Context, projectID, parentID int64, scope domain.CodebookScope) ([]domain.Codebook, error)
-	// Tree 查询指定项目视图下的代码资源树，包含系统组件库。
+	// Tree 查询指定项目下的全部源码节点。
 	Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error)
 	// Total 统计代码资源总数。
 	Total(ctx context.Context) (int64, error)
@@ -59,9 +59,11 @@ type ICodebookRepository interface {
 	// TotalProjects 统计代码资源项目总数。
 	TotalProjects(ctx context.Context) (int64, error)
 	// GetProjectMaxSortNo 查询当前租户项目最大的排序号。
-	GetProjectMaxSortNo(ctx context.Context, tenantID int64) (int64, error)
+	GetProjectMaxSortNo(ctx context.Context) (int64, error)
 	// UpdateProject 更新代码资源项目。
 	UpdateProject(ctx context.Context, req domain.CodebookProject) (int64, error)
+	// ArtifactNamespaceExists 判断当前租户是否存在同名制品导入命名空间。
+	ArtifactNamespaceExists(ctx context.Context, namespace string, excludeID int64) (bool, error)
 	// DeleteProject 归档代码资源项目。
 	DeleteProject(ctx context.Context, id int64) (int64, error)
 }
@@ -174,7 +176,7 @@ func (repo *codebookRepository) ListChildrenByScope(ctx context.Context, project
 	}))
 }
 
-// Tree 查询指定项目视图下的代码资源树，包含系统组件库。
+// Tree 查询指定项目下的全部源码节点。
 func (repo *codebookRepository) Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error) {
 	cs, err := repo.dao.Tree(ctx, projectID)
 	if err != nil {
@@ -303,7 +305,6 @@ func (repo *codebookRepository) toEntity(req domain.Codebook) dao.Codebook {
 	}
 	return dao.Codebook{
 		ID:               req.ID,
-		TenantID:         req.TenantID,
 		Scope:            req.Scope.String(),
 		ProjectID:        req.ProjectID,
 		ParentID:         req.ParentID,
@@ -344,7 +345,6 @@ func (repo *codebookRepository) toVersionEntity(req domain.CodebookVersion) dao.
 	return dao.CodebookVersion{
 		ID:           req.ID,
 		NodeID:       req.NodeID,
-		TenantID:     req.TenantID,
 		Scope:        req.Scope.String(),
 		VersionNo:    req.VersionNo,
 		Code:         req.Code,
@@ -408,12 +408,16 @@ func (repo *codebookRepository) TotalProjects(ctx context.Context) (int64, error
 	return repo.projectDao.Count(ctx)
 }
 
-func (repo *codebookRepository) GetProjectMaxSortNo(ctx context.Context, tenantID int64) (int64, error) {
-	return repo.projectDao.GetMaxSortNo(ctx, tenantID)
+func (repo *codebookRepository) GetProjectMaxSortNo(ctx context.Context) (int64, error) {
+	return repo.projectDao.GetMaxSortNo(ctx)
 }
 
 func (repo *codebookRepository) UpdateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
 	return repo.projectDao.Update(ctx, repo.toProjectEntity(req))
+}
+
+func (repo *codebookRepository) ArtifactNamespaceExists(ctx context.Context, namespace string, excludeID int64) (bool, error) {
+	return repo.projectDao.ArtifactNamespaceExists(ctx, namespace, excludeID)
 }
 
 func (repo *codebookRepository) DeleteProject(ctx context.Context, id int64) (int64, error) {
@@ -421,29 +425,42 @@ func (repo *codebookRepository) DeleteProject(ctx context.Context, id int64) (in
 }
 
 func (repo *codebookRepository) toProjectEntity(p domain.CodebookProject) dao.CodebookProject {
+	var namespace *string
+	if p.ArtifactNamespace != "" {
+		namespace = &p.ArtifactNamespace
+	}
 	return dao.CodebookProject{
-		ID:       p.ID,
-		TenantID: p.TenantID,
-		Scope:    p.Scope.String(),
-		Name:     p.Name,
-		Desc:     p.Desc,
-		SortNo:   p.SortNo,
-		Status:   p.Status.String(),
-		CTime:    p.CTime,
-		UTime:    p.UTime,
+		ID:                p.ID,
+		Scope:             p.Scope.String(),
+		Name:              p.Name,
+		Desc:              p.Desc,
+		SortNo:            p.SortNo,
+		Status:            p.Status.String(),
+		ArtifactEnabled:   p.ArtifactEnabled,
+		ArtifactNamespace: namespace,
+		SourceRevision:    p.SourceRevision,
+		CTime:             p.CTime,
+		UTime:             p.UTime,
 	}
 }
 
 func (repo *codebookRepository) toProjectDomain(p dao.CodebookProject) domain.CodebookProject {
+	var namespace string
+	if p.ArtifactNamespace != nil {
+		namespace = *p.ArtifactNamespace
+	}
 	return domain.CodebookProject{
-		ID:       p.ID,
-		TenantID: p.TenantID,
-		Scope:    domain.CodebookScope(p.Scope),
-		Name:     p.Name,
-		Desc:     p.Desc,
-		SortNo:   p.SortNo,
-		Status:   domain.CodebookProjectStatus(p.Status),
-		CTime:    p.CTime,
-		UTime:    p.UTime,
+		ID:                p.ID,
+		TenantID:          p.TenantID,
+		Scope:             domain.CodebookScope(p.Scope),
+		Name:              p.Name,
+		Desc:              p.Desc,
+		SortNo:            p.SortNo,
+		Status:            domain.CodebookProjectStatus(p.Status),
+		ArtifactEnabled:   p.ArtifactEnabled,
+		ArtifactNamespace: namespace,
+		SourceRevision:    p.SourceRevision,
+		CTime:             p.CTime,
+		UTime:             p.UTime,
 	}
 }

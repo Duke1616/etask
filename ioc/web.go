@@ -8,9 +8,11 @@ import (
 	"github.com/Duke1616/eiam/pkg/web/capability"
 	"github.com/Duke1616/eiam/pkg/web/middleware"
 	"github.com/Duke1616/eiam/pkg/web/sdk"
+	artifactWeb "github.com/Duke1616/etask/internal/web/artifact"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/manager"
 	poolWeb "github.com/Duke1616/etask/internal/web/pool"
+	previewWeb "github.com/Duke1616/etask/internal/web/preview"
 	resourceWeb "github.com/Duke1616/etask/internal/web/resource"
 	runnerWeb "github.com/Duke1616/etask/internal/web/runner"
 	variableWeb "github.com/Duke1616/etask/internal/web/variable"
@@ -23,7 +25,8 @@ const Resource = "TASK"
 
 func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	syncer capability.Syncer, providers []capability.PermissionProvider,
-	taskHdl *manager.Handler, codebookHdl *codebookWeb.Handler,
+	taskHdl *manager.Handler, codebookHdl *codebookWeb.Handler, artifactHdl *artifactWeb.Handler,
+	previewHdl *previewWeb.Handler,
 	runnerHdl *runnerWeb.Handler, variableHdl *variableWeb.Handler,
 	poolAdminHdl *poolWeb.AdminHandler,
 	resourceHdl *resourceWeb.Handler, listener net.Listener) *egin.Component {
@@ -36,6 +39,8 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	// 注册公开路由
 	taskHdl.PublicRoutes(server.Engine)
 	codebookHdl.PublicRoutes(server.Engine)
+	artifactHdl.PublicRoutes(server.Engine)
+	previewHdl.PublicRoutes(server.Engine)
 	runnerHdl.PublicRoutes(server.Engine)
 	variableHdl.PublicRoutes(server.Engine)
 	poolAdminHdl.PublicRoutes(server.Engine)
@@ -47,6 +52,8 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	// 需要登陆校验的接口
 	taskHdl.IdentifyRoutes(server.Engine)
 	codebookHdl.IdentifyRoutes(server.Engine)
+	artifactHdl.IdentifyRoutes(server.Engine)
+	previewHdl.IdentifyRoutes(server.Engine)
 	runnerHdl.IdentifyRoutes(server.Engine)
 	variableHdl.IdentifyRoutes(server.Engine)
 	poolAdminHdl.IdentifyRoutes(server.Engine)
@@ -58,6 +65,8 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	// 注册私有路由
 	taskHdl.PrivateRoutes(server.Engine)
 	codebookHdl.PrivateRoutes(server.Engine)
+	artifactHdl.PrivateRoutes(server.Engine)
+	previewHdl.PrivateRoutes(server.Engine)
 	runnerHdl.PrivateRoutes(server.Engine)
 	variableHdl.PrivateRoutes(server.Engine)
 	poolAdminHdl.PrivateRoutes(server.Engine)

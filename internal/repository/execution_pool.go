@@ -42,7 +42,8 @@ type ExecutionPoolRepository interface {
 		limit int64,
 		keyword string,
 		kind domain.ExecutionPoolKind,
-		mode domain.ExecutionPoolMode,
+		transport domain.ExecutionTransport,
+		dispatchMode domain.ExecMode,
 		status domain.ExecutionPoolStatus,
 	) ([]domain.ExecutionPool, error)
 	// Count 统计资源池数量。
@@ -50,7 +51,8 @@ type ExecutionPoolRepository interface {
 		ctx context.Context,
 		keyword string,
 		kind domain.ExecutionPoolKind,
-		mode domain.ExecutionPoolMode,
+		transport domain.ExecutionTransport,
+		dispatchMode domain.ExecMode,
 		status domain.ExecutionPoolStatus,
 	) (int64, error)
 }
@@ -156,7 +158,7 @@ func (r *executionPoolRepository) ListByNames(
 	status domain.ExecutionPoolStatus,
 	keyword string,
 ) ([]domain.ExecutionPool, error) {
-	pools, err := r.poolDAO.ListByNames(ctx, names, keyword, kind.String(), "", status.String())
+	pools, err := r.poolDAO.ListByNames(ctx, names, keyword, kind.String(), "", "", status.String())
 	if err != nil {
 		return nil, err
 	}
@@ -171,10 +173,12 @@ func (r *executionPoolRepository) List(
 	limit int64,
 	keyword string,
 	kind domain.ExecutionPoolKind,
-	mode domain.ExecutionPoolMode,
+	transport domain.ExecutionTransport,
+	dispatchMode domain.ExecMode,
 	status domain.ExecutionPoolStatus,
 ) ([]domain.ExecutionPool, error) {
-	pools, err := r.poolDAO.List(ctx, offset, limit, keyword, kind.String(), mode.String(), status.String())
+	pools, err := r.poolDAO.List(ctx, offset, limit, keyword, kind.String(),
+		transport.String(), dispatchMode.String(), status.String())
 	if err != nil {
 		return nil, err
 	}
@@ -187,10 +191,11 @@ func (r *executionPoolRepository) Count(
 	ctx context.Context,
 	keyword string,
 	kind domain.ExecutionPoolKind,
-	mode domain.ExecutionPoolMode,
+	transport domain.ExecutionTransport,
+	dispatchMode domain.ExecMode,
 	status domain.ExecutionPoolStatus,
 ) (int64, error) {
-	return r.poolDAO.Count(ctx, keyword, kind.String(), mode.String(), status.String())
+	return r.poolDAO.Count(ctx, keyword, kind.String(), transport.String(), dispatchMode.String(), status.String())
 }
 
 func (r *executionPoolRepository) toDAO(pool domain.ExecutionPool) dao.ExecutionPool {
@@ -198,7 +203,8 @@ func (r *executionPoolRepository) toDAO(pool domain.ExecutionPool) dao.Execution
 		ID:             pool.ID,
 		Name:           pool.Name,
 		Kind:           pool.Kind.String(),
-		Mode:           pool.Mode.String(),
+		Transport:      pool.Transport.String(),
+		DispatchMode:   pool.DispatchMode.String(),
 		IsolationLevel: pool.IsolationLevel.String(),
 		Desc:           pool.Desc,
 		Status:         pool.Status.String(),
@@ -216,7 +222,8 @@ func (r *executionPoolRepository) toDomain(pool dao.ExecutionPool) domain.Execut
 		ID:             pool.ID,
 		Name:           pool.Name,
 		Kind:           domain.ExecutionPoolKind(pool.Kind),
-		Mode:           domain.ExecutionPoolMode(pool.Mode),
+		Transport:      domain.ExecutionTransport(pool.Transport),
+		DispatchMode:   domain.ExecMode(pool.DispatchMode),
 		IsolationLevel: domain.ExecutionPoolIsolation(pool.IsolationLevel),
 		Desc:           pool.Desc,
 		Status:         domain.ExecutionPoolStatus(pool.Status),

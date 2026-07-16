@@ -5,15 +5,19 @@ import (
 	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
+	artifactSvc "github.com/Duke1616/etask/internal/service/artifact"
 	codebookSvc "github.com/Duke1616/etask/internal/service/codebook"
 	poolSvc "github.com/Duke1616/etask/internal/service/pool"
+	previewSvc "github.com/Duke1616/etask/internal/service/preview"
 	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	taskBinding "github.com/Duke1616/etask/internal/service/task/binding"
 	variableSvc "github.com/Duke1616/etask/internal/service/variable"
+	artifactWeb "github.com/Duke1616/etask/internal/web/artifact"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/manager"
 	poolWeb "github.com/Duke1616/etask/internal/web/pool"
+	previewWeb "github.com/Duke1616/etask/internal/web/preview"
 	resourceWeb "github.com/Duke1616/etask/internal/web/resource"
 	runnerWeb "github.com/Duke1616/etask/internal/web/runner"
 	variableWeb "github.com/Duke1616/etask/internal/web/variable"
@@ -51,7 +55,19 @@ var (
 		dao.NewGORMCodebookProjectDAO,
 		repository.NewCodebookRepository,
 		codebookSvc.NewService,
+		codebookSvc.NewWorkspaceService,
+		wire.Bind(new(codebookSvc.WorkspaceSourceReader), new(repository.ICodebookRepository)),
 		codebookWeb.NewHandler,
+	)
+
+	ArtifactSet = wire.NewSet(
+		dao.NewGORMArtifactDAO,
+		repository.NewArtifactRepository,
+		InitArtifactConfig,
+		InitArtifactStore,
+		artifactSvc.NewService,
+		wire.Bind(new(codebookSvc.WorkspaceArtifactReader), new(artifactSvc.Service)),
+		artifactWeb.NewHandler,
 	)
 
 	RunnerSet = wire.NewSet(
@@ -67,6 +83,11 @@ var (
 		repository.NewVariableRepository,
 		variableSvc.NewService,
 		variableWeb.NewHandler,
+	)
+
+	PreviewSet = wire.NewSet(
+		previewSvc.NewService,
+		previewWeb.NewHandler,
 	)
 
 	MaterializerCoreSet = wire.NewSet(
@@ -121,7 +142,6 @@ var (
 		InitScheduler,
 		InitMySQLTaskAcquirer,
 		InitExecutorNodePicker,
-		InitExecModeResolver,
 	)
 
 	AgentSet = wire.NewSet(
@@ -144,6 +164,7 @@ var (
 
 	ConsumerSet = wire.NewSet(
 		InitCompleteEventConsumer,
+		InitAgentResultConsumer,
 	)
 
 	// AppSet 包含 Scheduler 模式的核心 Provider
@@ -153,6 +174,7 @@ var (
 		grpc.NewAgentServer,
 		grpc.NewCodebookServer,
 		grpc.NewRunnerServer,
+		grpc.NewArtifactServer,
 		InitTasks,
 		InitSchedulerNodeGRPCServer,
 	)

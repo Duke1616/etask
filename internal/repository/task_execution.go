@@ -32,6 +32,7 @@ type TaskExecutionRepository interface {
 	// FindReschedulableExecutions 查找所有可以重调度的执行记录
 	FindReschedulableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
 
+	// FindExecutionsByPlanExecID 查询计划执行下按任务 ID 索引的执行记录。
 	FindExecutionsByPlanExecID(ctx context.Context, planExecID int64) (map[int64]domain.TaskExecution, error)
 	// FindByTaskID 根据任务ID查找所有执行记录
 	FindByTaskID(ctx context.Context, taskID int64) ([]domain.TaskExecution, error)
@@ -43,8 +44,9 @@ type TaskExecutionRepository interface {
 	FindExecutionByTaskIDAndPlanExecID(ctx context.Context, taskID int64, planExecID int64) (domain.TaskExecution, error)
 	// FindTimeoutExecutions 查找超时的执行记录
 	FindTimeoutExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
-	// ClaimPullTask 原子抢占一个等待拉取的任务
-	ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (domain.TaskExecution, error)
+	// ClaimPullTask 原子抢占一个当前节点支持的等待拉取任务。
+	ClaimPullTask(ctx context.Context, serviceName, executorNodeID string,
+		handlerNames []string) (domain.TaskExecution, error)
 }
 
 type taskExecutionRepository struct {
@@ -118,9 +120,15 @@ func (r *taskExecutionRepository) FindExecutionsByPlanExecID(ctx context.Context
 }
 
 func (r *taskExecutionRepository) Create(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error) {
+	if err := execution.Route.Validate(); err != nil {
+		return domain.TaskExecution{}, err
+	}
 	// 验证必填字段
-	if execution.Task.ID == 0 {
-		return domain.TaskExecution{}, errors.New("Task.ID不能为空")
+	if execution.Source == "" {
+		execution.Source = domain.TaskExecutionSourceTask
+	}
+	if execution.Task.ID == 0 && !execution.Source.IsCodebookPreview() {
+		return domain.TaskExecution{}, errors.New("任务 ID 不能为空")
 	}
 
 	// 自动继承 Task 的 TenantID（后台调度等无租户上下文的场景）
@@ -193,8 +201,9 @@ func (r *taskExecutionRepository) FindTimeoutExecutions(ctx context.Context, lim
 	}), nil
 }
 
-func (r *taskExecutionRepository) ClaimPullTask(ctx context.Context, serviceName string, executorNodeID string) (domain.TaskExecution, error) {
-	daoExec, err := r.dao.ClaimPullTask(ctx, serviceName, executorNodeID)
+func (r *taskExecutionRepository) ClaimPullTask(ctx context.Context, serviceName, executorNodeID string,
+	handlerNames []string) (domain.TaskExecution, error) {
+	daoExec, err := r.dao.ClaimPullTask(ctx, serviceName, executorNodeID, handlerNames)
 	if err != nil {
 		return domain.TaskExecution{}, err
 	}
@@ -223,6 +232,16 @@ func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.T
 		taskScheduleParams = sqlx.JSONColumn[map[string]string]{Val: execution.Task.ScheduleParams, Valid: true}
 	}
 
+	var artifact sqlx.JSONColumn[[]domain.ArtifactRef]
+	if len(execution.Artifacts) > 0 {
+		artifact = sqlx.JSONColumn[[]domain.ArtifactRef]{Val: execution.Artifacts, Valid: true}
+	}
+
+	var executionRoute sqlx.JSONColumn[domain.ExecutionRoute]
+	if execution.Route.Transport != "" {
+		executionRoute = sqlx.JSONColumn[domain.ExecutionRoute]{Val: execution.Route, Valid: true}
+	}
+
 	var executorNodeID sql.NullString
 	if execution.ExecutorNodeID != "" {
 		executorNodeID = sql.NullString{String: execution.ExecutorNodeID, Valid: true}
@@ -231,6 +250,7 @@ func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.T
 	return dao.TaskExecution{
 		ID:       execution.ID,
 		TenantID: execution.TenantID,
+		Source:   execution.Source.String(),
 		// 从Task展开的冗余字段
 		TaskID:                  execution.Task.ID,
 		TaskName:                execution.Task.Name,
@@ -243,6 +263,8 @@ func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.T
 		TaskVersion:             execution.Task.Version,
 		TaskScheduleNodeID:      execution.Task.ScheduleNodeID,
 		TaskScheduleParams:      taskScheduleParams,
+		Artifact:                artifact,
+		ExecutionRoute:          executionRoute,
 		// TaskExecution自身字段
 		Deadline:        execution.Deadline,
 		ExecutorNodeID:  executorNodeID,
@@ -280,6 +302,16 @@ func (r *taskExecutionRepository) toDomain(daoExecution dao.TaskExecution) domai
 		taskScheduleParams = daoExecution.TaskScheduleParams.Val
 	}
 
+	var artifacts []domain.ArtifactRef
+	if daoExecution.Artifact.Valid {
+		artifacts = daoExecution.Artifact.Val
+	}
+
+	var executionRoute domain.ExecutionRoute
+	if daoExecution.ExecutionRoute.Valid {
+		executionRoute = daoExecution.ExecutionRoute.Val
+	}
+
 	var executorNodeID string
 	if daoExecution.ExecutorNodeID.Valid {
 		executorNodeID = daoExecution.ExecutorNodeID.String
@@ -288,8 +320,10 @@ func (r *taskExecutionRepository) toDomain(daoExecution dao.TaskExecution) domai
 	return domain.TaskExecution{
 		ID:       daoExecution.ID,
 		TenantID: daoExecution.TenantID,
+		Source:   domain.TaskExecutionSource(daoExecution.Source),
 		Task: domain.Task{
 			ID:                  daoExecution.TaskID,
+			TenantID:            daoExecution.TenantID,
 			Name:                daoExecution.TaskName,
 			Type:                domain.TaskType(daoExecution.TaskType),
 			CronExpr:            daoExecution.TaskCronExpr,
@@ -300,6 +334,7 @@ func (r *taskExecutionRepository) toDomain(daoExecution dao.TaskExecution) domai
 			ScheduleParams:      taskScheduleParams,
 			ScheduleNodeID:      daoExecution.TaskScheduleNodeID,
 			Version:             daoExecution.TaskVersion,
+			ExecMode:            domain.ExecMode(daoExecution.ExecMode),
 		},
 
 		Deadline:        daoExecution.Deadline,
@@ -311,6 +346,8 @@ func (r *taskExecutionRepository) toDomain(daoExecution dao.TaskExecution) domai
 		RunningProgress: daoExecution.RunningProgress,
 		Status:          domain.TaskExecutionStatus(daoExecution.Status),
 		TaskResult:      daoExecution.TaskResult,
+		Artifacts:       artifacts,
+		Route:           executionRoute,
 		CTime:           daoExecution.Ctime,
 		UTime:           daoExecution.Utime,
 	}

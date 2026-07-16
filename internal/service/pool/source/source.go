@@ -17,20 +17,29 @@ const instanceCheckTimeout = 5 * time.Second
 
 // Source 描述一种可以被同步为 execution_pools 的注册中心资源来源。
 type Source interface {
+	// Name 返回来源的唯一名称。
 	Name() string
+	// Prefix 返回来源在注册中心监听的键前缀。
 	Prefix() string
+	// Kind 返回来源对应的执行资源池类型。
 	Kind() domain.ExecutionPoolKind
+	// Accept 判断注册实例是否属于当前来源。
 	Accept(registry.ServiceInstance) bool
+	// BuildPool 将注册实例转换为执行资源池。
 	BuildPool(registry.ServiceInstance) (domain.ExecutionPool, bool)
+	// PoolName 返回注册实例所属的资源池名称。
 	PoolName(registry.ServiceInstance) string
+	// HasInstances 判断指定资源池是否仍有在线实例。
 	HasInstances(context.Context, string) (bool, error)
 }
 
-func newPool(name string, kind domain.ExecutionPoolKind, mode domain.ExecutionPoolMode, inst registry.ServiceInstance) domain.ExecutionPool {
+func newPool(name string, kind domain.ExecutionPoolKind, transport domain.ExecutionTransport,
+	dispatchMode domain.ExecMode, inst registry.ServiceInstance) domain.ExecutionPool {
 	return domain.ExecutionPool{
 		Name:           name,
 		Kind:           kind,
-		Mode:           mode,
+		Transport:      transport,
+		DispatchMode:   dispatchMode,
 		IsolationLevel: normalizeIsolationLevel(inst),
 		Desc:           metadataString(inst.Metadata, "desc"),
 		Status:         domain.ExecutionPoolStatusEnabled,
@@ -38,7 +47,7 @@ func newPool(name string, kind domain.ExecutionPoolKind, mode domain.ExecutionPo
 	}
 }
 
-// normalizeIsolationLevel 从注册元数据读取资源池隔离级别；缺省时保持向后兼容为 SHARED。
+// normalizeIsolationLevel 从注册元数据读取资源池隔离级别；缺省值为 SHARED。
 // 注册协议使用 metadata.isolation_level，支持 SHARED 和 DEDICATED。
 func normalizeIsolationLevel(inst registry.ServiceInstance) domain.ExecutionPoolIsolation {
 	switch strings.ToUpper(metadataString(inst.Metadata, "isolation_level")) {

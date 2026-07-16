@@ -2,23 +2,27 @@ package agent
 
 import (
 	"context"
+	"errors"
 
-	"github.com/Duke1616/etask/internal/agent/event"
 	"github.com/Duke1616/etask/internal/agent/service"
 	"github.com/gotomicro/ego/core/constant"
 	"github.com/gotomicro/ego/server"
+	"google.golang.org/grpc"
 )
 
 type Consumer interface {
-	Start(ctx context.Context)
+	// Start 启动消息消费循环。
+	Start(ctx context.Context) error
+	// Stop 停止消费并释放资源。
 	Stop(ctx context.Context) error
 }
 
 type Module struct {
-	Svc    service.Service
-	C      *event.ExecuteConsumer
-	ctx    context.Context
-	cancel context.CancelFunc
+	Svc        service.Service
+	C          Consumer
+	ctx        context.Context
+	cancel     context.CancelFunc
+	connection *grpc.ClientConn
 }
 
 func (m *Module) GetConsumer() Consumer {
@@ -40,24 +44,30 @@ func (m *Module) Init() error {
 }
 
 func (m *Module) Start() error {
-	// 启动消费者任务
 	m.ctx, m.cancel = context.WithCancel(context.Background())
-	m.C.Start(m.ctx)
-	return nil
+	return m.C.Start(m.ctx)
 }
 
 func (m *Module) Stop() error {
 	if m.cancel != nil {
 		m.cancel()
 	}
-	return m.C.Stop(context.Background())
+	err := m.C.Stop(context.Background())
+	if m.connection != nil {
+		err = errors.Join(err, m.connection.Close())
+	}
+	return err
 }
 
 func (m *Module) GracefulStop(ctx context.Context) error {
 	if m.cancel != nil {
 		m.cancel()
 	}
-	return m.C.Stop(ctx)
+	err := m.C.Stop(ctx)
+	if m.connection != nil {
+		err = errors.Join(err, m.connection.Close())
+	}
+	return err
 }
 
 func (m *Module) Info() *server.ServiceInfo {

@@ -10,7 +10,7 @@ import (
 
 type TaskExecutionLogRepository interface {
 	// Create 创建日志记录
-	Create(ctx context.Context, log domain.TaskExecutionLog) error
+	Create(ctx context.Context, log domain.TaskExecutionLog) (domain.TaskExecutionLog, error)
 	// BatchCreate 批量创建日志记录
 	BatchCreate(ctx context.Context, logs []domain.TaskExecutionLog) error
 	// GetLogsByExecutionID 获取指定执行ID的日志
@@ -31,8 +31,12 @@ func NewTaskExecutionLogRepository(dao dao.TaskExecutionLogDAO) TaskExecutionLog
 	}
 }
 
-func (r *taskExecutionLogRepository) Create(ctx context.Context, log domain.TaskExecutionLog) error {
-	return r.dao.Create(ctx, r.toEntity(log))
+func (r *taskExecutionLogRepository) Create(ctx context.Context, log domain.TaskExecutionLog) (domain.TaskExecutionLog, error) {
+	created, err := r.dao.Create(ctx, r.toEntity(log))
+	if err != nil {
+		return domain.TaskExecutionLog{}, err
+	}
+	return r.toDomain(created), nil
 }
 
 func (r *taskExecutionLogRepository) BatchCreate(ctx context.Context, logs []domain.TaskExecutionLog) error {

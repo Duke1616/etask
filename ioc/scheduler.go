@@ -3,25 +3,23 @@ package ioc
 import (
 	"github.com/Duke1616/etask/internal/service/acquirer"
 	"github.com/Duke1616/etask/internal/service/dispatcher"
-	"github.com/Duke1616/etask/internal/service/picker"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 )
 
+// InitNodeID 创建本次进程使用的调度节点 ID。
 func InitNodeID() string {
 	return uuid.New().String()
 }
 
+// InitScheduler 从配置中创建调度器。
 func InitScheduler(
 	nodeID string,
 	dispatcher dispatcher.Dispatcher,
 	taskSvc task.Service,
-	execSvc task.ExecutionService,
 	acquirer acquirer.TaskAcquirer,
-	nodePicker picker.ExecutorNodePicker,
-	modeResolver picker.IExecModeResolver,
 ) *scheduler.Scheduler {
 	var cfg scheduler.Config
 	err := viper.UnmarshalKey("scheduler", &cfg)
@@ -33,10 +31,7 @@ func InitScheduler(
 		nodeID,
 		dispatcher,
 		taskSvc,
-		execSvc,
 		acquirer,
 		cfg,
-		nodePicker,
-		modeResolver,
 	)
 }

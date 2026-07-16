@@ -43,15 +43,18 @@ func (Codebook) TableName() string {
 
 // CodebookProject 映射代码资源项目表。
 type CodebookProject struct {
-	ID       int64  `gorm:"primaryKey;column:id;type:bigint;autoIncrement;comment:'代码项目自增ID'"`
-	TenantID int64  `gorm:"column:tenant_id;type:bigint unsigned;not null;default:0;index;uniqueIndex:uniq_codebook_project_tenant_name,priority:1;comment:'租户ID'"`
-	Scope    string `gorm:"column:scope;type:varchar(32);not null;default:'TENANT';index;comment:'作用域，项目仅用于TENANT'"`
-	Name     string `gorm:"column:name;type:varchar(128);not null;uniqueIndex:uniq_codebook_project_tenant_name,priority:2;comment:'项目名称'"`
-	Desc     string `gorm:"column:description;type:varchar(255);not null;default:'';comment:'项目描述'"`
-	SortNo   int64  `gorm:"column:sort_no;type:bigint;not null;default:0;comment:'排序号'"`
-	Status   string `gorm:"column:status;type:varchar(32);not null;default:'NORMAL';index;comment:'项目状态 NORMAL/ARCHIVED'"`
-	CTime    int64  `gorm:"column:ctime;type:bigint;comment:'创建时间(毫秒)'"`
-	UTime    int64  `gorm:"column:utime;type:bigint;comment:'更新时间(毫秒)'"`
+	ID                int64   `gorm:"primaryKey;column:id;type:bigint;autoIncrement;comment:'代码项目自增ID'"`
+	TenantID          int64   `gorm:"column:tenant_id;type:bigint unsigned;not null;default:0;index;uniqueIndex:uniq_codebook_project_tenant_name,priority:1;uniqueIndex:uniq_codebook_project_tenant_namespace,priority:1;comment:'租户ID'"`
+	Scope             string  `gorm:"column:scope;type:varchar(32);not null;default:'TENANT';index;comment:'作用域，项目仅用于TENANT'"`
+	Name              string  `gorm:"column:name;type:varchar(128);not null;uniqueIndex:uniq_codebook_project_tenant_name,priority:2;comment:'项目名称'"`
+	Desc              string  `gorm:"column:description;type:varchar(255);not null;default:'';comment:'项目描述'"`
+	SortNo            int64   `gorm:"column:sort_no;type:bigint;not null;default:0;comment:'排序号'"`
+	Status            string  `gorm:"column:status;type:varchar(32);not null;default:'NORMAL';index;comment:'项目状态 NORMAL/ARCHIVED'"`
+	ArtifactEnabled   bool    `gorm:"column:artifact_enabled;type:tinyint(1);not null;default:0;comment:'是否为制品库'"`
+	ArtifactNamespace *string `gorm:"column:artifact_namespace;type:varchar(64);uniqueIndex:uniq_codebook_project_tenant_namespace,priority:2;comment:'制品库租户内唯一导入命名空间'"`
+	SourceRevision    int64   `gorm:"column:source_revision;type:bigint;not null;default:0;comment:'项目源码修订号'"`
+	CTime             int64   `gorm:"column:ctime;type:bigint;comment:'创建时间(毫秒)'"`
+	UTime             int64   `gorm:"column:utime;type:bigint;comment:'更新时间(毫秒)'"`
 }
 
 func (CodebookProject) TableName() string {
@@ -94,10 +97,14 @@ type CodebookProjectDAO interface {
 	GetByID(ctx context.Context, id int64) (CodebookProject, error)
 	// List 分页查询代码资源项目。
 	List(ctx context.Context, offset, limit int64) ([]CodebookProject, error)
+	// ListArtifactProjects 查询当前租户下全部正常状态的制品库项目。
+	ListArtifactProjects(ctx context.Context) ([]CodebookProject, error)
+	// ArtifactNamespaceExists 判断当前租户是否存在同名制品导入命名空间。
+	ArtifactNamespaceExists(ctx context.Context, namespace string, excludeID int64) (bool, error)
 	// Count 统计代码资源项目总数。
 	Count(ctx context.Context) (int64, error)
 	// GetMaxSortNo 查询当前租户项目最大的排序号。
-	GetMaxSortNo(ctx context.Context, tenantID int64) (int64, error)
+	GetMaxSortNo(ctx context.Context) (int64, error)
 	// Update 更新代码资源项目。
 	Update(ctx context.Context, p CodebookProject) (int64, error)
 	// Delete 归档代码资源项目。
@@ -120,11 +127,15 @@ type CodebookDAO interface {
 	GetVersionByID(ctx context.Context, id int64) (CodebookVersion, error)
 	// List 分页查询代码节点，按创建时间倒序返回。
 	List(ctx context.Context, offset, limit int64) ([]Codebook, error)
+	// ListByScope 查询指定作用域下的全部代码节点。
+	ListByScope(ctx context.Context, scope string) ([]Codebook, error)
+	// ListByTarget 查询指定作用域和项目下的全部代码节点。
+	ListByTarget(ctx context.Context, scope string, projectID int64) ([]Codebook, error)
 	// ListChildren 查询指定项目和父节点下的子节点。
 	ListChildren(ctx context.Context, projectID, parentID int64) ([]Codebook, error)
 	// ListChildrenBySpace 查询指定空间和父节点下的子节点。
 	ListChildrenBySpace(ctx context.Context, projectID, parentID int64, scope string) ([]Codebook, error)
-	// Tree 查询指定项目视图下的节点树，系统组件库由租户插件透出。
+	// Tree 查询指定项目下的全部源码节点。
 	Tree(ctx context.Context, projectID int64) ([]Codebook, error)
 	// Count 统计代码节点总数。
 	Count(ctx context.Context) (int64, error)
@@ -199,6 +210,29 @@ func (g *GORMCodebookProjectDAO) List(ctx context.Context, offset, limit int64) 
 	return res, err
 }
 
+// ListArtifactProjects 查询当前租户下全部正常状态的制品库项目。
+func (g *GORMCodebookProjectDAO) ListArtifactProjects(ctx context.Context) ([]CodebookProject, error) {
+	var res []CodebookProject
+	err := g.db.WithContext(ctx).
+		Where("scope = ? AND status = ? AND artifact_enabled = ?",
+			domain.CodebookScopeTenant.String(), domain.CodebookProjectStatusNormal.String(), true).
+		Order("sort_no ASC, id ASC").
+		Find(&res).Error
+	return res, err
+}
+
+// ArtifactNamespaceExists 判断当前租户是否存在同名制品导入命名空间。
+func (g *GORMCodebookProjectDAO) ArtifactNamespaceExists(ctx context.Context, namespace string, excludeID int64) (bool, error) {
+	var count int64
+	db := g.db.WithContext(ctx).Model(&CodebookProject{}).
+		Where("artifact_namespace = ?", namespace)
+	if excludeID > 0 {
+		db = db.Where("id <> ?", excludeID)
+	}
+	err := db.Count(&count).Error
+	return count > 0, err
+}
+
 // Count 统计代码资源项目总数。
 func (g *GORMCodebookProjectDAO) Count(ctx context.Context) (int64, error) {
 	var count int64
@@ -210,11 +244,11 @@ func (g *GORMCodebookProjectDAO) Count(ctx context.Context) (int64, error) {
 }
 
 // GetMaxSortNo 查询当前租户项目最大的排序号。
-func (g *GORMCodebookProjectDAO) GetMaxSortNo(ctx context.Context, tenantID int64) (int64, error) {
+func (g *GORMCodebookProjectDAO) GetMaxSortNo(ctx context.Context) (int64, error) {
 	var sortNo int64
 	err := g.db.WithContext(ctx).
 		Model(&CodebookProject{}).
-		Where("tenant_id = ? AND status = ?", tenantID, domain.CodebookProjectStatusNormal.String()).
+		Where("status = ?", domain.CodebookProjectStatusNormal.String()).
 		Select("COALESCE(MAX(sort_no), 0)").
 		Scan(&sortNo).Error
 	return sortNo, err
@@ -225,10 +259,12 @@ func (g *GORMCodebookProjectDAO) Update(ctx context.Context, p CodebookProject) 
 	res := g.db.WithContext(ctx).Model(&CodebookProject{}).
 		Where("id = ?", p.ID).
 		Updates(map[string]any{
-			"name":        p.Name,
-			"description": p.Desc,
-			"sort_no":     p.SortNo,
-			"utime":       time.Now().UnixMilli(),
+			"name":               p.Name,
+			"description":        p.Desc,
+			"sort_no":            p.SortNo,
+			"artifact_enabled":   p.ArtifactEnabled,
+			"artifact_namespace": p.ArtifactNamespace,
+			"utime":              time.Now().UnixMilli(),
 		})
 	return res.RowsAffected, res.Error
 }
@@ -255,31 +291,29 @@ func (g *GORMCodebookDAO) Create(ctx context.Context, c Codebook, code string) (
 		if err := tx.Create(&c).Error; err != nil {
 			return err
 		}
-		if c.Kind != domain.CodebookKindFile.String() {
-			return nil
+		if c.Kind == domain.CodebookKindFile.String() {
+			version := CodebookVersion{
+				NodeID:       c.ID,
+				Scope:        c.Scope,
+				VersionNo:    1,
+				Code:         code,
+				Hash:         hashCode(code),
+				AuthorUserID: codebookAuthorUserID(ctx),
+				CTime:        now,
+			}
+			if err := tx.Create(&version).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&Codebook{}).
+				Where("id = ?", c.ID).
+				Updates(map[string]any{
+					"current_version_id": version.ID,
+					"utime":              now,
+				}).Error; err != nil {
+				return err
+			}
 		}
-		if strings.TrimSpace(code) == "" {
-			return nil
-		}
-		version := CodebookVersion{
-			NodeID:       c.ID,
-			TenantID:     c.TenantID,
-			Scope:        c.Scope,
-			VersionNo:    1,
-			Code:         code,
-			Hash:         hashCode(code),
-			AuthorUserID: codebookAuthorUserID(ctx),
-			CTime:        now,
-		}
-		if err := tx.Create(&version).Error; err != nil {
-			return err
-		}
-		return tx.Model(&Codebook{}).
-			Where("id = ?", c.ID).
-			Updates(map[string]any{
-				"current_version_id": version.ID,
-				"utime":              now,
-			}).Error
+		return bumpProjectSourceRevision(tx, c.Scope, c.ProjectID)
 	})
 	return c.ID, err
 }
@@ -354,6 +388,27 @@ func (g *GORMCodebookDAO) List(ctx context.Context, offset, limit int64) ([]Code
 	return res, err
 }
 
+// ListByScope 查询指定作用域下的全部代码节点。
+// 查询始终通过 dbWithContext 执行，由 GORM Plugin 负责租户和共享数据约束。
+func (g *GORMCodebookDAO) ListByScope(ctx context.Context, scope string) ([]Codebook, error) {
+	var res []Codebook
+	err := g.dbWithContext(ctx).
+		Where("scope = ?", scope).
+		Order("depth ASC, path_ids ASC, sort_no ASC, id ASC").
+		Find(&res).Error
+	return res, err
+}
+
+// ListByTarget 查询指定作用域和项目下的全部代码节点。
+func (g *GORMCodebookDAO) ListByTarget(ctx context.Context, scope string, projectID int64) ([]Codebook, error) {
+	var res []Codebook
+	err := g.dbWithContext(ctx).
+		Where("scope = ? AND project_id = ?", scope, projectID).
+		Order("depth ASC, path_ids ASC, sort_no ASC, id ASC").
+		Find(&res).Error
+	return res, err
+}
+
 // ListChildren 查询指定项目和父节点下的子节点。
 func (g *GORMCodebookDAO) ListChildren(ctx context.Context, projectID, parentID int64) ([]Codebook, error) {
 	var res []Codebook
@@ -374,11 +429,11 @@ func (g *GORMCodebookDAO) ListChildrenBySpace(ctx context.Context, projectID, pa
 	return res, err
 }
 
-// Tree 查询指定项目视图下的节点树，SYSTEM 组件库由租户插件透出。
+// Tree 查询指定项目下的全部源码节点。
 func (g *GORMCodebookDAO) Tree(ctx context.Context, projectID int64) ([]Codebook, error) {
 	var res []Codebook
 	err := g.dbWithContext(ctx).
-		Where("project_id IN ?", []int64{projectID, 0}).
+		Where("project_id = ?", projectID).
 		Order("path_ids ASC, sort_no ASC, kind ASC, name ASC, id ASC").
 		Find(&res).Error
 	return res, err
@@ -406,13 +461,12 @@ func (g *GORMCodebookDAO) GetMaxSortNo(ctx context.Context, projectID, parentID 
 func (g *GORMCodebookDAO) Update(ctx context.Context, c Codebook, code string) (int64, error) {
 	now := time.Now().UnixMilli()
 	updates := map[string]any{
-		"tenant_id": c.TenantID,
-		"name":      c.Name,
-		"owner":     c.Owner,
-		"secret":    c.Secret,
-		"scope":     c.Scope,
-		"sort_no":   c.SortNo,
-		"utime":     now,
+		"name":    c.Name,
+		"owner":   c.Owner,
+		"secret":  c.Secret,
+		"scope":   c.Scope,
+		"sort_no": c.SortNo,
+		"utime":   now,
 	}
 	var rowsAffected int64
 	err := g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -426,9 +480,12 @@ func (g *GORMCodebookDAO) Update(ctx context.Context, c Codebook, code string) (
 		rowsAffected = res.RowsAffected
 
 		if c.Kind != domain.CodebookKindFile.String() || strings.TrimSpace(code) == "" {
-			return nil
+			return bumpProjectSourceRevision(tx, c.Scope, c.ProjectID)
 		}
-		return g.updateCurrentVersionCode(ctx, tx, c, code, now)
+		if err := g.updateCurrentVersionCode(ctx, tx, c, code, now); err != nil {
+			return err
+		}
+		return bumpProjectSourceRevision(tx, c.Scope, c.ProjectID)
 	})
 	return rowsAffected, err
 }
@@ -454,7 +511,6 @@ func (g *GORMCodebookDAO) updateCurrentVersionCode(ctx context.Context, tx *gorm
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		version = CodebookVersion{
 			NodeID:       c.ID,
-			TenantID:     c.TenantID,
 			Scope:        c.Scope,
 			VersionNo:    1,
 			Code:         code,
@@ -507,7 +563,6 @@ func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, version CodebookVer
 			return err
 		}
 
-		version.TenantID = node.TenantID
 		version.Scope = node.Scope
 		version.VersionNo = maxVersionNo + 1
 		if version.AuthorUserID == 0 {
@@ -515,7 +570,10 @@ func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, version CodebookVer
 		}
 		version.CTime = now
 		version.Hash = hashCode(version.Code)
-		return tx.Create(&version).Error
+		if err := tx.Create(&version).Error; err != nil {
+			return err
+		}
+		return nil
 	})
 	return version.ID, err
 }
@@ -524,6 +582,10 @@ func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, version CodebookVer
 func (g *GORMCodebookDAO) UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error) {
 	var rowsAffected int64
 	err := g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var node Codebook
+		if err := tx.Where("id = ?", nodeID).First(&node).Error; err != nil {
+			return err
+		}
 		var version CodebookVersion
 		if err := tx.Where("id = ? AND node_id = ?", versionID, nodeID).First(&version).Error; err != nil {
 			return err
@@ -541,7 +603,7 @@ func (g *GORMCodebookDAO) UseVersion(ctx context.Context, nodeID, versionID int6
 			return gorm.ErrRecordNotFound
 		}
 		rowsAffected = res.RowsAffected
-		return nil
+		return bumpProjectSourceRevision(tx, node.Scope, node.ProjectID)
 	})
 	return rowsAffected, err
 }
@@ -549,7 +611,11 @@ func (g *GORMCodebookDAO) UseVersion(ctx context.Context, nodeID, versionID int6
 // UpdateSort 更新单个代码节点的父级、路径和排序号。
 func (g *GORMCodebookDAO) UpdateSort(ctx context.Context, item CodebookSortItem) error {
 	return g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return g.updateSortInTx(tx, item)
+		projects := make(map[int64]struct{})
+		if err := g.updateSortInTx(tx, item, projects); err != nil {
+			return err
+		}
+		return bumpProjectSourceRevisions(tx, projects)
 	})
 }
 
@@ -559,12 +625,13 @@ func (g *GORMCodebookDAO) BatchUpdateSort(ctx context.Context, items []CodebookS
 		return nil
 	}
 	return g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		projects := make(map[int64]struct{})
 		for _, item := range items {
-			if err := g.updateSortInTx(tx, item); err != nil {
+			if err := g.updateSortInTx(tx, item, projects); err != nil {
 				return err
 			}
 		}
-		return nil
+		return bumpProjectSourceRevisions(tx, projects)
 	})
 }
 
@@ -595,7 +662,7 @@ func (g *GORMCodebookDAO) Delete(ctx context.Context, id int64) (int64, error) {
 			return res.Error
 		}
 		rowsAffected = res.RowsAffected
-		return nil
+		return bumpProjectSourceRevision(tx, node.Scope, node.ProjectID)
 	})
 	return rowsAffected, err
 }
@@ -604,11 +671,15 @@ func (g *GORMCodebookDAO) dbWithContext(ctx context.Context) *gorm.DB {
 	return g.db.WithContext(ctx)
 }
 
-func (g *GORMCodebookDAO) updateSortInTx(tx *gorm.DB, item CodebookSortItem) error {
+func (g *GORMCodebookDAO) updateSortInTx(tx *gorm.DB, item CodebookSortItem, projects map[int64]struct{}) error {
 	now := time.Now().UnixMilli()
 	var old Codebook
 	if err := tx.Where("id = ?", item.ID).First(&old).Error; err != nil {
 		return err
+	}
+	if old.Scope == domain.CodebookScopeTenant.String() {
+		projects[old.ProjectID] = struct{}{}
+		projects[item.ProjectID] = struct{}{}
 	}
 	res := tx.Model(&Codebook{}).
 		Where("id = ?", item.ID).
@@ -647,6 +718,27 @@ func (g *GORMCodebookDAO) updateSortInTx(tx *gorm.DB, item CodebookSortItem) err
 				"depth":    descendant.Depth + depthDelta,
 				"utime":    now,
 			}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func bumpProjectSourceRevision(tx *gorm.DB, scope string, projectID int64) error {
+	if scope != domain.CodebookScopeTenant.String() || projectID <= 0 {
+		return nil
+	}
+	return tx.Model(&CodebookProject{}).
+		Where("id = ?", projectID).
+		Updates(map[string]any{
+			"source_revision": gorm.Expr("source_revision + 1"),
+			"utime":           time.Now().UnixMilli(),
+		}).Error
+}
+
+func bumpProjectSourceRevisions(tx *gorm.DB, projects map[int64]struct{}) error {
+	for projectID := range projects {
+		if err := bumpProjectSourceRevision(tx, domain.CodebookScopeTenant.String(), projectID); err != nil {
 			return err
 		}
 	}

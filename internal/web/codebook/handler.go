@@ -15,13 +15,15 @@ import (
 var _ ginx.Handler = &Handler{}
 
 type Handler struct {
-	svc codebookSvc.Service
+	svc       codebookSvc.Service
+	workspace codebookSvc.WorkspaceService
 	capability.IRegistry
 }
 
-func NewHandler(svc codebookSvc.Service) *Handler {
+func NewHandler(svc codebookSvc.Service, workspace codebookSvc.WorkspaceService) *Handler {
 	return &Handler{
 		svc:       svc,
+		workspace: workspace,
 		IRegistry: capability.NewRegistry("task", "codebook", "脚本引擎"),
 	}
 }
@@ -39,7 +41,6 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	project := func(name, code string) *capability.Builder {
 		return h.Capability(name, code).Group("脚本引擎/项目管理")
 	}
-
 	g := server.Group("/api/codebook")
 	g.POST("/create", cb("创建模板", "add").
 		Handle(ginx.B[CreateReq](h.Create)),
@@ -51,6 +52,9 @@ func (h *Handler) PrivateRoutes(server *gin.Engine) {
 	g.GET("/tree/:project_id", cb("代码资源树", "view_tree").
 		Needs("task:codebook:children").
 		Handle(ginx.W(h.Tree)),
+	)
+	g.POST("/workspace/file", cb("读取制品文件", "view_workspace_tree").
+		Handle(ginx.B[WorkspaceFileReq](h.WorkspaceFile)),
 	)
 	g.GET("/detail/:id", cb("模板详情", "get").
 		Handle(ginx.W(h.Detail)),
@@ -132,11 +136,20 @@ func (h *Handler) Tree(ctx *ginx.Context) (ginx.Result, error) {
 		return invalidProjectIDError, err
 	}
 
-	cs, err := h.svc.Tree(ctx, projectID)
+	nodes, err := h.workspace.Tree(ctx, projectID)
 	if err != nil {
 		return h.translateError(err), err
 	}
-	return ginx.Result{Msg: "success", Data: h.toListResp(cs, int64(len(cs)))}, nil
+	return ginx.Result{Msg: "success", Data: WorkspaceTreeResp{Nodes: h.toWorkspaceNodes(nodes)}}, nil
+}
+
+// WorkspaceFile 读取工作区中已激活制品的不可变文件内容。
+func (h *Handler) WorkspaceFile(ctx *ginx.Context, req WorkspaceFileReq) (ginx.Result, error) {
+	code, err := h.workspace.ReadArtifactFile(ctx, req.ProjectID, req.ReleaseID, req.Digest, req.ArtifactPath)
+	if err != nil {
+		return h.translateError(err), err
+	}
+	return ginx.Result{Msg: "success", Data: WorkspaceFileResp{Code: code}}, nil
 }
 
 func (h *Handler) Update(ctx *ginx.Context, req UpdateReq) (ginx.Result, error) {
@@ -220,7 +233,8 @@ func (h *Handler) ListProject(ctx *ginx.Context, req ListReq) (ginx.Result, erro
 }
 
 func (h *Handler) UpdateProject(ctx *ginx.Context, req UpdateProjectReq) (ginx.Result, error) {
-	count, err := h.svc.UpdateProject(ctx, h.toUpdateProjectDomain(req))
+	project := h.toUpdateProjectDomain(req)
+	count, err := h.svc.UpdateProject(ctx, project)
 	if err != nil {
 		return h.translateError(err), err
 	}
@@ -280,6 +294,19 @@ func (h *Handler) toListResp(cs []domain.Codebook, total int64) ListCodebooksRes
 	}
 }
 
+func (h *Handler) toWorkspaceNodes(nodes []domain.WorkspaceNode) []WorkspaceNode {
+	return lo.Map(nodes, func(node domain.WorkspaceNode, _ int) WorkspaceNode {
+		return WorkspaceNode{
+			Key: node.Key, SourceID: node.SourceID, ReleaseID: node.ReleaseID,
+			Digest: node.Digest, ArtifactPath: node.ArtifactPath, Name: node.Name,
+			Owner: node.Owner, Kind: node.Kind.String(), Scope: node.Scope.String(),
+			Layer: string(node.Layer), RuntimePath: node.RuntimePath, Readonly: node.Readonly,
+			ProjectID: node.ProjectID, ParentID: node.ParentID, SortNo: node.SortNo,
+			Namespace: node.Namespace, Children: h.toWorkspaceNodes(node.Children),
+		}
+	})
+}
+
 func (h *Handler) toVO(req domain.Codebook) Codebook {
 	return Codebook{
 		ID:               req.ID,
@@ -335,17 +362,21 @@ func (h *Handler) toVersionVO(req domain.CodebookVersion) Version {
 
 func (h *Handler) toProjectDomain(req CreateProjectReq) domain.CodebookProject {
 	return domain.CodebookProject{
-		Name: req.Name,
-		Desc: req.Desc,
+		Name:              req.Name,
+		Desc:              req.Desc,
+		ArtifactEnabled:   req.ArtifactEnabled,
+		ArtifactNamespace: req.ArtifactNamespace,
 	}
 }
 
 func (h *Handler) toUpdateProjectDomain(req UpdateProjectReq) domain.CodebookProject {
 	return domain.CodebookProject{
-		ID:     req.ID,
-		Name:   req.Name,
-		Desc:   req.Desc,
-		SortNo: req.SortNo,
+		ID:                req.ID,
+		Name:              req.Name,
+		Desc:              req.Desc,
+		SortNo:            req.SortNo,
+		ArtifactEnabled:   req.ArtifactEnabled,
+		ArtifactNamespace: req.ArtifactNamespace,
 	}
 }
 
@@ -360,14 +391,17 @@ func (h *Handler) toProjectListResp(ps []domain.CodebookProject, total int64) Li
 
 func (h *Handler) toProjectVO(req domain.CodebookProject) Project {
 	return Project{
-		ID:       req.ID,
-		TenantID: req.TenantID,
-		Scope:    req.Scope.String(),
-		Name:     req.Name,
-		Desc:     req.Desc,
-		SortNo:   req.SortNo,
-		Status:   req.Status.String(),
-		CTime:    req.CTime,
-		UTime:    req.UTime,
+		ID:                req.ID,
+		TenantID:          req.TenantID,
+		Scope:             req.Scope.String(),
+		Name:              req.Name,
+		Desc:              req.Desc,
+		SortNo:            req.SortNo,
+		Status:            req.Status.String(),
+		ArtifactEnabled:   req.ArtifactEnabled,
+		ArtifactNamespace: req.ArtifactNamespace,
+		SourceRevision:    req.SourceRevision,
+		CTime:             req.CTime,
+		UTime:             req.UTime,
 	}
 }

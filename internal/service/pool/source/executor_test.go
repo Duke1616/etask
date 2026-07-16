@@ -11,15 +11,15 @@ func TestNormalizeExecutorMode(t *testing.T) {
 	testCases := []struct {
 		name string
 		mode any
-		want domain.ExecutionPoolMode
+		want domain.ExecMode
 	}{
-		{name: "empty", mode: "", want: domain.ExecutionPoolModePush},
-		{name: "missing", mode: nil, want: domain.ExecutionPoolModePush},
-		{name: "push uppercase", mode: "PUSH", want: domain.ExecutionPoolModePush},
-		{name: "push lowercase", mode: "push", want: domain.ExecutionPoolModePush},
-		{name: "pull uppercase", mode: "PULL", want: domain.ExecutionPoolModePull},
-		{name: "pull lowercase", mode: "pull", want: domain.ExecutionPoolModePull},
-		{name: "invalid", mode: "grpc", want: domain.ExecutionPoolModePush},
+		{name: "empty", mode: "", want: domain.ExecModePush},
+		{name: "missing", mode: nil, want: domain.ExecModePush},
+		{name: "push uppercase", mode: "PUSH", want: domain.ExecModePush},
+		{name: "push lowercase", mode: "push", want: domain.ExecModePush},
+		{name: "pull uppercase", mode: "PULL", want: domain.ExecModePull},
+		{name: "pull lowercase", mode: "pull", want: domain.ExecModePull},
+		{name: "invalid", mode: "grpc", want: domain.ExecModePush},
 	}
 
 	for _, tc := range testCases {
@@ -48,8 +48,8 @@ func TestBuildExecutorPoolNormalizesMode(t *testing.T) {
 	if !ok {
 		t.Fatal("buildExecutorPool() returned ok=false")
 	}
-	if pool.Mode != domain.ExecutionPoolModePull {
-		t.Fatalf("pool.Mode = %s, want %s", pool.Mode, domain.ExecutionPoolModePull)
+	if pool.Transport != domain.ExecutionTransportGRPC || pool.DispatchMode != domain.ExecModePull {
+		t.Fatalf("pool route = %s/%s, want GRPC/PULL", pool.Transport, pool.DispatchMode)
 	}
 }
 

@@ -2,10 +2,14 @@ package grpc
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/repository"
 	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	"github.com/Duke1616/etask/internal/service/task"
@@ -44,10 +48,14 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 	serviceName := req.GetServiceName()
 	nodeId := req.GetNodeId()
 	if serviceName == "" {
-		return &executorv1.PullTaskResponse{HasTask: false}, nil
+		return nil, fmt.Errorf("执行服务名称不能为空")
 	}
 	if nodeId == "" {
-		nodeId = serviceName // 向后兼容
+		return nil, fmt.Errorf("执行节点 ID 不能为空")
+	}
+	handlerNames := normalizeHandlerNames(req.GetHandlers())
+	if len(handlerNames) == 0 {
+		return nil, fmt.Errorf("执行节点至少需要声明一个处理器")
 	}
 
 	// 1. 设置最大长轮询时间
@@ -60,14 +68,23 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 	for {
 		// 在数据库中寻找并乐观抢占一条状态为 WAITING_PULL 且 Service(Group) 匹配的执行记录
 		// 这里将 nodeId 真实落库记录为 executor_node_id
-		exec, err := s.execRepo.ClaimPullTask(timeoutCtx, serviceName, nodeId)
+		exec, err := s.execRepo.ClaimPullTask(timeoutCtx, serviceName, nodeId, handlerNames)
 		if err == nil {
+			artifacts, artifactErr := domain.ArtifactRefsToProto(exec.Artifacts)
+			if artifactErr != nil {
+				s.finishClaimedExecution(timeoutCtx, exec, nodeId,
+					domain.TaskExecutionStatusFailed, "执行制品引用非法: "+artifactErr.Error())
+				return nil, artifactErr
+			}
 			allowed, authErr := s.isExecutionAllowed(timeoutCtx, exec)
 			if authErr != nil {
+				s.finishClaimedExecution(timeoutCtx, exec, nodeId,
+					domain.TaskExecutionStatusFailedRescheduled, "校验执行资源池授权失败: "+authErr.Error())
 				return nil, authErr
 			}
 			if !allowed {
-				s.rejectClaimedExecution(timeoutCtx, exec, nodeId)
+				s.finishClaimedExecution(timeoutCtx, exec, nodeId,
+					domain.TaskExecutionStatusFailed, "执行资源池授权已被撤销")
 				continue
 			}
 
@@ -75,7 +92,6 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 			if exec.Task.GrpcConfig != nil {
 				handlerName = exec.Task.GrpcConfig.HandlerName
 			}
-
 			// 2. 抢占成功，直接将执行指令下发
 			return &executorv1.PullTaskResponse{
 				HasTask: true,
@@ -88,9 +104,13 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 					// 在 PULL (拉取) 模式下，因为 Agent 边缘节点的长轮询请求是系统级无租户背景发起的，
 					// gRPC 链路请求头中无法携带租户 Metadata。因此必须将任务所属的 TenantID
 					// 显式塞入 proto Payload 消息体中下发，供 Agent 侧反向提取并重建租户 context 树。
-					TenantId: exec.TenantID,
+					TenantId:  exec.TenantID,
+					Artifacts: artifacts,
 				},
 			}, nil
+		}
+		if !errors.Is(err, errs.ErrExecutionNotFound) && !errors.Is(err, errs.ErrExecutionClaimConflict) {
+			return nil, fmt.Errorf("拉取待执行任务失败: %w", err)
 		}
 
 		select {
@@ -104,6 +124,23 @@ func (s *AgentServer) PullTask(ctx context.Context, req *executorv1.PullTaskRequ
 	}
 }
 
+func normalizeHandlerNames(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
 func (s *AgentServer) isExecutionAllowed(ctx context.Context, exec domain.TaskExecution) (bool, error) {
 	if exec.Task.GrpcConfig == nil || s.bindingSvc == nil {
 		return true, nil
@@ -115,17 +152,20 @@ func (s *AgentServer) isExecutionAllowed(ctx context.Context, exec domain.TaskEx
 	})
 }
 
-func (s *AgentServer) rejectClaimedExecution(ctx context.Context, exec domain.TaskExecution, nodeID string) {
-	err := s.execSvc.UpdateState(ctx, domain.ExecutionState{
+func (s *AgentServer) finishClaimedExecution(ctx context.Context, exec domain.TaskExecution,
+	nodeID string, status domain.TaskExecutionStatus, result string) {
+	updateCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	err := s.execSvc.UpdateState(updateCtx, domain.ExecutionState{
 		ID:             exec.ID,
 		TaskID:         exec.Task.ID,
 		TaskName:       exec.Task.Name,
-		Status:         domain.TaskExecutionStatusFailed,
+		Status:         status,
 		ExecutorNodeID: nodeID,
-		TaskResult:     "execution pool binding revoked",
+		TaskResult:     result,
 	})
 	if err != nil {
-		s.logger.Error("拒绝未授权 pull 任务失败",
+		s.logger.Error("结束已领取的 PULL 任务失败",
 			elog.Int64("taskID", exec.Task.ID),
 			elog.Int64("executionID", exec.ID),
 			elog.FieldErr(err))

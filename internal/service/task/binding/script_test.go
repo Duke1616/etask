@@ -19,7 +19,7 @@ func TestScriptBindingResolversResolve(t *testing.T) {
 
 	codebookSvc.EXPECT().
 		GetByID(gomock.Any(), int64(12)).
-		Return(domain.Codebook{ID: 12, Code: "echo hello"}, nil)
+		Return(domain.Codebook{ID: 12, TenantID: 3, Scope: domain.CodebookScopeTenant, ProjectID: 7, Code: "echo hello"}, nil)
 	runnerSvc.EXPECT().
 		ListMergedVariables(gomock.Any(), int64(34)).
 		Return([]domain.RunnerVariable{
@@ -65,7 +65,7 @@ func TestScriptBindingResolversResolveInvalidID(t *testing.T) {
 	)
 
 	_, err := resolvers.Resolve(context.Background(), "shell", map[string]string{"code": "bad"}, map[string]string{"code": "codebook"})
-	if err == nil || !strings.Contains(err.Error(), "invalid code binding id") {
-		t.Fatalf("err = %v, want invalid code binding id", err)
+	if err == nil || !strings.Contains(err.Error(), "绑定 ID 非法") {
+		t.Fatalf("err = %v, want invalid binding id", err)
 	}
 }

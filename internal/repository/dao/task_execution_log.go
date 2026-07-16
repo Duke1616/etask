@@ -24,7 +24,7 @@ func (TaskExecutionLog) TableName() string {
 
 type TaskExecutionLogDAO interface {
 	// Create 创建日志记录
-	Create(ctx context.Context, log TaskExecutionLog) error
+	Create(ctx context.Context, log TaskExecutionLog) (TaskExecutionLog, error)
 	// BatchCreate 批量创建日志记录
 	BatchCreate(ctx context.Context, logs []TaskExecutionLog) error
 	// GetLogsByExecutionID 获取指定执行ID的日志
@@ -43,9 +43,10 @@ func NewGORMTaskExecutionLogDAO(db *gorm.DB) TaskExecutionLogDAO {
 	return &GORMTaskExecutionLogDAO{db: db}
 }
 
-func (g *GORMTaskExecutionLogDAO) Create(ctx context.Context, log TaskExecutionLog) error {
+func (g *GORMTaskExecutionLogDAO) Create(ctx context.Context, log TaskExecutionLog) (TaskExecutionLog, error) {
 	log.Ctime = time.Now().UnixMilli()
-	return g.db.WithContext(ctx).Create(&log).Error
+	err := g.db.WithContext(ctx).Create(&log).Error
+	return log, err
 }
 
 func (g *GORMTaskExecutionLogDAO) BatchCreate(ctx context.Context, logs []TaskExecutionLog) error {

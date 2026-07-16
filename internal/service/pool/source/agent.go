@@ -55,7 +55,8 @@ func buildAgentPool(inst registry.ServiceInstance) (domain.ExecutionPool, bool) 
 	if name == "" {
 		return domain.ExecutionPool{}, false
 	}
-	return newPool(name, domain.ExecutionPoolKindAgent, domain.ExecutionPoolModeMQ, inst), true
+	return newPool(name, domain.ExecutionPoolKindAgent, domain.ExecutionTransportMQ,
+		domain.ExecModePush, inst), true
 }
 
 func agentPoolName(inst registry.ServiceInstance) string {

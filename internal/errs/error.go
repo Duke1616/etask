@@ -12,6 +12,7 @@ var (
 	ErrTaskUpdateStatusFailed         = errors.New("任务更新状态失败")
 
 	ErrExecutionNotFound            = errors.New("执行记录不存在")
+	ErrExecutionClaimConflict       = errors.New("执行记录已被其他节点领取")
 	ErrInvalidTaskExecutionStatus   = errors.New("执行记录状态非法")
 	ErrInterruptTaskExecutionFailed = errors.New("中断任务执行失败")
 

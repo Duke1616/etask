@@ -11,8 +11,13 @@ services:
       - TZ=Asia/Shanghai
     volumes:
       - ./prod.yaml:/app/config/prod.yaml
+      # 启用 Local 制品仓库或 Executor 制品缓存时需要持久化该目录。
+      - etask-artifacts:/var/lib/etask
 
 networks:
   default:
     name: ecmdb
     external: true
+
+volumes:
+  etask-artifacts:

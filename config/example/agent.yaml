@@ -1,0 +1,51 @@
+log:
+  debug: true
+
+# Kafka Agent 可独立部署，不需要数据库或 Executor gRPC 服务。
+agent:
+  name: "Kafka-Agent"
+  topic: "agent_execute"
+  worker_count: 4
+  desc: "隔离网络内的异步脚本执行代理"
+  isolation_level: "SHARED"
+  artifact_cache:
+    dir: "/var/lib/etask/agent-artifact-cache"
+    max_download_size: 536870912
+    max_unpacked_size: 2147483648
+    max_file_count: 10000
+    max_cache_size: 10737418240
+
+runtime:
+  script:
+    workspace_dir: "/tmp/etask/runs"
+    workspace_max_age: 24h
+    python_binary: "python"
+    shell_binary: "/bin/bash"
+    max_code_size: 4194304
+    max_args_size: 1048576
+    max_variables_size: 1048576
+    max_log_line_size: 1048576
+    max_result_size: 4194304
+    archive:
+      enabled: true
+      failed_only: false
+      dir: "/var/lib/etask/script-archive"
+      max_age: 168h
+      max_size: 10737418240
+
+kafka:
+  network: tcp
+  addresses:
+    - 127.0.0.1:9094
+
+etcd:
+  endpoints:
+    - 127.0.0.1:2379
+
+# 制品下载通道。address 非空时直连 Scheduler，不依赖 Etcd 服务发现；留空时按 name 发现。
+grpc:
+  client:
+    scheduler:
+      name: "scheduler"
+      address: ""
+      auth_token: ""

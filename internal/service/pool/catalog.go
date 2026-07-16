@@ -23,12 +23,13 @@ type CatalogListRequest struct {
 
 // PoolListRequest 描述管理端资源池分页查询条件。
 type PoolListRequest struct {
-	Offset  int64
-	Limit   int64
-	Keyword string
-	Kind    domain.ExecutionPoolKind
-	Mode    domain.ExecutionPoolMode
-	Status  domain.ExecutionPoolStatus
+	Offset       int64
+	Limit        int64
+	Keyword      string
+	Kind         domain.ExecutionPoolKind
+	Transport    domain.ExecutionTransport
+	DispatchMode domain.ExecMode
+	Status       domain.ExecutionPoolStatus
 }
 
 // CatalogPage 描述当前租户可见资源池分页结果。
@@ -150,11 +151,13 @@ func (s *catalogService) listAuthorizedPoolsByOffset(
 
 func (s *catalogService) ListPools(ctx context.Context, req PoolListRequest) (PoolPage, error) {
 	limit := normalizeCatalogLimit(req.Limit)
-	pools, err := s.poolRepo.List(ctx, req.Offset, limit, strings.TrimSpace(req.Keyword), req.Kind, req.Mode, req.Status)
+	pools, err := s.poolRepo.List(ctx, req.Offset, limit, strings.TrimSpace(req.Keyword),
+		req.Kind, req.Transport, req.DispatchMode, req.Status)
 	if err != nil {
 		return PoolPage{}, err
 	}
-	total, err := s.poolRepo.Count(ctx, strings.TrimSpace(req.Keyword), req.Kind, req.Mode, req.Status)
+	total, err := s.poolRepo.Count(ctx, strings.TrimSpace(req.Keyword), req.Kind,
+		req.Transport, req.DispatchMode, req.Status)
 	if err != nil {
 		return PoolPage{}, err
 	}

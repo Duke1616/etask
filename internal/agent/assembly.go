@@ -1,0 +1,138 @@
+package agent
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	artifactv1 "github.com/Duke1616/etask/api/proto/gen/etask/artifact/v1"
+	"github.com/Duke1616/etask/internal/agent/domain"
+	"github.com/Duke1616/etask/internal/agent/event"
+	"github.com/Duke1616/etask/internal/agent/service"
+	executorartifact "github.com/Duke1616/etask/internal/executor/artifact"
+	"github.com/Duke1616/etask/internal/grpc/scripts"
+	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	"github.com/Duke1616/etask/pkg/grpc/registry"
+	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
+	"github.com/Duke1616/etask/sdk/executor"
+	"github.com/ecodeclub/mq-api"
+	"github.com/google/uuid"
+	"github.com/spf13/viper"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
+)
+
+type Instance struct {
+	Name           string `yaml:"name" json:"name"`                       // 实例名称
+	Desc           string `yaml:"desc" json:"desc"`                       // 注解
+	Topic          string `yaml:"topic" json:"topic"`                     // 建立 Topic 通道
+	WorkerCount    int    `yaml:"worker_count" json:"worker_count"`       // 并发工作协程数量
+	IsolationLevel string `yaml:"isolation_level" json:"isolation_level"` // 资源池隔离级别: SHARED 或 DEDICATED
+}
+
+// InitScriptHandlers 使用 Agent 的脚本运行时配置创建任务处理器。
+func InitScriptHandlers() []executor.TaskHandler {
+	var config scripts.RuntimeConfig
+	if err := viper.UnmarshalKey("runtime.script", &config); err != nil {
+		panic(err)
+	}
+	runtime, err := scripts.NewRuntime(config)
+	if err != nil {
+		panic(err)
+	}
+	if err = runtime.Initialize(); err != nil {
+		panic(err)
+	}
+	return runtime.Handlers()
+}
+
+func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
+	registry := InitRegistry(etcdClient)
+	handlers := InitScriptHandlers()
+	preparer := initArtifactPreparer()
+	connection := initSchedulerConnection(etcdClient)
+	artifactClient := artifactv1.NewArtifactServiceClient(connection)
+	executionService := service.NewService(handlers, preparer, artifactClient)
+	producer := initExecuteProducer(q)
+	consumer := initExecuteConsumer(q, executionService, producer, registry)
+	return &Module{Svc: executionService, C: consumer, connection: connection}
+}
+
+func initExecuteProducer(q mq.MQ) event.ExecuteResultProducer {
+	producer, err := event.NewExecuteResultProducer(q)
+	if err != nil {
+		panic(err)
+	}
+	return producer
+}
+
+func InitRegistry(etcdClient *clientv3.Client) registry.Registry {
+	reg, err := etcd.NewRegistryWithPrefix(etcdClient, "/etask/kafka")
+	if err != nil {
+		panic(err)
+	}
+	return reg
+}
+
+func initExecuteConsumer(q mq.MQ, svc service.Service, producer event.ExecuteResultProducer,
+	reg registry.Registry) *event.ExecuteConsumer {
+	var cfg Instance
+	if err := viper.UnmarshalKey("agent", &cfg); err != nil {
+		panic(err)
+	}
+
+	handlerMetas, _ := json.Marshal(svc.ListHandlers())
+	instance := registry.ServiceInstance{
+		Name:    domain.ServiceName, // 统一的服务分组名称
+		Address: uuid.New().String(),
+		Metadata: map[string]any{
+			"name":               cfg.Name,
+			"desc":               cfg.Desc,
+			"topic":              cfg.Topic,
+			"supported_handlers": string(handlerMetas),
+			"isolation_level":    cfg.IsolationLevel,
+		},
+	}
+
+	consumer, err := event.NewExecuteConsumer(q, svc, cfg.Topic, producer, reg, instance, cfg.WorkerCount)
+	if err != nil {
+		panic(err)
+	}
+
+	return consumer
+}
+
+func initArtifactPreparer() executor.ArtifactPreparer {
+	var config executorartifact.Config
+	if err := viper.UnmarshalKey("agent.artifact_cache", &config); err != nil {
+		panic(err)
+	}
+	return executorartifact.NewRuntime(config)
+}
+
+func initSchedulerConnection(etcdClient *clientv3.Client) *grpc.ClientConn {
+	var config grpcpkg.ClientConfig
+	if err := viper.UnmarshalKey("grpc.client.scheduler", &config); err != nil {
+		panic(err)
+	}
+	connection, err := schedulerConnection(config, etcdClient)
+	if err != nil {
+		panic(fmt.Errorf("创建 Agent 调度中心连接失败: %w", err))
+	}
+	return connection
+}
+
+func schedulerConnection(config grpcpkg.ClientConfig, etcdClient *clientv3.Client) (*grpc.ClientConn, error) {
+	options := []grpcpkg.ClientOption{
+		grpcpkg.WithClientJWTAuth(config.AuthToken),
+		grpcpkg.WithTimeout(10 * time.Second),
+	}
+	if config.Address != "" {
+		return grpcpkg.NewDirectClientConn(config.Address, options...)
+	}
+	registry, err := etcd.NewRegistry(etcdClient)
+	if err != nil {
+		return nil, err
+	}
+	return grpcpkg.NewClientConn(registry, append(options, grpcpkg.WithServiceName(config.Name))...)
+}

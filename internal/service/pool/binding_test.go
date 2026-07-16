@@ -419,7 +419,8 @@ func (f *fakePoolRepo) List(
 	limit int64,
 	_ string,
 	kind domain.ExecutionPoolKind,
-	_ domain.ExecutionPoolMode,
+	_ domain.ExecutionTransport,
+	_ domain.ExecMode,
 	status domain.ExecutionPoolStatus,
 ) ([]domain.ExecutionPool, error) {
 	pools := make([]domain.ExecutionPool, 0, len(f.pools))
@@ -446,10 +447,11 @@ func (f *fakePoolRepo) Count(
 	_ context.Context,
 	_ string,
 	kind domain.ExecutionPoolKind,
-	_ domain.ExecutionPoolMode,
+	_ domain.ExecutionTransport,
+	_ domain.ExecMode,
 	status domain.ExecutionPoolStatus,
 ) (int64, error) {
-	pools, err := f.List(context.Background(), 0, int64(len(f.pools)), "", kind, "", status)
+	pools, err := f.List(context.Background(), 0, int64(len(f.pools)), "", kind, "", "", status)
 	return int64(len(pools)), err
 }
 

@@ -36,7 +36,7 @@ func (r CodebookResolver) Resolve(ctx context.Context, req executor.BindingResol
 
 	codebook, err := r.svc.GetByID(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf("get codebook failed: %w", err)
+		return "", fmt.Errorf("获取代码资源失败: %w", err)
 	}
 	return codebook.Code, nil
 }
@@ -53,7 +53,7 @@ func (r RunnerResolver) Resolve(ctx context.Context, req executor.BindingResolve
 
 	vars, err := r.svc.ListMergedVariables(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf("get runner variables failed: %w", err)
+		return "", fmt.Errorf("获取执行器变量失败: %w", err)
 	}
 
 	variables := lo.Map(vars, func(v domain.RunnerVariable, _ int) variable {
@@ -66,7 +66,7 @@ func (r RunnerResolver) Resolve(ctx context.Context, req executor.BindingResolve
 
 	bytes, err := json.Marshal(variables)
 	if err != nil {
-		return "", fmt.Errorf("marshal runner variables failed: %w", err)
+		return "", fmt.Errorf("序列化执行器变量失败: %w", err)
 	}
 	return string(bytes), nil
 }
@@ -74,7 +74,7 @@ func (r RunnerResolver) Resolve(ctx context.Context, req executor.BindingResolve
 func parseID(rawID string, param string) (int64, error) {
 	id, err := strconv.ParseInt(rawID, 10, 64)
 	if err != nil || id <= 0 {
-		return 0, fmt.Errorf("invalid %s binding id: %q", param, rawID)
+		return 0, fmt.Errorf("参数 %s 的绑定 ID 非法: %q", param, rawID)
 	}
 	return id, nil
 }

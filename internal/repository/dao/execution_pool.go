@@ -17,7 +17,8 @@ type ExecutionPool struct {
 	ID             int64                              `gorm:"column:id;type:bigint;primaryKey;autoIncrement;comment:'执行资源池自增ID'"`
 	Name           string                             `gorm:"column:name;type:varchar(128);not null;uniqueIndex:uniq_execution_pools_name;comment:'执行资源池名称，对应 executor service name 或 agent 通道名'"`
 	Kind           string                             `gorm:"column:kind;type:ENUM('EXECUTOR','AGENT');not null;comment:'执行资源类型: EXECUTOR/AGENT'"`
-	Mode           string                             `gorm:"column:mode;type:ENUM('PUSH','PULL','MQ');not null;comment:'派发模式: PUSH/PULL/MQ'"`
+	Transport      string                             `gorm:"column:transport;type:ENUM('GRPC','MQ');not null;comment:'任务传输通道: GRPC/MQ'"`
+	DispatchMode   string                             `gorm:"column:dispatch_mode;type:ENUM('PUSH','PULL');not null;default:'PUSH';comment:'任务派发方式: PUSH/PULL'"`
 	IsolationLevel string                             `gorm:"column:isolation_level;type:ENUM('SHARED','DEDICATED');not null;default:'SHARED';comment:'隔离级别: SHARED/DEDICATED'"`
 	Desc           string                             `gorm:"column:desc;type:text;comment:'执行资源池描述'"`
 	Status         string                             `gorm:"column:status;type:ENUM('ENABLED','DISABLED');not null;default:'ENABLED';index;comment:'资源池状态'"`
@@ -59,13 +60,13 @@ type ExecutionPoolDAO interface {
 	// FindByName 按资源池名称查询资源池。
 	FindByName(ctx context.Context, name string) (ExecutionPool, error)
 	// List 按筛选条件分页查询资源池列表。
-	List(ctx context.Context, offset, limit int64, keyword, kind, mode, status string) ([]ExecutionPool, error)
+	List(ctx context.Context, offset, limit int64, keyword, kind, transport, dispatchMode, status string) ([]ExecutionPool, error)
 	// ListByKind 按执行资源类型查询全部资源池。
 	ListByKind(ctx context.Context, kind string) ([]ExecutionPool, error)
 	// ListByNames 按名称列表查询资源池。
-	ListByNames(ctx context.Context, names []string, keyword, kind, mode, status string) ([]ExecutionPool, error)
+	ListByNames(ctx context.Context, names []string, keyword, kind, transport, dispatchMode, status string) ([]ExecutionPool, error)
 	// Count 按筛选条件统计资源池数量。
-	Count(ctx context.Context, keyword, kind, mode, status string) (int64, error)
+	Count(ctx context.Context, keyword, kind, transport, dispatchMode, status string) (int64, error)
 	// DeleteByName 按资源池名称删除资源池。
 	DeleteByName(ctx context.Context, name string) (int64, error)
 }
@@ -134,7 +135,8 @@ func (g *GORMExecutionPoolDAO) UpsertByName(ctx context.Context, pool ExecutionP
 func (g *GORMExecutionPoolDAO) Update(ctx context.Context, pool ExecutionPool) (int64, error) {
 	updates := map[string]any{
 		"kind":            pool.Kind,
-		"mode":            pool.Mode,
+		"transport":       pool.Transport,
+		"dispatch_mode":   pool.DispatchMode,
 		"isolation_level": pool.IsolationLevel,
 		"desc":            pool.Desc,
 		"metadata":        pool.Metadata,
@@ -168,9 +170,10 @@ func (g *GORMExecutionPoolDAO) FindByName(ctx context.Context, name string) (Exe
 	return pool, err
 }
 
-func (g *GORMExecutionPoolDAO) List(ctx context.Context, offset, limit int64, keyword, kind, mode, status string) ([]ExecutionPool, error) {
+func (g *GORMExecutionPoolDAO) List(ctx context.Context, offset, limit int64,
+	keyword, kind, transport, dispatchMode, status string) ([]ExecutionPool, error) {
 	var pools []ExecutionPool
-	err := g.buildPoolQuery(ctx, keyword, kind, mode, status).
+	err := g.buildPoolQuery(ctx, keyword, kind, transport, dispatchMode, status).
 		Order("utime DESC").
 		Offset(int(offset)).
 		Limit(int(limit)).
@@ -193,22 +196,24 @@ func (g *GORMExecutionPoolDAO) ListByNames(
 	names []string,
 	keyword string,
 	kind string,
-	mode string,
+	transport string,
+	dispatchMode string,
 	status string,
 ) ([]ExecutionPool, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}
 	var pools []ExecutionPool
-	err := g.buildPoolQuery(ctx, keyword, kind, mode, status).
+	err := g.buildPoolQuery(ctx, keyword, kind, transport, dispatchMode, status).
 		Where("name IN ?", names).
 		Find(&pools).Error
 	return pools, err
 }
 
-func (g *GORMExecutionPoolDAO) Count(ctx context.Context, keyword, kind, mode, status string) (int64, error) {
+func (g *GORMExecutionPoolDAO) Count(ctx context.Context,
+	keyword, kind, transport, dispatchMode, status string) (int64, error) {
 	var total int64
-	err := g.buildPoolQuery(ctx, keyword, kind, mode, status).
+	err := g.buildPoolQuery(ctx, keyword, kind, transport, dispatchMode, status).
 		Count(&total).Error
 	return total, err
 }
@@ -218,7 +223,8 @@ func (g *GORMExecutionPoolDAO) DeleteByName(ctx context.Context, name string) (i
 	return res.RowsAffected, res.Error
 }
 
-func (g *GORMExecutionPoolDAO) buildPoolQuery(ctx context.Context, keyword, kind, mode, status string) *gorm.DB {
+func (g *GORMExecutionPoolDAO) buildPoolQuery(ctx context.Context,
+	keyword, kind, transport, dispatchMode, status string) *gorm.DB {
 	db := g.db.WithContext(ctx).Model(&ExecutionPool{})
 	if keyword != "" {
 		like := "%" + keyword + "%"
@@ -227,8 +233,11 @@ func (g *GORMExecutionPoolDAO) buildPoolQuery(ctx context.Context, keyword, kind
 	if kind != "" {
 		db = db.Where("kind = ?", kind)
 	}
-	if mode != "" {
-		db = db.Where("mode = ?", mode)
+	if transport != "" {
+		db = db.Where("transport = ?", transport)
+	}
+	if dispatchMode != "" {
+		db = db.Where("dispatch_mode = ?", dispatchMode)
 	}
 	if status != "" {
 		db = db.Where("status = ?", status)

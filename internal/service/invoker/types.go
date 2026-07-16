@@ -7,9 +7,8 @@ import (
 )
 
 type Invoker interface {
+	// Name 返回调用器唯一名称。
 	Name() string
 	// Run 执行任务，返回执行结果
 	Run(ctx context.Context, execution domain.TaskExecution) (domain.ExecutionState, error)
-	// Prepare 返回业务总数量
-	Prepare(ctx context.Context, execution domain.TaskExecution) (map[string]string, error)
 }

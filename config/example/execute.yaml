@@ -1,6 +1,25 @@
 log:
   debug: true
 
+# 内置 Shell/Python 处理器运行时。
+runtime:
+  script:
+    workspace_dir: "/tmp/etask/runs"
+    workspace_max_age: 24h
+    python_binary: "python"
+    shell_binary: "/bin/bash"
+    max_code_size: 4194304
+    max_args_size: 1048576
+    max_variables_size: 1048576
+    max_log_line_size: 1048576
+    max_result_size: 4194304
+    archive:
+      enabled: true
+      failed_only: false
+      dir: "/var/lib/etask/script-archive"
+      max_age: 168h
+      max_size: 10737418240
+
 # 执行节点集群配置
 executor:
   # 节点实例 ID。
@@ -15,7 +34,12 @@ executor:
   desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
   # 资源池隔离级别：SHARED（默认）或 DEDICATED（仅可授权一个租户）。
   isolation_level: "SHARED"
-
+  artifact_cache:
+    dir: "/var/lib/etask/artifact-cache"
+    max_download_size: 536870912
+    max_unpacked_size: 2147483648
+    max_file_count: 10000
+    max_cache_size: 10737418240
 etcd:
   endpoints:
     - 127.0.0.1:2379

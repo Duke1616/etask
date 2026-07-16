@@ -13,7 +13,9 @@ const (
 
 // Sortable 定义可拖拽排序元素。
 type Sortable interface {
+	// GetID 返回排序元素 ID。
 	GetID() int64
+	// GetSortKey 返回当前排序键。
 	GetSortKey() int64
 }
 

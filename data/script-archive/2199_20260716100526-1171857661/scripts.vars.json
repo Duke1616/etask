@@ -1,0 +1,1 @@
+[{"key":"KUBECONFIG_PATH","value":"/home/demo/.kube/config","secret":false},{"key":"OPERATOR_NAME","value":"demo","secret":false},{"key":"ENVIRONMENT","value":"development","secret":false}]

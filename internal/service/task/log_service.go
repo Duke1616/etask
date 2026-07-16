@@ -11,7 +11,7 @@ import (
 // LogService 任务日志服务接口
 type LogService interface {
 	// AddLog 添加任务日志
-	AddLog(ctx context.Context, log domain.TaskExecutionLog) error
+	AddLog(ctx context.Context, log domain.TaskExecutionLog) (domain.TaskExecutionLog, error)
 	// BatchAddLogs 批量添加日志
 	BatchAddLogs(ctx context.Context, logs []domain.TaskExecutionLog) error
 	// GetLogs 获取执行任务日志和总数
@@ -28,7 +28,7 @@ func NewLogService(repo repository.TaskExecutionLogRepository) LogService {
 	}
 }
 
-func (s *logService) AddLog(ctx context.Context, log domain.TaskExecutionLog) error {
+func (s *logService) AddLog(ctx context.Context, log domain.TaskExecutionLog) (domain.TaskExecutionLog, error) {
 	return s.repo.Create(ctx, log)
 }
 

@@ -4,14 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/event"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/service/acquirer"
+	artifactSvc "github.com/Duke1616/etask/internal/service/artifact"
+	codebookSvc "github.com/Duke1616/etask/internal/service/codebook"
 	"github.com/Duke1616/etask/internal/sse"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/retry"
@@ -24,6 +28,8 @@ import (
 type ExecutionService interface {
 	// Create 创建任务执行实例
 	Create(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error)
+	// CreatePreview 创建不依赖正式任务的 Codebook 试运行执行实例。
+	CreatePreview(ctx context.Context, execution domain.TaskExecution, sourceProjectID int64) (domain.TaskExecution, error)
 	// FindByID 根据ID获取执行实例
 	FindByID(ctx context.Context, id int64) (domain.TaskExecution, error)
 	// FindRetryableExecutions 查找所有可以重试的执行记录
@@ -31,9 +37,12 @@ type ExecutionService interface {
 	FindRetryableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
 	// FindReschedulableExecutions 查找所有可以重调度的执行记录
 	FindReschedulableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
+	// FindExecutionByTaskIDAndPlanExecID 根据任务和计划执行 ID 查询执行记录。
 	FindExecutionByTaskIDAndPlanExecID(ctx context.Context, taskID int64, planExecID int64) (domain.TaskExecution, error)
 	// FindTimeoutExecutions 查找超时的执行记录
 	FindTimeoutExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
+	// RequeuePull 将失败的 PULL 执行重新放回等待拉取队列。
+	RequeuePull(ctx context.Context, executionID int64) error
 
 	// SetRunningState 设置任务为运行状态并更新进度
 	SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error
@@ -52,6 +61,14 @@ type ExecutionService interface {
 	ListByTaskID(ctx context.Context, taskID int64, offset, limit int) ([]domain.TaskExecution, int64, error)
 }
 
+// RequeuePull 将执行记录恢复为等待拉取状态，后续由 Executor 原子抢占。
+func (s *executionService) RequeuePull(ctx context.Context, executionID int64) error {
+	if executionID <= 0 {
+		return fmt.Errorf("执行 ID 非法")
+	}
+	return s.repo.UpdateStatus(ctx, executionID, domain.TaskExecutionStatusWaitingPull)
+}
+
 type executionService struct {
 	nodeID       string
 	repo         repository.TaskExecutionRepository
@@ -61,6 +78,8 @@ type executionService struct {
 	producer     event.CompleteProducer // 任务完成事件生产者
 	registry     registry.Registry
 	resolvers    *executor.BindingResolverRegistry
+	artifactSvc  artifactSvc.Service
+	codebookSvc  codebookSvc.Service
 	logger       *elog.Component
 }
 
@@ -73,25 +92,40 @@ func NewExecutionService(
 	producer event.CompleteProducer,
 	registry registry.Registry,
 	resolvers *executor.BindingResolverRegistry,
+	artifactSvc artifactSvc.Service,
+	codebookSvc codebookSvc.Service,
 ) ExecutionService {
 	return &executionService{
-		nodeID:    nodeID,
-		repo:      repo,
-		taskSvc:   taskSvc,
-		logSvc:    logSvc,
-		producer:  producer,
-		registry:  registry,
-		resolvers: resolvers,
-		logger:    elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
+		nodeID:      nodeID,
+		repo:        repo,
+		taskSvc:     taskSvc,
+		logSvc:      logSvc,
+		producer:    producer,
+		registry:    registry,
+		resolvers:   resolvers,
+		artifactSvc: artifactSvc,
+		codebookSvc: codebookSvc,
+		logger:      elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
 	}
 }
 
 func (s *executionService) Create(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error) {
-	snapshot, err := s.buildTaskSnapshot(ctx, execution.Task)
+	execution.Source = domain.TaskExecutionSourceTask
+	if err := execution.Route.Validate(); err != nil {
+		return domain.TaskExecution{}, fmt.Errorf("执行路由非法: %w", err)
+	}
+	// 执行记录保存完整任务快照，后续编辑任务不会改变本次运行语义。
+	snapshot, sourceProjectID, err := s.buildTaskSnapshot(ctx, execution.Task)
 	if err != nil {
 		return domain.TaskExecution{}, err
 	}
+	// 路由中的派发模式属于本次执行快照，不能被任务表里的上一次模式覆盖。
+	snapshot.ExecMode = execution.Route.DispatchMode
 	execution.Task = snapshot
+	// 脚本任务在创建执行记录时固定制品引用，运行时不会漂移到新发布版本。
+	if err = s.resolveArtifacts(ctx, &execution, sourceProjectID); err != nil {
+		return domain.TaskExecution{}, err
+	}
 	if execution.TenantID == 0 {
 		execution.TenantID = snapshot.TenantID
 	}
@@ -105,27 +139,81 @@ func (s *executionService) Create(ctx context.Context, execution domain.TaskExec
 	return created, nil
 }
 
-func (s *executionService) buildTaskSnapshot(ctx context.Context, task domain.Task) (domain.Task, error) {
+func (s *executionService) CreatePreview(ctx context.Context, execution domain.TaskExecution,
+	sourceProjectID int64) (domain.TaskExecution, error) {
+	// 试运行不绑定正式任务，但仍遵循规划器固定的 PUSH/PULL 路由。
+	execution.Source = domain.TaskExecutionSourceCodebookPreview
+	execution.Task.ID = 0
+	execution.Task.Type = domain.TaskTypeOneTime
+	if err := execution.Route.Validate(); err != nil {
+		return domain.TaskExecution{}, fmt.Errorf("试运行路由非法: %w", err)
+	}
+	execution.Task.ExecMode = execution.Route.DispatchMode
+	execution.Task.TenantID = ctxutil.GetTenantID(ctx).Int64()
+	if execution.Task.TenantID <= 0 {
+		return domain.TaskExecution{}, fmt.Errorf("缺少租户上下文，无法创建试运行")
+	}
+	if err := s.taskSvc.AuthorizeExecutionPool(ctx, execution.Task); err != nil {
+		return domain.TaskExecution{}, err
+	}
+	// 预览与正式任务使用相同的制品解析规则，并排除正在预览的来源项目。
+	if err := s.resolveArtifacts(ctx, &execution, sourceProjectID); err != nil {
+		return domain.TaskExecution{}, err
+	}
+	execution.TenantID = execution.Task.TenantID
+	created, err := s.repo.Create(ctx, execution)
+	if err != nil {
+		return domain.TaskExecution{}, err
+	}
+	s.broadcastExecutionEvent(created.ID)
+	return created, nil
+}
+
+func (s *executionService) resolveArtifacts(ctx context.Context, execution *domain.TaskExecution,
+	sourceProjectID int64) error {
+	// 只有内置脚本 Handler 需要代码制品，其他业务 Handler 保持原有执行契约。
+	if execution.Task.GrpcConfig == nil || !isScriptHandler(execution.Task.GrpcConfig.HandlerName) {
+		return nil
+	}
+	artifacts, err := s.artifactSvc.ResolveExecution(ctx, sourceProjectID)
+	if err != nil {
+		return err
+	}
+	execution.Artifacts = artifacts
+	return nil
+}
+
+func isScriptHandler(name string) bool {
+	return name == "python" || name == "shell"
+}
+
+func (s *executionService) buildTaskSnapshot(ctx context.Context, task domain.Task) (domain.Task, int64, error) {
+	// 重新读取持久化任务，调度列表中的旧对象只提供本次动态调度参数。
 	snapshot, err := s.taskSvc.GetByID(ctx, task.ID)
 	if err != nil {
-		return domain.Task{}, fmt.Errorf("获取Task信息失败: %w", err)
+		return domain.Task{}, 0, fmt.Errorf("获取Task信息失败: %w", err)
 	}
 
 	snapshot.UpdateScheduleParams(task.ScheduleParams)
 	if err = s.taskSvc.AuthorizeExecutionPool(ctx, snapshot); err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, 0, err
+	}
+	sourceProjectID, err := s.sourceProjectID(ctx, snapshot)
+	if err != nil {
+		return domain.Task{}, 0, err
 	}
 
 	if snapshot.GrpcConfig == nil || s.resolvers == nil {
-		return snapshot, nil
+		return snapshot, sourceProjectID, nil
 	}
 
+	// Codebook 等绑定在执行创建阶段解析，并写入私有参数副本。
 	resolved, err := s.resolvers.Resolve(ctx, snapshot.GrpcConfig.HandlerName, snapshot.GrpcConfig.Params, snapshot.Metadata)
 	if err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, 0, err
 	}
 	if len(resolved) == 0 {
-		return snapshot, nil
+		return snapshot, sourceProjectID, nil
 	}
 
 	params := make(map[string]string)
@@ -136,7 +224,28 @@ func (s *executionService) buildTaskSnapshot(ctx context.Context, task domain.Ta
 		params[k] = v
 	}
 	snapshot.GrpcConfig.Params = params
-	return snapshot, nil
+	return snapshot, sourceProjectID, nil
+}
+
+func (s *executionService) sourceProjectID(ctx context.Context, task domain.Task) (int64, error) {
+	if task.GrpcConfig == nil || s.codebookSvc == nil {
+		return 0, nil
+	}
+	for paramKey, bindingName := range task.Metadata {
+		if bindingName != "codebook" {
+			continue
+		}
+		codebookID, err := strconv.ParseInt(task.GrpcConfig.Params[paramKey], 10, 64)
+		if err != nil || codebookID <= 0 {
+			return 0, fmt.Errorf("Codebook 绑定 ID 非法: %q", task.GrpcConfig.Params[paramKey])
+		}
+		codebook, err := s.codebookSvc.GetByID(ctx, codebookID)
+		if err != nil {
+			return 0, fmt.Errorf("查询任务来源 Codebook 失败: %w", err)
+		}
+		return codebook.ProjectID, nil
+	}
+	return 0, nil
 }
 
 func (s *executionService) FindByID(ctx context.Context, id int64) (domain.TaskExecution, error) {
@@ -218,16 +327,18 @@ func (s *executionService) HandleReports(ctx context.Context, reports []*domain.
 				Content:     strings.Join(report.LogChunks, "\n"),
 				CTime:       time.Now().UnixMilli(),
 			}
-			if logErr := s.logSvc.AddLog(ctx, log); logErr != nil {
+			persistedLog, logErr := s.logSvc.AddLog(ctx, log)
+			if logErr != nil {
 				// 日志保存失败不影响状态更新，记录错误即可
 				s.logger.Error("保存任务日志失败", elog.Int64("execID", report.ExecutionState.ID), elog.FieldErr(logErr))
 			} else {
 				// 成功保存日志后，通过 SSE 广播给对应的 Execution 订阅者
-				sse.GetExecutionLogsHub().Broadcast(log.ExecutionID, sse.TaskLogEvent{
-					TaskID:      log.TaskID,
-					ExecutionID: log.ExecutionID,
-					Content:     log.Content,
-					CTime:       log.CTime,
+				sse.GetExecutionLogsHub().Broadcast(persistedLog.ExecutionID, sse.TaskLogEvent{
+					ID:          persistedLog.ID,
+					TaskID:      persistedLog.TaskID,
+					ExecutionID: persistedLog.ExecutionID,
+					Content:     persistedLog.Content,
+					CTime:       persistedLog.CTime,
 				})
 			}
 		}
@@ -276,6 +387,9 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 			elog.String("targetStatus", state.Status.String()))
 		return errs.ErrInvalidTaskExecutionStatus
 	}
+	if execution.Source.IsCodebookPreview() {
+		return s.updatePreviewState(ctx, execution, state)
+	}
 
 	switch {
 	case state.Status.IsRunning():
@@ -323,6 +437,23 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 			elog.String("taskName", execution.Task.Name),
 			elog.String("currentStatus", execution.Status.String()),
 			elog.String("targetStatus", state.Status.String()))
+		return errs.ErrInvalidTaskExecutionStatus
+	}
+}
+
+func (s *executionService) updatePreviewState(ctx context.Context, execution domain.TaskExecution, state domain.ExecutionState) error {
+	switch {
+	case state.Status.IsRunning():
+		if execution.Status.IsRunning() {
+			return s.updateRunningProgress(ctx, state)
+		}
+		return s.setRunningState(ctx, state)
+	case state.Status.IsSuccess(), state.Status.IsFailed():
+		return s.updateState(ctx, execution, state)
+	case state.Status.IsFailedRetryable(), state.Status.IsFailedRescheduled():
+		state.Status = domain.TaskExecutionStatusFailed
+		return s.updateState(ctx, execution, state)
+	default:
 		return errs.ErrInvalidTaskExecutionStatus
 	}
 }
@@ -448,6 +579,9 @@ func (s *executionService) broadcastExecutionEvent(id int64) {
 		exec, err := s.FindByID(ctx, id)
 		if err != nil {
 			s.logger.Error("广播执行事件时获取记录失败", elog.Int64("id", id), elog.FieldErr(err))
+			return
+		}
+		if exec.Source.IsCodebookPreview() {
 			return
 		}
 

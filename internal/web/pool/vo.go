@@ -1,12 +1,13 @@
 package pool
 
 type ListPoolsReq struct {
-	Offset  int64  `json:"offset"`
-	Limit   int64  `json:"limit"`
-	Keyword string `json:"keyword"`
-	Kind    string `json:"kind"`
-	Mode    string `json:"mode"`
-	Status  string `json:"status"`
+	Offset       int64  `json:"offset"`
+	Limit        int64  `json:"limit"`
+	Keyword      string `json:"keyword"`
+	Kind         string `json:"kind"`
+	Transport    string `json:"transport"`
+	DispatchMode string `json:"dispatch_mode"`
+	Status       string `json:"status"`
 }
 
 type BindReq struct {
@@ -44,7 +45,8 @@ type PoolVO struct {
 	ID             int64             `json:"id"`
 	Name           string            `json:"name"`
 	Kind           string            `json:"kind"`
-	Mode           string            `json:"mode"`
+	Transport      string            `json:"transport"`
+	DispatchMode   string            `json:"dispatch_mode"`
 	IsolationLevel string            `json:"isolation_level"`
 	Desc           string            `json:"desc"`
 	Status         string            `json:"status"`

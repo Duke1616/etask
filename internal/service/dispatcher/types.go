@@ -6,6 +6,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 )
 
+// Dispatcher 定义任务首次派发、重试和重调度能力。
 type Dispatcher interface {
 	// Run 运行任务
 	Run(ctx context.Context, task domain.Task) error

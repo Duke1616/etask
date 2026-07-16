@@ -19,23 +19,6 @@ func (k ExecutionPoolKind) String() string {
 	return string(k)
 }
 
-// ExecutionPoolMode 描述执行资源池的派发模式。
-type ExecutionPoolMode string
-
-const (
-	// ExecutionPoolModePush 表示调度中心主动推送任务。
-	ExecutionPoolModePush ExecutionPoolMode = "PUSH"
-	// ExecutionPoolModePull 表示执行端主动拉取任务。
-	ExecutionPoolModePull ExecutionPoolMode = "PULL"
-	// ExecutionPoolModeMQ 表示通过消息队列派发任务。
-	ExecutionPoolModeMQ ExecutionPoolMode = "MQ"
-)
-
-// String 返回派发模式的字符串值。
-func (m ExecutionPoolMode) String() string {
-	return string(m)
-}
-
 // ExecutionPoolIsolation 描述执行资源池的租户隔离级别。
 type ExecutionPoolIsolation string
 
@@ -86,7 +69,8 @@ type ExecutionPool struct {
 	ID             int64
 	Name           string
 	Kind           ExecutionPoolKind
-	Mode           ExecutionPoolMode
+	Transport      ExecutionTransport
+	DispatchMode   ExecMode
 	IsolationLevel ExecutionPoolIsolation
 	Desc           string
 	Status         ExecutionPoolStatus

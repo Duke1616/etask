@@ -7,10 +7,13 @@ import (
 	"github.com/ecodeclub/mq-api"
 )
 
-type TaskExecuteResultProducer interface {
-	Produce(ctx context.Context, evt ExecuteResultEvent) error
+// ExecuteResultProducer 发布 Agent 执行结果。
+type ExecuteResultProducer interface {
+	// Produce 发布一条带执行 ID 的结果事件。
+	Produce(ctx context.Context, result ExecuteResult) error
 }
 
-func NewExecuteResultEventProducer(q mq.MQ) (TaskExecuteResultProducer, error) {
-	return mqx.NewGeneralProducer[ExecuteResultEvent](q, ExecuteResultEventName)
+// NewExecuteResultProducer 创建统一结果 Topic 生产者。
+func NewExecuteResultProducer(q mq.MQ) (ExecuteResultProducer, error) {
+	return mqx.NewGeneralProducer[ExecuteResult](q, ExecuteResultEventName)
 }

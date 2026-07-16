@@ -12,13 +12,13 @@ type Dispatcher struct {
 	http  *HTTPInvoker
 	grpc  *GRPCInvoker
 	local *LocalInvoker
+	mq    *MQInvoker
 }
 
-func NewDispatcher(http *HTTPInvoker, grpc *GRPCInvoker, local *LocalInvoker) *Dispatcher {
+func NewDispatcher(http *HTTPInvoker, grpc *GRPCInvoker, local *LocalInvoker,
+	mq *MQInvoker) *Dispatcher {
 	return &Dispatcher{
-		http:  http,
-		grpc:  grpc,
-		local: local,
+		http: http, grpc: grpc, local: local, mq: mq,
 	}
 }
 
@@ -27,27 +27,20 @@ func (r *Dispatcher) Name() string {
 }
 
 func (r *Dispatcher) Run(ctx context.Context, execution domain.TaskExecution) (domain.ExecutionState, error) {
-	// 根据配置发送执行请求
-	switch {
-	case execution.Task.GrpcConfig != nil:
-		return r.grpc.Run(ctx, execution)
-	case execution.Task.HTTPConfig != nil:
-		return r.http.Run(ctx, execution)
-	default:
-		// 都没有就假定是本地的了
-		return r.local.Run(ctx, execution)
+	// 传输通道已经在创建执行记录时固定，调用阶段不再读取动态资源池。
+	if err := execution.Route.Validate(); err != nil {
+		return domain.ExecutionState{}, err
 	}
-}
-
-func (r *Dispatcher) Prepare(ctx context.Context, execution domain.TaskExecution) (map[string]string, error) {
-	// 根据配置发送执行请求
-	switch {
-	case execution.Task.GrpcConfig != nil:
-		return r.grpc.Prepare(ctx, execution)
-	case execution.Task.HTTPConfig != nil:
-		return r.http.Prepare(ctx, execution)
+	switch execution.Route.Transport {
+	case domain.ExecutionTransportGRPC:
+		return r.grpc.Run(ctx, execution)
+	case domain.ExecutionTransportMQ:
+		return r.mq.Run(ctx, execution, execution.Route.Topic)
+	case domain.ExecutionTransportHTTP:
+		return r.http.Run(ctx, execution)
+	case domain.ExecutionTransportLocal:
+		return r.local.Run(ctx, execution)
 	default:
-		// 都没有就假定是本地的了
-		return r.local.Prepare(ctx, execution)
+		return domain.ExecutionState{}, execution.Route.Validate()
 	}
 }

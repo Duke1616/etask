@@ -5,11 +5,13 @@ import (
 	"os"
 	"time"
 
+	artifactv1 "github.com/Duke1616/etask/api/proto/gen/etask/artifact/v1"
 	codebookv1 "github.com/Duke1616/etask/api/proto/gen/etask/codebook/v1"
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
 	runnerv1 "github.com/Duke1616/etask/api/proto/gen/etask/runner/v1"
 	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
+	executorartifact "github.com/Duke1616/etask/internal/executor/artifact"
 	grpcapi "github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/grpc/scripts"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
@@ -32,6 +34,21 @@ func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 	if err := viper.UnmarshalKey("grpc.client.scheduler", &clientCfg); err != nil {
 		panic(err)
 	}
+	var artifactCacheCfg executorartifact.Config
+	if err := viper.UnmarshalKey("executor.artifact_cache", &artifactCacheCfg); err != nil {
+		panic(err)
+	}
+	var scriptRuntimeCfg scripts.RuntimeConfig
+	if err := viper.UnmarshalKey("runtime.script", &scriptRuntimeCfg); err != nil {
+		panic(err)
+	}
+	scriptRuntime, err := scripts.NewRuntime(scriptRuntimeCfg)
+	if err != nil {
+		panic(err)
+	}
+	if err = scriptRuntime.Initialize(); err != nil {
+		panic(err)
+	}
 
 	cfg := executor.Config{
 		Mode:           resolveMode(),
@@ -42,13 +59,14 @@ func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 	}
 
 	reg := InitExecutorRegistry(etcdClient)
-	exec, err := executor.NewExecutor(cfg, reg)
+	exec, err := executor.NewExecutor(cfg, reg,
+		executor.WithArtifactPreparer(executorartifact.NewRuntime(artifactCacheCfg)),
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	// 注册默认支持的处理器
-	exec.RegisterHandler(scripts.GetDefaultHandlers()...)
+	exec.RegisterHandler(scriptRuntime.Handlers()...)
 
 	// 立即初始化组件，确保 Server() 等方法能够返回有效对象
 	if err = exec.InitComponents(); err != nil {
@@ -61,7 +79,7 @@ func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 // InitSchedulerNodeGRPCServer 初始化 Scheduler gRPC 服务器
 func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcapi.ReporterServer,
 	task *grpcapi.TaskServer, agent *grpcapi.AgentServer, codebook *grpcapi.CodebookServer,
-	runner *grpcapi.RunnerServer) *grpcpkg.Server {
+	runner *grpcapi.RunnerServer, artifact *grpcapi.ArtifactServer) *grpcpkg.Server {
 	var cfg grpcpkg.ServerConfig
 	if err := viper.UnmarshalKey("grpc.server.scheduler", &cfg); err != nil {
 		panic(err)
@@ -74,6 +92,7 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 	executorv1.RegisterTaskExecutionServiceServer(server.Server, agent)
 	codebookv1.RegisterCodebookServiceServer(server.Server, codebook)
 	runnerv1.RegisterRunnerServiceServer(server.Server, runner)
+	artifactv1.RegisterArtifactServiceServer(server.Server, artifact)
 
 	return server
 }

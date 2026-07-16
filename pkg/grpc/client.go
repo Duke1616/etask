@@ -15,6 +15,7 @@ import (
 // ClientConfig gRPC Client 配置
 type ClientConfig struct {
 	Name      string `mapstructure:"name"`       // 目标服务
+	Address   string `mapstructure:"address"`    // 可选：目标服务直连地址，配置后不经过注册中心
 	AuthToken string `mapstructure:"auth_token"` // JWT 认证 token (可选)
 }
 
@@ -113,4 +114,25 @@ func NewClientConn(reg registry.Registry, opts ...ClientOption) (*grpc.ClientCon
 	// 注意: 不要在 target 中包含 prefix,因为 resolver 会从 registry 中查询时自动添加
 	target := fmt.Sprintf("%s:///%s", rs.Scheme(), options.serviceName)
 	return grpc.NewClient(target, dialOpts...)
+}
+
+// NewDirectClientConn 创建不依赖注册中心的直连客户端。
+func NewDirectClientConn(address string, opts ...ClientOption) (*grpc.ClientConn, error) {
+	if address == "" {
+		return nil, fmt.Errorf("address is required")
+	}
+	options := &clientOptions{timeout: 10 * time.Second}
+	for _, opt := range opts {
+		opt(options)
+	}
+	dialOpts := []grpc.DialOption{
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: backoff.Config{
+				BaseDelay: time.Second, Multiplier: 1.6, Jitter: 0.2, MaxDelay: 3 * time.Second,
+			},
+			MinConnectTimeout: 5 * time.Second,
+		}),
+	}
+	dialOpts = append(dialOpts, buildDialOptions(options)...)
+	return grpc.NewClient(address, dialOpts...)
 }

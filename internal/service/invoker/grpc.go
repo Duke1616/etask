@@ -34,6 +34,10 @@ func (r *GRPCInvoker) Name() string {
 }
 
 func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domain.ExecutionState, error) {
+	artifacts, err := domain.ArtifactRefsToProto(exec.Artifacts)
+	if err != nil {
+		return domain.ExecutionState{}, fmt.Errorf("执行制品引用非法: %w", err)
+	}
 	// 获取 client
 	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName)
 
@@ -48,6 +52,7 @@ func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 		TaskHandlerName: exec.Task.GrpcConfig.HandlerName,
 		Params:          exec.GRPCParams(),
 		TenantId:        exec.Task.TenantID,
+		Artifacts:       artifacts,
 	})
 
 	if err != nil {
@@ -55,27 +60,4 @@ func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 	}
 
 	return domain.ExecutionStateFromProto(resp.GetExecutionState()), nil
-}
-
-func (r *GRPCInvoker) Prepare(ctx context.Context, exec domain.TaskExecution) (map[string]string, error) {
-	client := r.grpcClients.Get(exec.Task.GrpcConfig.ServiceName)
-
-	// 设置调用超时(30秒), 防止无 executor 节点时无限等待
-	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	// 发送执行请求
-	resp, err := client.Prepare(callCtx, &executorv1.PrepareRequest{
-		Eid:      exec.ID,
-		TaskId:   exec.Task.ID,
-		TaskName: exec.Task.Name,
-		Params:   exec.GRPCParams(),
-		Metadata: exec.Task.Metadata,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("发送gRPC请求失败: %w", err)
-	}
-
-	return resp.GetParams(), nil
 }

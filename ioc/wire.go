@@ -5,7 +5,6 @@ package ioc
 
 import (
 	"github.com/Duke1616/etask/internal/agent"
-	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/google/wire"
@@ -32,6 +31,8 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 		GrpcSet,
 		ExecutionPoolSet,
 		MaterializerCoreSet,
+		ArtifactSet,
+		InitRoutePlanner,
 		InitDispatcher,
 		InitInvoker,
 		// 从 Base 中提取基础资源
@@ -55,9 +56,6 @@ func InitExecutorModule(base *Base) *executor.Executor {
 func InitAgentModule(base *Base) *agent.Module {
 	wire.Build(
 		AgentSet,
-		InitDB,
-		ExecutionPoolCoreSet,
-		poolSvc.NewCatalogService,
 		wire.FieldsOf(new(*Base), "MQ", "Etcd"),
 	)
 	return nil
@@ -68,6 +66,7 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 	wire.Build(
 		TaskSet,
 		CodebookSet,
+		ArtifactSet,
 		RunnerSet,
 		ExecutionPoolBindingSet,
 		BindingResolverSet,
@@ -85,14 +84,20 @@ func InitWebModule(base *Base) *WebModule {
 	wire.Build(
 		TaskSet,
 		CodebookSet,
+		ArtifactSet,
 		RunnerSet,
 		VariableSet,
+		PreviewSet,
 		TaskExecutionSet,
 		BindingResolverSet,
 		ExecutorSet,
 		ExecutionPoolBindingSet,
 		WebSetup,
 		ProducerSet,
+		GrpcSet,
+		InitInvoker,
+		InitExecutorNodePicker,
+		InitRoutePlanner,
 		InitNodeID,
 
 		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup

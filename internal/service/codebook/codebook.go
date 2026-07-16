@@ -29,8 +29,6 @@ type Service interface {
 	List(ctx context.Context, offset, limit int64) ([]domain.Codebook, int64, error)
 	// Children 获取指定项目和目录下的代码资源节点。
 	Children(ctx context.Context, projectID, parentID int64) ([]domain.Codebook, error)
-	// Tree 获取指定项目下的代码资源树。
-	Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error)
 	// Update 校验并更新脚本模板。
 	Update(ctx context.Context, req domain.Codebook) (int64, error)
 	// CreateVersion 校验并创建脚本版本。
@@ -80,7 +78,7 @@ func (s *service) Create(ctx context.Context, req domain.Codebook) (int64, error
 	if err := req.Validate(); err != nil {
 		return 0, err
 	}
-	if err := s.prepareOwnership(ctx, &req); err != nil {
+	if err := validateCodebookWriteScope(ctx, req.Scope); err != nil {
 		return 0, err
 	}
 	if err := s.prepareSortNo(ctx, &req); err != nil {
@@ -151,14 +149,6 @@ func (s *service) Children(ctx context.Context, projectID, parentID int64) ([]do
 	return s.repo.ListChildren(ctx, projectID, parentID)
 }
 
-// Tree 获取指定项目下的代码资源树。
-func (s *service) Tree(ctx context.Context, projectID int64) ([]domain.Codebook, error) {
-	if projectID <= 0 {
-		return nil, fmt.Errorf("%w: 项目 ID 非法: %d", errs.ErrInvalidParameter, projectID)
-	}
-	return s.repo.Tree(ctx, projectID)
-}
-
 // Update 校验并更新脚本模板。
 func (s *service) Update(ctx context.Context, req domain.Codebook) (int64, error) {
 	if req.ID <= 0 {
@@ -171,11 +161,22 @@ func (s *service) Update(ctx context.Context, req domain.Codebook) (int64, error
 	if req.Scope != "" && req.Scope != old.Scope {
 		return 0, fmt.Errorf("%w: 代码资源作用域不能修改", errs.ErrInvalidParameter)
 	}
+	if req.ProjectID != 0 && req.ProjectID != old.ProjectID {
+		return 0, fmt.Errorf("%w: 普通更新不能移动代码资源所属项目，请使用排序移动接口", errs.ErrInvalidParameter)
+	}
+	if req.Kind != "" && req.Kind != old.Kind {
+		return 0, fmt.Errorf("%w: 代码资源节点类型不能修改", errs.ErrInvalidParameter)
+	}
 	req.MergeForUpdate(old)
+	req.ProjectID = old.ProjectID
+	req.ParentID = old.ParentID
+	req.PathIDs = old.PathIDs
+	req.Depth = old.Depth
+	req.Kind = old.Kind
 	if err = req.Validate(); err != nil {
 		return 0, err
 	}
-	if err = s.prepareOwnership(ctx, &req); err != nil {
+	if err = validateCodebookWriteScope(ctx, req.Scope); err != nil {
 		return 0, err
 	}
 	return s.repo.Update(ctx, req)
@@ -193,6 +194,9 @@ func (s *service) CreateVersion(ctx context.Context, req domain.CodebookVersion)
 	if err = req.PrepareForNode(node); err != nil {
 		return 0, err
 	}
+	if err = validateCodebookWriteScope(ctx, node.Scope); err != nil {
+		return 0, err
+	}
 	return s.repo.CreateVersion(ctx, req)
 }
 
@@ -203,6 +207,13 @@ func (s *service) UseVersion(ctx context.Context, nodeID, versionID int64) (int6
 	}
 	if versionID <= 0 {
 		return 0, fmt.Errorf("%w: 版本 ID 非法: %d", errs.ErrInvalidParameter, versionID)
+	}
+	node, err := s.repo.GetNodeByID(ctx, nodeID)
+	if err != nil {
+		return 0, err
+	}
+	if err = validateCodebookWriteScope(ctx, node.Scope); err != nil {
+		return 0, err
 	}
 	return s.repo.UseVersion(ctx, nodeID, versionID)
 }
@@ -217,6 +228,9 @@ func (s *service) Sort(ctx context.Context, id, targetParentID, targetPosition i
 	}
 	dragged, err := s.repo.GetNodeByID(ctx, id)
 	if err != nil {
+		return err
+	}
+	if err = validateCodebookWriteScope(ctx, dragged.Scope); err != nil {
 		return err
 	}
 	draggedItem, err := s.resolveTarget(ctx, dragged, targetParentID)
@@ -248,6 +262,13 @@ func (s *service) Sort(ctx context.Context, id, targetParentID, targetPosition i
 func (s *service) Delete(ctx context.Context, id int64) (int64, error) {
 	if id <= 0 {
 		return 0, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, id)
+	}
+	node, err := s.repo.GetNodeByID(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	if err = validateCodebookWriteScope(ctx, node.Scope); err != nil {
+		return 0, err
 	}
 	return s.repo.Delete(ctx, id)
 }
@@ -286,20 +307,9 @@ func (s *service) inheritParentContext(ctx context.Context, req *domain.Codebook
 	return req.ApplyParent(parent)
 }
 
-func (s *service) prepareOwnership(ctx context.Context, req *domain.Codebook) error {
-	switch req.Scope {
-	case domain.CodebookScopeSystem:
-		req.TenantID = ctxutil.SystemTenantID
-	case domain.CodebookScopeTenant:
-		tenantID := ctxutil.GetTenantID(ctx).Int64()
-		if tenantID <= 0 {
-			return fmt.Errorf("%w: 租户 ID 不能为空", errs.ErrInvalidParameter)
-		}
-		req.TenantID = tenantID
-	default:
-		return fmt.Errorf("%w: 不支持的作用域: %s", errs.ErrInvalidParameter, req.Scope)
-	}
-	return nil
+func validateCodebookWriteScope(ctx context.Context, scope domain.CodebookScope) error {
+	tenantID := ctxutil.GetTenantID(ctx).Int64()
+	return scope.ValidateWriteAccess(tenantID, ctxutil.SystemTenantID)
 }
 
 func (s *service) CreateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {
@@ -307,13 +317,15 @@ func (s *service) CreateProject(ctx context.Context, req domain.CodebookProject)
 	if tenantID <= 0 {
 		return 0, fmt.Errorf("%w: 租户 ID 不能为空", errs.ErrInvalidParameter)
 	}
-	req.TenantID = tenantID
 	req.Scope = domain.CodebookScopeTenant
 	if err := req.Validate(); err != nil {
 		return 0, err
 	}
+	if err := s.validateArtifactNamespace(ctx, req.ArtifactNamespace, 0); err != nil {
+		return 0, err
+	}
 	if req.SortNo <= 0 {
-		sortNo, err := s.repo.GetProjectMaxSortNo(ctx, tenantID)
+		sortNo, err := s.repo.GetProjectMaxSortNo(ctx)
 		if err != nil {
 			return 0, err
 		}
@@ -359,11 +371,34 @@ func (s *service) UpdateProject(ctx context.Context, req domain.CodebookProject)
 	if err != nil {
 		return 0, err
 	}
+	if old.ArtifactNamespace != "" && req.ArtifactNamespace != "" && req.ArtifactNamespace != old.ArtifactNamespace {
+		return 0, fmt.Errorf("%w: 制品库导入命名空间设置后不能修改", errs.ErrInvalidParameter)
+	}
+	if req.ArtifactNamespace == "" {
+		req.ArtifactNamespace = old.ArtifactNamespace
+	}
 	req.MergeForUpdate(old)
 	if err = req.Validate(); err != nil {
 		return 0, err
 	}
+	if err = s.validateArtifactNamespace(ctx, req.ArtifactNamespace, req.ID); err != nil {
+		return 0, err
+	}
 	return s.repo.UpdateProject(ctx, req)
+}
+
+func (s *service) validateArtifactNamespace(ctx context.Context, namespace string, excludeID int64) error {
+	if namespace == "" {
+		return nil
+	}
+	exists, err := s.repo.ArtifactNamespaceExists(ctx, namespace, excludeID)
+	if err != nil {
+		return fmt.Errorf("查询制品库导入命名空间失败: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("%w: 制品库导入命名空间 %s 已存在", errs.ErrInvalidParameter, namespace)
+	}
+	return nil
 }
 
 func (s *service) DeleteProject(ctx context.Context, id int64) (int64, error) {

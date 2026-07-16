@@ -185,6 +185,9 @@ func (h *Handler) StreamExecutionLogs(ctx *ginx.Context) (ginx.Result, error) {
 	if err != nil {
 		return systemErrorResult, err
 	}
+	if _, err = h.execSvc.FindByID(ctx, id); err != nil {
+		return systemErrorResult, err
+	}
 	sse.GetExecutionLogsHub().Stream(ctx, id, sse.TASK_LOG_EVENT, 20*time.Second)
 	return ginx.Result{}, nil
 }

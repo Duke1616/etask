@@ -1,0 +1,183 @@
+package runtimefs
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/Duke1616/etask/internal/grpc/scripts/engine"
+	"github.com/stretchr/testify/require"
+)
+
+func TestWorkspaceFactoryCreate(t *testing.T) {
+	type state struct {
+		factory   *WorkspaceFactory
+		workspace engine.Workspace
+		system    string
+		project   string
+	}
+	testCases := []struct {
+		name       string
+		before     func(t *testing.T, state *state)
+		after      func(t *testing.T, state *state)
+		artifacts  func(state *state) engine.ArtifactRoots
+		assertions func(t *testing.T, state *state)
+	}{
+		{
+			name:      "普通任务使用独立工作区",
+			artifacts: func(_ *state) engine.ArtifactRoots { return engine.ArtifactRoots{} },
+		},
+		{
+			name: "制品任务使用明确挂载目录",
+			before: func(t *testing.T, state *state) {
+				state.system = t.TempDir()
+				require.NoError(t, os.MkdirAll(filepath.Join(state.system, "python"), 0o750))
+				require.NoError(t, os.MkdirAll(filepath.Join(state.system, "third_party"), 0o750))
+			},
+			artifacts: func(state *state) engine.ArtifactRoots {
+				return engine.ArtifactRoots{System: state.system}
+			},
+			assertions: func(t *testing.T, state *state) {
+				require.NoFileExists(t, filepath.Join(state.workspace.Root(), "third_party"))
+				requireEnvironment(t, state.workspace.Environment(), "ETASK_SYSTEM_ROOT", filepath.Join(state.workspace.Root(), "system"))
+			},
+		},
+		{
+			name: "SYSTEM 制品可以不包含 Python 目录",
+			before: func(t *testing.T, state *state) {
+				state.system = t.TempDir()
+				require.NoError(t, os.WriteFile(filepath.Join(state.system, "common.sh"), nil, 0o440))
+			},
+			artifacts: func(state *state) engine.ArtifactRoots {
+				return engine.ArtifactRoots{System: state.system}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			current := &state{}
+			if tc.before != nil {
+				tc.before(t, current)
+			}
+			factory, err := NewWorkspaceFactory(WorkspaceConfig{Dir: t.TempDir()})
+			require.NoError(t, err)
+			current.factory = factory
+			current.workspace, err = factory.Create(engine.WorkspaceOptions{
+				ExecutionID: 42, Extension: ".sh", Code: []byte("echo ok\n"), Artifacts: tc.artifacts(current),
+			})
+			require.NoError(t, err)
+			defer func() { require.NoError(t, current.workspace.Close()) }()
+			if tc.after != nil {
+				defer tc.after(t, current)
+			}
+			require.True(t, filepath.IsAbs(current.workspace.Root()))
+			require.True(t, filepath.IsAbs(current.workspace.CodeFile()))
+			if tc.assertions != nil {
+				tc.assertions(t, current)
+			}
+		})
+	}
+}
+
+func TestPythonArtifactNamespaces(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("当前环境未安装 python3")
+	}
+	testCases := []struct {
+		name      string
+		before    func(t *testing.T) engine.ArtifactRoots
+		code      string
+		want      string
+		wantError bool
+	}{
+		{
+			name: "SYSTEM 与租户制品使用独立命名空间",
+			before: func(t *testing.T) engine.ArtifactRoots {
+				return engine.ArtifactRoots{
+					System:       createPythonArtifact(t, "system"),
+					Dependencies: createTenantRoot(t, map[string]string{"ops_common": createPythonArtifact(t, "project")}),
+				}
+			},
+			code: "from ops_common.private import util as project\nfrom etask.private import util as system\nprint(project.VALUE + ':' + system.VALUE)\n",
+			want: "project:system",
+		},
+		{
+			name: "租户内多个制品库按英文名隔离",
+			before: func(t *testing.T) engine.ArtifactRoots {
+				return engine.ArtifactRoots{Dependencies: createTenantRoot(t, map[string]string{
+					"ops_common": createPythonArtifact(t, "ops"), "db_common": createPythonArtifact(t, "db"),
+				})}
+			},
+			code: "from ops_common.private import util as ops\nfrom db_common.private import util as db\nprint(ops.VALUE + ':' + db.VALUE)\n",
+			want: "ops:db",
+		},
+		{
+			name: "SYSTEM 模块不泄漏到顶层命名空间",
+			before: func(t *testing.T) engine.ArtifactRoots {
+				return engine.ArtifactRoots{System: createPythonArtifact(t, "system")}
+			},
+			code: "import private\n", wantError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			factory, factoryErr := NewWorkspaceFactory(WorkspaceConfig{Dir: t.TempDir()})
+			require.NoError(t, factoryErr)
+			workspace, createErr := factory.Create(engine.WorkspaceOptions{
+				ExecutionID: 1, Extension: ".py", Code: []byte(tc.code), Artifacts: tc.before(t),
+			})
+			require.NoError(t, createErr)
+			defer func() { require.NoError(t, workspace.Close()) }()
+			command := exec.Command(python, workspace.CodeFile())
+			command.Dir = workspace.Root()
+			command.Env = workspace.Environment()
+			output, runErr := command.CombinedOutput()
+			if tc.wantError {
+				require.Error(t, runErr)
+				return
+			}
+			require.NoError(t, runErr, string(output))
+			require.Equal(t, tc.want, strings.TrimSpace(string(output)))
+		})
+	}
+}
+
+func requireEnvironment(t *testing.T, environment []string, key, want string) {
+	t.Helper()
+	prefix := key + "="
+	found := 0
+	for _, item := range environment {
+		if strings.HasPrefix(item, prefix) {
+			found++
+			require.Equal(t, want, strings.TrimPrefix(item, prefix))
+		}
+	}
+	require.Equal(t, 1, found)
+}
+
+func createPythonArtifact(t *testing.T, value string) string {
+	t.Helper()
+	root := t.TempDir()
+	packageDir := filepath.Join(root, "python", "private")
+	require.NoError(t, os.MkdirAll(packageDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "__init__.py"), nil, 0o440))
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "util.py"), []byte("VALUE = '"+value+"'\n"), 0o440))
+	return root
+}
+
+func createTenantRoot(t *testing.T, artifacts map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
+	pythonRoot := filepath.Join(root, "python")
+	require.NoError(t, os.MkdirAll(pythonRoot, 0o750))
+	for namespace, artifactRoot := range artifacts {
+		require.NoError(t, os.Symlink(artifactRoot, filepath.Join(root, namespace)))
+		require.NoError(t, os.Symlink(filepath.Join(artifactRoot, "python"), filepath.Join(pythonRoot, namespace)))
+	}
+	return root
+}

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package etask.executor.v1;
 
+import "etask/artifact/v1/artifact.proto";
+
 option go_package = "etask/executor/v1;executor";
 
 enum ExecutionStatus {
@@ -47,8 +49,6 @@ service ExecutorService {
   rpc Interrupt(InterruptRequest) returns (InterruptResponse);
   // 查询一个任务的状态（用于轮询模式）
   rpc Query(QueryRequest) returns (QueryResponse);
-  // 查询业务方任务总数量
-  rpc Prepare(PrepareRequest) returns (PrepareResponse);
 }
 
 message ExecuteRequest {
@@ -62,6 +62,8 @@ message ExecuteRequest {
   // 即包含了业务参数和调度参数 (e.g., offset, limit)
   map<string, string> params = 5;
   int64 tenant_id = 6; // 租户ID，用于多租户上下文透传
+  // 可选的代码制品层；为空时保持原有单文件运行方式。
+  repeated etask.artifact.v1.ArtifactRef artifacts = 7;
 }
 
 message ExecuteResponse {
@@ -83,22 +85,6 @@ message QueryRequest {
 
 message QueryResponse {
   ExecutionState execution_state = 1;
-}
-
-message PrepareRequest {
-  int64 eid = 1; // execution id
-  int64 task_id = 2;
-  string task_name = 3;
-  // 这里有两部分
-  // 1 一部分是通过管理后台，业务方自己搞的参数
-  // 2. 另外一部分是我们调度用的，比如说 offset, limit
-  // 即包含了业务参数和调度参数 (e.g., offset, limit)
-  map<string, string> params = 4;
-  map<string, string> metadata = 5;
-}
-
-message PrepareResponse {
-  map<string, string> params = 1;
 }
 
 // ==================== 拉取模式 (Pull) 新增 ====================

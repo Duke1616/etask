@@ -6,6 +6,26 @@ import (
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 )
 
+// TaskExecutionSource 表示执行记录的业务来源。
+type TaskExecutionSource string
+
+const (
+	// TaskExecutionSourceTask 表示由正式任务调度产生的执行记录。
+	TaskExecutionSourceTask TaskExecutionSource = "TASK"
+	// TaskExecutionSourceCodebookPreview 表示由 Codebook 试运行产生的临时执行记录。
+	TaskExecutionSourceCodebookPreview TaskExecutionSource = "CODEBOOK_PREVIEW"
+)
+
+// String 返回执行来源的字符串值。
+func (s TaskExecutionSource) String() string {
+	return string(s)
+}
+
+// IsCodebookPreview 判断当前执行是否来自 Codebook 试运行。
+func (s TaskExecutionSource) IsCodebookPreview() bool {
+	return s == TaskExecutionSourceCodebookPreview
+}
+
 // TaskExecutionStatus 任务执行状态
 type TaskExecutionStatus string
 
@@ -31,7 +51,8 @@ func (t TaskExecutionStatus) IsValid() bool {
 		TaskExecutionStatusRunning,
 		TaskExecutionStatusSuccess,
 		TaskExecutionStatusFailed,
-		TaskExecutionStatusFailedRetryable:
+		TaskExecutionStatusFailedRetryable,
+		TaskExecutionStatusFailedRescheduled:
 		return true
 	default:
 		return false
@@ -87,6 +108,7 @@ func (t TaskExecutionStatus) IsTerminalStatus() bool {
 type TaskExecution struct {
 	ID              int64
 	TenantID        int64               // 租户ID，多租户隔离
+	Source          TaskExecutionSource // 执行来源，区分正式任务与临时试运行
 	Deadline        int64               // 任务执行截止时间（毫秒时间戳）
 	ExecutorNodeID  string              // 执行节点的 nodeID，用于记录是哪个节点处理了任务
 	StartTime       int64               // 开始时间
@@ -99,6 +121,8 @@ type TaskExecution struct {
 	CTime           int64               // 创建时间
 	UTime           int64               // 更新时间
 	Task            Task                // 创建时刻从Task冗余的信息
+	Artifacts       []ArtifactRef       // 本次执行固定的代码制品层；为空时执行单文件任务
+	Route           ExecutionRoute      // 创建时固定的传输和派发路由
 }
 
 func (te *TaskExecution) MergeTaskScheduleParams(scheduleParams map[string]string) {

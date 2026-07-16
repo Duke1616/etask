@@ -9,9 +9,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/service/acquirer"
 	"github.com/Duke1616/etask/internal/service/dispatcher"
-	"github.com/Duke1616/etask/internal/service/picker"
 	"github.com/Duke1616/etask/internal/service/task"
-	"github.com/Duke1616/etask/pkg/grpc/balancer"
 	"github.com/gotomicro/ego/core/constant"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/gotomicro/ego/server"
@@ -21,22 +19,19 @@ var _ server.Server = &Scheduler{}
 
 // Scheduler 分布式任务调度器
 type Scheduler struct {
-	nodeID             string                    // 当前调度节点ID
-	dispatcher         dispatcher.Dispatcher     // Dispatcher 分发器
-	taskSvc            task.Service              // 任务服务
-	execSvc            task.ExecutionService     // 任务执行服务
-	acquirer           acquirer.TaskAcquirer     // 任务抢占、续约、释放器
-	config             Config                    // 配置
-	executorNodePicker picker.ExecutorNodePicker // 智能节点选择器
-	modeResolver       picker.IExecModeResolver  // 执行模式感知器
-	ctx                context.Context
-	cancel             context.CancelFunc
-	logger             *elog.Component
+	nodeID     string
+	dispatcher dispatcher.Dispatcher
+	taskSvc    task.Service
+	acquirer   acquirer.TaskAcquirer
+	config     Config
+	ctx        context.Context
+	cancel     context.CancelFunc
+	logger     *elog.Component
 }
 
 // Config 调度器配置
 type Config struct {
-	BatchTimeout     time.Duration `yaml:"batchTimeout"`
+	BatchTimeout     time.Duration `yaml:"batchTimeout"`     // 批量查询超时时间
 	BatchSize        int           `yaml:"batchSize"`        // 批量获取任务数量
 	PreemptedTimeout time.Duration `yaml:"preemptedTimeout"` // 表示处于 PREEMPTED 状态任务的超时时间（毫秒）
 	ScheduleInterval time.Duration `yaml:"scheduleInterval"` // 调度间隔
@@ -48,40 +43,38 @@ func NewScheduler(
 	nodeID string,
 	dispatcher dispatcher.Dispatcher,
 	taskSvc task.Service,
-	execSvc task.ExecutionService,
 	acquirer acquirer.TaskAcquirer,
 	config Config,
-	executorNodePicker picker.ExecutorNodePicker,
-	modeResolver picker.IExecModeResolver,
 ) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
-		nodeID:             nodeID,
-		dispatcher:         dispatcher,
-		taskSvc:            taskSvc,
-		execSvc:            execSvc,
-		acquirer:           acquirer,
-		config:             config,
-		executorNodePicker: executorNodePicker,
-		modeResolver:       modeResolver,
-		ctx:                ctx,
-		cancel:             cancel,
-		logger:             elog.DefaultLogger.With(elog.FieldComponentName("Scheduler")),
+		nodeID:     nodeID,
+		dispatcher: dispatcher,
+		taskSvc:    taskSvc,
+		acquirer:   acquirer,
+		config:     config,
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     elog.DefaultLogger.With(elog.FieldComponentName("Scheduler")),
 	}
 }
 
+// NodeID 返回当前调度节点 ID。
 func (s *Scheduler) NodeID() string {
 	return s.nodeID
 }
 
+// Name 返回调度器服务名称。
 func (s *Scheduler) Name() string {
 	return fmt.Sprintf("Scheduler-%s", s.nodeID)
 }
 
+// PackageName 返回调度器组件标识。
 func (s *Scheduler) PackageName() string {
 	return "scheduler.Scheduler"
 }
 
+// Init 完成服务启动前的初始化。
 func (s *Scheduler) Init() error {
 	return nil
 }
@@ -143,31 +136,17 @@ func (s *Scheduler) scheduleLoop() {
 
 // scheduleOnce 调度单个任务
 func (s *Scheduler) scheduleOnce(task domain.Task) error {
-	nodeID, err := s.executorNodePicker.Pick(s.ctx, task)
-	if err != nil {
-		s.logger.Error("智能调度选择节点失败，使用默认调度",
-			elog.Int64("taskID", task.ID),
-			elog.FieldErr(err))
-	} else {
-		s.logger.Info("智能调度选择节点成功",
-			elog.String("selectedNodeID", nodeID),
-			elog.Int64("taskID", task.ID))
-
-		// 通过独立的 modeResolver 感知节点模式并写入 DB，
-		// 调度器不封装任何 registry / DB 细节。
-		task.ExecMode = s.modeResolver.ResolveMode(s.ctx, task, nodeID)
-	}
-
-	ctx := s.ctx
-	// 注入租户上下文：让后续 DAO 操作（创建 TaskExecution 等）能被 TenantPlugin 自动填充
-	if task.TenantID > 0 {
-		ctx = ctxutil.WithTenantID(ctx, task.TenantID)
-		ctx = ctxutil.WithOriginTenantID(ctx, task.TenantID)
-	}
-	if nodeID != "" {
-		ctx = balancer.WithSpecificNodeID(ctx, nodeID)
-	}
+	ctx := taskContext(s.ctx, task.TenantID)
 	return s.dispatcher.Run(ctx, task)
+}
+
+// taskContext 注入租户及原始租户，供后续 GORM 租户插件使用。
+func taskContext(ctx context.Context, tenantID int64) context.Context {
+	if tenantID <= 0 {
+		return ctx
+	}
+	ctx = ctxutil.WithTenantID(ctx, tenantID)
+	return ctxutil.WithOriginTenantID(ctx, tenantID)
 }
 
 // renewLoop 续约循环
@@ -195,12 +174,14 @@ func (s *Scheduler) Stop() error {
 	return nil
 }
 
+// GracefulStop 停止调度循环和续约循环。
 func (s *Scheduler) GracefulStop(_ context.Context) error {
 	s.logger.Info("停止分布式任务调度器", elog.String("nodeID", s.nodeID))
 	s.cancel()
 	return nil
 }
 
+// Info 返回调度器运行状态。
 func (s *Scheduler) Info() *server.ServiceInfo {
 	info := server.ApplyOptions(
 		server.WithName(s.Name()),

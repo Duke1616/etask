@@ -16,7 +16,8 @@ type ResourceVO struct {
 	Name           string          `json:"name"`
 	Desc           string          `json:"desc"`
 	Kind           string          `json:"kind"`
-	Mode           string          `json:"mode"`
+	Transport      string          `json:"transport"`
+	DispatchMode   string          `json:"dispatch_mode"`
 	IsolationLevel string          `json:"isolation_level"`
 	Topic          string          `json:"topic"`
 	Handlers       []HandlerDetail `json:"handlers"`

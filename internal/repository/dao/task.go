@@ -333,7 +333,13 @@ func (g *GORMTaskDAO) UpdateExecMode(ctx context.Context, id int64, mode string)
 			"exec_mode": mode,
 			"utime":     time.Now().UnixMilli(),
 		})
-	return result.Error
+	if result.Error != nil {
+		return fmt.Errorf("更新任务执行模式失败: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("更新任务执行模式失败: 任务不存在或当前租户无权访问，ID=%d", id)
+	}
+	return nil
 }
 
 func (g *GORMTaskDAO) Retry(ctx context.Context, id, version, nextTime int64) (*Task, error) {

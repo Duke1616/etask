@@ -99,8 +99,3 @@ func (i *HTTPInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 
 	return domain.ExecutionState{}, nil
 }
-
-func (i *HTTPInvoker) Prepare(_ context.Context, _ domain.TaskExecution) (map[string]string, error) {
-	// TODO implement me
-	panic("implement me")
-}

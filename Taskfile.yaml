@@ -4,7 +4,7 @@ dotenv: ['.env']
 
 env:
   EGO_DEBUG: "true"
-  SCRIPT_TEMP_DIR: "./app"
+  SCRIPT_TEMP_DIR: "{{.ROOT_DIR}}/app"
 
 tasks:
   default:
@@ -49,9 +49,7 @@ tasks:
   wire:
     desc: "依赖注入代码生成"
     cmds:
-      - cd internal/agent && wire
-      - cd cmd/scheduler/ioc && wire
-      - cd ioc && wire
+      - wire ./ioc
 
   # --- 数据库迁移 ---
 

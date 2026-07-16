@@ -116,7 +116,7 @@ func (s *Syncer) syncSource(ctx context.Context, source poolsource.Source) (sour
 		return sourceSnapshot{}, err
 	}
 
-	active := make(map[string]struct{}, len(resp.Kvs))
+	instances := make(map[string][]domain.ExecutionPool)
 	for _, kv := range resp.Kvs {
 		inst, ok := poolsource.DecodeInstance(kv)
 		if !ok || !source.Accept(inst) {
@@ -126,7 +126,18 @@ func (s *Syncer) syncSource(ctx context.Context, source poolsource.Source) (sour
 		if !ok {
 			continue
 		}
-		active[pool.Name] = struct{}{}
+		instances[pool.Name] = append(instances[pool.Name], pool)
+	}
+
+	active := make(map[string]struct{}, len(instances))
+	for name, pools := range instances {
+		pool, aggregateErr := aggregatePoolInstances(pools)
+		if aggregateErr != nil {
+			s.logger.Error("执行资源池实例配置不一致，资源池将被禁用",
+				elog.String("source", source.Name()), elog.String("pool", name), elog.FieldErr(aggregateErr))
+			continue
+		}
+		active[name] = struct{}{}
 		s.upsertPool(ctx, source, pool)
 	}
 	return sourceSnapshot{
@@ -185,10 +196,7 @@ func (s *Syncer) watchSource(ctx context.Context, source poolsource.Source, revi
 func (s *Syncer) handleEvent(ctx context.Context, event sourceEvent) {
 	switch event.kind {
 	case eventUpsert:
-		pool, ok := event.source.BuildPool(event.instance)
-		if ok {
-			s.upsertPool(ctx, event.source, pool)
-		}
+		s.resyncSource(ctx, event.source)
 	case eventDelete:
 		s.disableIfNoInstances(ctx, event.source, event.instance)
 	}
@@ -210,7 +218,11 @@ func (s *Syncer) disableIfNoInstances(ctx context.Context, source poolsource.Sou
 	}
 
 	hasInstances, ok := s.hasInstances(ctx, source, poolName)
-	if !ok || hasInstances {
+	if !ok {
+		return
+	}
+	if hasInstances {
+		s.resyncSource(ctx, source)
 		return
 	}
 
@@ -227,7 +239,7 @@ func (s *Syncer) disableIfNoInstances(ctx context.Context, source poolsource.Sou
 	if !ok || hasInstances {
 		return
 	}
-	s.disablePool(ctx, poolName)
+	s.resyncSource(ctx, source)
 }
 
 func (s *Syncer) hasInstances(ctx context.Context, source poolsource.Source, poolName string) (bool, bool) {

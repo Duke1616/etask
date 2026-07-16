@@ -25,7 +25,9 @@ const (
 // Register: 将模块资源注册到 App 容器
 // Servers: 返回该模块需要启动的 server.Server 列表
 type Module interface {
+	// Register 将模块资源注册到应用容器。
 	Register(app *App)
+	// Servers 返回模块需要启动的服务列表。
 	Servers() []server.Server
 }
 
@@ -49,8 +51,7 @@ var modeModules = map[string][]ModuleInitFunc{
 }
 
 // --- 适配器：将外部包的类型包装为 Module ---
-// grpcpkg.Server / agent.Module / executor.Executor 属于其他包，无法直接添加方法，
-// 故用轻量 wrapper 实现 Module 接口
+// 这些轻量 wrapper 只负责将外部模块注册到 App 容器。
 
 type grpcServerModule struct {
 	server *grpcpkg.Server
@@ -83,9 +84,7 @@ type executorModuleWrapper struct {
 func (m *executorModuleWrapper) Register(app *App) { app.Executor = m.exec }
 func (m *executorModuleWrapper) Servers() []server.Server {
 	if m.exec != nil {
-		if s := m.exec.Server(); s != nil {
-			return []server.Server{s}
-		}
+		return []server.Server{m.exec}
 	}
 	return nil
 }
@@ -115,6 +114,7 @@ func IsDBRequired(modes []string) bool {
 
 // Task 调度平台上的长任务 —— 各种补偿任务、消费者等
 type Task interface {
+	// Start 启动后台任务。
 	Start(ctx context.Context)
 }
 

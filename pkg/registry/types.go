@@ -6,10 +6,14 @@ import (
 )
 
 type Registry interface {
+	// Register 注册工作实例。
 	Register(ctx context.Context, si Instance) error
+	// UnRegister 注销工作实例。
 	UnRegister(ctx context.Context, si Instance) error
 
+	// ListWorkers 查询指定名称的工作实例。
 	ListWorkers(ctx context.Context, name string) ([]Instance, error)
+	// Subscribe 订阅指定工作实例的注册变更事件。
 	Subscribe(name string) <-chan Event
 
 	io.Closer
