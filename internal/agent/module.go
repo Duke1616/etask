@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Duke1616/etask/internal/agent/service"
+	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/gotomicro/ego/core/constant"
 	"github.com/gotomicro/ego/server"
 	"google.golang.org/grpc"
@@ -23,6 +24,7 @@ type Module struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	connection *grpc.ClientConn
+	artifacts  executor.ArtifactPreparer
 }
 
 func (m *Module) GetConsumer() Consumer {
@@ -40,6 +42,9 @@ func (m *Module) PackageName() string {
 }
 
 func (m *Module) Init() error {
+	if m.artifacts != nil {
+		return m.artifacts.Prune()
+	}
 	return nil
 }
 

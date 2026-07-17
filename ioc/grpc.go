@@ -12,7 +12,6 @@ import (
 	runnerv1 "github.com/Duke1616/etask/api/proto/gen/etask/runner/v1"
 	schedulerv1 "github.com/Duke1616/etask/api/proto/gen/etask/scheduler/v1"
 	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
-	executorartifact "github.com/Duke1616/etask/internal/executor/artifact"
 	grpcapi "github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/grpc/scripts"
 	config "github.com/Duke1616/etask/pkg/config"
@@ -26,7 +25,8 @@ import (
 )
 
 // InitExecutor 初始化原生 gRPC 执行器节点
-func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
+func InitExecutor(etcdClient *clientv3.Client,
+	artifactPreparer executor.ArtifactPreparer, scriptRuntime *scripts.Runtime) *executor.Executor {
 	var serverCfg grpcpkg.ServerConfig
 	if err := config.UnmarshalKey("grpc.server.executor", &serverCfg); err != nil {
 		panic(err)
@@ -36,19 +36,7 @@ func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 	if err := config.UnmarshalKey("grpc.client.scheduler", &clientCfg); err != nil {
 		panic(err)
 	}
-	var artifactCacheCfg executorartifact.Config
-	if err := config.UnmarshalKey("executor.artifact_cache", &artifactCacheCfg); err != nil {
-		panic(err)
-	}
-	var scriptRuntimeCfg scripts.RuntimeConfig
-	if err := config.UnmarshalKey("runtime.script", &scriptRuntimeCfg); err != nil {
-		panic(err)
-	}
-	scriptRuntime, err := scripts.NewRuntime(scriptRuntimeCfg)
-	if err != nil {
-		panic(err)
-	}
-	if err = scriptRuntime.Initialize(); err != nil {
+	if err := scriptRuntime.Initialize(); err != nil {
 		panic(err)
 	}
 
@@ -62,7 +50,7 @@ func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 
 	reg := InitExecutorRegistry(etcdClient)
 	exec, err := executor.NewExecutor(cfg, reg,
-		executor.WithArtifactPreparer(executorartifact.NewRuntime(artifactCacheCfg)),
+		executor.WithArtifactPreparer(artifactPreparer),
 	)
 	if err != nil {
 		panic(err)

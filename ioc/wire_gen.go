@@ -39,10 +39,14 @@ func InitBase() *Base {
 	client := InitEtcdClient()
 	registry := InitRegistry(client)
 	mq := InitMQ()
+	preparer := InitArtifactPreparer()
+	runtime := InitScriptRuntime()
 	base := &Base{
-		Registry: registry,
-		MQ:       mq,
-		Etcd:     client,
+		Registry:         registry,
+		MQ:               mq,
+		Etcd:             client,
+		ArtifactPreparer: preparer,
+		ScriptRuntime:    runtime,
 	}
 	return base
 }
@@ -108,7 +112,9 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 // InitExecutorModule 专门用于构造原生执行器模块
 func InitExecutorModule(base *Base) *executor.Executor {
 	client := base.Etcd
-	executorExecutor := InitExecutor(client)
+	preparer := base.ArtifactPreparer
+	runtime := base.ScriptRuntime
+	executorExecutor := InitExecutor(client, preparer, runtime)
 	return executorExecutor
 }
 
@@ -116,7 +122,9 @@ func InitExecutorModule(base *Base) *executor.Executor {
 func InitAgentModule(base *Base) *agent.Module {
 	mq := base.MQ
 	client := base.Etcd
-	module := agent.InitModule(mq, client)
+	preparer := base.ArtifactPreparer
+	runtime := base.ScriptRuntime
+	module := agent.InitModule(mq, client, preparer, runtime)
 	return module
 }
 

@@ -9,8 +9,8 @@ import (
 	"github.com/Duke1616/etask/internal/agent/domain"
 	"github.com/Duke1616/etask/internal/agent/event"
 	"github.com/Duke1616/etask/internal/agent/service"
-	executorartifact "github.com/Duke1616/etask/internal/executor/artifact"
 	"github.com/Duke1616/etask/internal/grpc/scripts"
+	config "github.com/Duke1616/etask/pkg/config"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/grpc/registry/etcd"
@@ -19,7 +19,6 @@ import (
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
-	config "github.com/Duke1616/etask/pkg/config"
 )
 
 type Instance struct {
@@ -30,32 +29,20 @@ type Instance struct {
 	IsolationLevel string `yaml:"isolation_level" json:"isolation_level"` // 资源池隔离级别: SHARED 或 DEDICATED
 }
 
-// InitScriptHandlers 使用 Agent 的脚本运行时配置创建任务处理器。
-func InitScriptHandlers() []executor.TaskHandler {
-	var configVal scripts.RuntimeConfig
-	if err := config.UnmarshalKey("runtime.script", &configVal); err != nil {
-		panic(err)
-	}
-	runtime, err := scripts.NewRuntime(configVal)
-	if err != nil {
-		panic(err)
-	}
-	if err = runtime.Initialize(); err != nil {
-		panic(err)
-	}
-	return runtime.Handlers()
-}
-
-func InitModule(q mq.MQ, etcdClient *clientv3.Client) *Module {
+func InitModule(q mq.MQ, etcdClient *clientv3.Client,
+	preparer executor.ArtifactPreparer, scriptRuntime *scripts.Runtime) *Module {
 	registry := InitRegistry(etcdClient)
-	handlers := InitScriptHandlers()
-	preparer := initArtifactPreparer()
+	if err := scriptRuntime.Initialize(); err != nil {
+		panic(err)
+	}
 	connection := initSchedulerConnection(etcdClient)
 	artifactClient := artifactv1.NewArtifactServiceClient(connection)
-	executionService := service.NewService(handlers, preparer, artifactClient)
+	executionService := service.NewService(scriptRuntime.Handlers(), preparer, artifactClient)
 	producer := initExecuteProducer(q)
 	consumer := initExecuteConsumer(q, executionService, producer, registry)
-	return &Module{Svc: executionService, C: consumer, connection: connection}
+	return &Module{
+		Svc: executionService, C: consumer, connection: connection, artifacts: preparer,
+	}
 }
 
 func initExecuteProducer(q mq.MQ) event.ExecuteResultProducer {
@@ -100,14 +87,6 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event.ExecuteRes
 	}
 
 	return consumer
-}
-
-func initArtifactPreparer() executor.ArtifactPreparer {
-	var configVal executorartifact.Config
-	if err := config.UnmarshalKey("agent.artifact_cache", &configVal); err != nil {
-		panic(err)
-	}
-	return executorartifact.NewRuntime(configVal)
 }
 
 func initSchedulerConnection(etcdClient *clientv3.Client) *grpc.ClientConn {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Duke1616/etask/internal/agent"
+	"github.com/Duke1616/etask/internal/grpc/scripts"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
@@ -120,9 +121,11 @@ type Task interface {
 
 // Base 基础基础设施（共享连接、客户端等）
 type Base struct {
-	Registry registry.Registry
-	MQ       mq.MQ
-	Etcd     *clientv3.Client
+	Registry         registry.Registry
+	MQ               mq.MQ
+	Etcd             *clientv3.Client
+	ArtifactPreparer executor.ArtifactPreparer
+	ScriptRuntime    *scripts.Runtime
 }
 
 // WebModule Web 模块资源

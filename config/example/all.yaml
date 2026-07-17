@@ -10,43 +10,42 @@ agent:
   desc: "异步任务执行代理：负责从消息队列拉取并执行来自调度中心的任务指令"
   # 资源池隔离级别：SHARED(共享) 或 DEDICATED(专有)
   isolation_level: "SHARED"
-  artifact_cache:
-    dir: "/var/lib/etask/agent-artifact-cache"
-    # 单个压缩制品最大下载限制
-    max_download_size: "512MB"
-    # 单个制品最大解压限制
-    max_unpacked_size: "2GB"
-    # 单个制品最大文件数限制
-    max_file_count: 10000
-    # 本地缓存最大大小限制
-    max_cache_size: "10GB"
+
+# Agent 和 Executor 共用同一份制品缓存。
+artifact_cache:
+  dir: "/var/lib/etask/artifact-cache"
+  # 单个压缩制品最大下载限制
+  max_download_size: "512MB"
+  # 单个制品最大解压限制
+  max_unpacked_size: "2GB"
+  # 单个制品最大文件数限制
+  max_file_count: 10000
+  # 本地缓存最大大小限制
+  max_cache_size: "10GB"
 
 runtime:
-  script:
-    workspace_dir: "/tmp/etask/runs"
-    # 历史工作目录保留时间
-    workspace_max_age: 24h
-    python_binary: "python"
-    shell_binary: "/bin/bash"
-    # 脚本代码最大限制
-    max_code_size: "4MB"
-    # 脚本入参最大限制
-    max_args_size: "1MB"
-    # 环境变量最大限制
-    max_variables_size: "1MB"
-    # 单行日志最大限制
-    max_log_line_size: "1MB"
-    # 脚本执行结果最大限制
-    max_result_size: "4MB"
-    archive:
-      enabled: true
-      # 是否仅归档失败任务
-      failed_only: false
-      dir: "/var/lib/etask/script-archive"
-      # 归档保留时间
-      max_age: 168h
-      # 归档最大容量限制
-      max_size: "10GB"
+  workspace_dir: "/tmp/etask/runs"
+  # 历史工作目录保留时间
+  workspace_max_age: 24h
+  # 脚本代码最大限制
+  max_code_size: "4MB"
+  # 脚本入参最大限制
+  max_args_size: "1MB"
+  # 环境变量最大限制
+  max_variables_size: "1MB"
+  # 单行日志最大限制
+  max_log_line_size: "1MB"
+  # 脚本执行结果最大限制
+  max_result_size: "4MB"
+  archive:
+    enabled: true
+    # 是否仅归档失败任务
+    failed_only: true
+    dir: "/var/lib/etask/script-archive"
+    # 归档保留时间
+    max_age: 168h
+    # 归档最大容量限制
+    max_size: "10GB"
 
 executor:
   # 节点实例 ID（优先级：环境变量 EXECUTOR_NODE_ID > 此配置）
@@ -56,16 +55,6 @@ executor:
   desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
   # 资源池隔离级别：SHARED(共享) 或 DEDICATED(专有)
   isolation_level: "SHARED"
-  artifact_cache:
-    dir: "/var/lib/etask/artifact-cache"
-    # 单个压缩制品最大下载限制
-    max_download_size: "512MB"
-    # 单个制品最大解压限制
-    max_unpacked_size: "2GB"
-    # 单个制品最大文件数限制
-    max_file_count: 10000
-    # 本地缓存最大大小限制
-    max_cache_size: "10GB"
 
 artifact:
   temp_dir: "/tmp/etask/artifacts"

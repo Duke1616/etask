@@ -30,6 +30,8 @@ var (
 		InitEtcdClient,
 		InitMQ,
 		InitRegistry,
+		InitArtifactPreparer,
+		InitScriptRuntime,
 	)
 
 	WebSetup = wire.NewSet(

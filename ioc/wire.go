@@ -47,7 +47,7 @@ func InitSchedulerModule(base *Base) *SchedulerModule {
 func InitExecutorModule(base *Base) *executor.Executor {
 	wire.Build(
 		InitExecutor,
-		wire.FieldsOf(new(*Base), "Etcd"),
+		wire.FieldsOf(new(*Base), "Etcd", "ArtifactPreparer", "ScriptRuntime"),
 	)
 	return nil
 }
@@ -56,7 +56,7 @@ func InitExecutorModule(base *Base) *executor.Executor {
 func InitAgentModule(base *Base) *agent.Module {
 	wire.Build(
 		AgentSet,
-		wire.FieldsOf(new(*Base), "MQ", "Etcd"),
+		wire.FieldsOf(new(*Base), "MQ", "Etcd", "ArtifactPreparer", "ScriptRuntime"),
 	)
 	return nil
 }

@@ -2,6 +2,7 @@ package scripts
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/Duke1616/etask/internal/grpc/scripts/engine"
 	"github.com/Duke1616/etask/internal/grpc/scripts/language/python"
@@ -16,6 +17,8 @@ type Runtime struct {
 	adapters   []engine.Adapter
 	workspaces engine.WorkspaceFactory
 	archiver   engine.Archiver
+	initOnce   sync.Once
+	initErr    error
 }
 
 // NewRuntime 根据配置装配工作区、归档器和语言处理器。
@@ -65,11 +68,13 @@ func (r *Runtime) Prune() error {
 
 // Initialize 校验运行依赖并清理上次异常退出遗留的文件。
 func (r *Runtime) Initialize() error {
-	// 先验证解释器与目录，避免清理完成后才发现节点无法执行任务。
-	if err := r.ValidateExecutables(); err != nil {
-		return err
-	}
-	return r.Prune()
+	r.initOnce.Do(func() {
+		// 先验证解释器与目录，避免清理完成后才发现节点无法执行任务。
+		if r.initErr = r.ValidateExecutables(); r.initErr == nil {
+			r.initErr = r.Prune()
+		}
+	})
+	return r.initErr
 }
 
 // ValidateExecutables 校验解释器与运行目录在启动时可用。
