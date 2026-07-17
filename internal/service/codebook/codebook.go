@@ -2,6 +2,7 @@ package codebook
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Duke1616/eiam/pkg/ctxutil"
@@ -84,7 +85,8 @@ func (s *service) Create(ctx context.Context, req domain.Codebook) (int64, error
 	if err := s.prepareSortNo(ctx, &req); err != nil {
 		return 0, err
 	}
-	return s.repo.Create(ctx, req)
+	id, err := s.repo.Create(ctx, req)
+	return id, codebookNameConflict(err, req.Name)
 }
 
 // GetByID 根据主键 ID 获取脚本模板。
@@ -179,7 +181,8 @@ func (s *service) Update(ctx context.Context, req domain.Codebook) (int64, error
 	if err = validateCodebookWriteScope(ctx, req.Scope); err != nil {
 		return 0, err
 	}
-	return s.repo.Update(ctx, req)
+	count, err := s.repo.Update(ctx, req)
+	return count, codebookNameConflict(err, req.Name)
 }
 
 // CreateVersion 校验并创建脚本版本。
@@ -310,6 +313,13 @@ func (s *service) inheritParentContext(ctx context.Context, req *domain.Codebook
 func validateCodebookWriteScope(ctx context.Context, scope domain.CodebookScope) error {
 	tenantID := ctxutil.GetTenantID(ctx).Int64()
 	return scope.ValidateWriteAccess(tenantID, ctxutil.SystemTenantID)
+}
+
+func codebookNameConflict(err error, name string) error {
+	if errors.Is(err, errs.ErrCodebookNameConflict) {
+		return fmt.Errorf("%w：%s", errs.ErrCodebookNameConflict, name)
+	}
+	return err
 }
 
 func (s *service) CreateProject(ctx context.Context, req domain.CodebookProject) (int64, error) {

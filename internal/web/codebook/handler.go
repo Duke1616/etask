@@ -254,6 +254,9 @@ func (h *Handler) DeleteProject(ctx *ginx.Context) (ginx.Result, error) {
 }
 
 func (h *Handler) translateError(err error) ginx.Result {
+	if errors.Is(err, errs.ErrCodebookNameConflict) {
+		return codebookNameConflictResult(err)
+	}
 	if errors.Is(err, errs.ErrInvalidParameter) {
 		return invalidParameterResult(err)
 	}

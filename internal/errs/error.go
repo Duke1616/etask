@@ -34,7 +34,8 @@ var (
 	ErrInitPlanFailed = errors.New("plan和实际创建的任务不符")
 	ErrExceedLimit    = errors.New("抢资源超出限制")
 
-	ErrTaskNameDuplicate = errors.New("任务名称重复")
+	ErrTaskNameDuplicate    = errors.New("任务名称重复")
+	ErrCodebookNameConflict = errors.New("同级目录下已存在同名文件或目录")
 
 	ErrExecutionPoolNotAllowed = errors.New("未授权使用执行资源池")
 )

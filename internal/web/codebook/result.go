@@ -3,8 +3,9 @@ package codebook
 import "github.com/ecodeclub/ginx"
 
 const (
-	SystemErrorCode      = 504001
-	InvalidParameterCode = 504002
+	SystemErrorCode          = 504001
+	InvalidParameterCode     = 504002
+	CodebookNameConflictCode = 504003
 )
 
 var (
@@ -16,6 +17,13 @@ var (
 func invalidParameterResult(err error) ginx.Result {
 	return ginx.Result{
 		Code: InvalidParameterCode,
+		Msg:  err.Error(),
+	}
+}
+
+func codebookNameConflictResult(err error) ginx.Result {
+	return ginx.Result{
+		Code: CodebookNameConflictCode,
 		Msg:  err.Error(),
 	}
 }

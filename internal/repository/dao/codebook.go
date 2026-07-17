@@ -11,6 +11,7 @@ import (
 
 	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/errs"
 	"github.com/samber/lo"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -315,7 +316,7 @@ func (g *GORMCodebookDAO) Create(ctx context.Context, c Codebook, code string) (
 		}
 		return bumpProjectSourceRevision(tx, c.Scope, c.ProjectID)
 	})
-	return c.ID, err
+	return c.ID, codebookWriteError(err)
 }
 
 // GetByID 根据主键 ID 查询代码节点。
@@ -487,7 +488,7 @@ func (g *GORMCodebookDAO) Update(ctx context.Context, c Codebook, code string) (
 		}
 		return bumpProjectSourceRevision(tx, c.Scope, c.ProjectID)
 	})
-	return rowsAffected, err
+	return rowsAffected, codebookWriteError(err)
 }
 
 func (g *GORMCodebookDAO) updateCurrentVersionCode(ctx context.Context, tx *gorm.DB, c Codebook, code string, now int64) error {
@@ -610,13 +611,14 @@ func (g *GORMCodebookDAO) UseVersion(ctx context.Context, nodeID, versionID int6
 
 // UpdateSort 更新单个代码节点的父级、路径和排序号。
 func (g *GORMCodebookDAO) UpdateSort(ctx context.Context, item CodebookSortItem) error {
-	return g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		projects := make(map[int64]struct{})
 		if err := g.updateSortInTx(tx, item, projects); err != nil {
 			return err
 		}
 		return bumpProjectSourceRevisions(tx, projects)
 	})
+	return codebookWriteError(err)
 }
 
 // BatchUpdateSort 批量更新代码节点排序。
@@ -624,7 +626,7 @@ func (g *GORMCodebookDAO) BatchUpdateSort(ctx context.Context, items []CodebookS
 	if len(items) == 0 {
 		return nil
 	}
-	return g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		projects := make(map[int64]struct{})
 		for _, item := range items {
 			if err := g.updateSortInTx(tx, item, projects); err != nil {
@@ -633,6 +635,7 @@ func (g *GORMCodebookDAO) BatchUpdateSort(ctx context.Context, items []CodebookS
 		}
 		return bumpProjectSourceRevisions(tx, projects)
 	})
+	return codebookWriteError(err)
 }
 
 // Delete 根据主键 ID 删除代码节点，目录会级联删除整棵子树和对应版本。
@@ -756,4 +759,11 @@ func codebookAuthorUserID(ctx context.Context) int64 {
 		return userID
 	}
 	return defaultCodebookAuthorUserID
+}
+
+func codebookWriteError(err error) error {
+	if isDuplicateKeyError(err) {
+		return errs.ErrCodebookNameConflict
+	}
+	return err
 }
