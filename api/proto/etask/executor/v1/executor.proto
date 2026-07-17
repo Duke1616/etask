@@ -110,12 +110,22 @@ service AgentService {
 // ==================== 任务执行管理 (Management) ====================
 
 service TaskExecutionService {
+  // 根据执行 ID 获取执行记录
+  rpc GetTaskExecution(GetTaskExecutionRequest) returns (GetTaskExecutionResponse);
   // 列出任务执行记录
   rpc ListTaskExecutions(ListTaskExecutionsRequest) returns (ListTaskExecutionsResponse);
   // 获取执行日志
   rpc GetExecutionLogs(GetExecutionLogsRequest) returns (GetExecutionLogsResponse);
   // 批量列出任务执行记录
   rpc BatchListTaskExecutions(BatchListTaskExecutionsRequest) returns (BatchListTaskExecutionsResponse);
+}
+
+message GetTaskExecutionRequest {
+  int64 execution_id = 1;
+}
+
+message GetTaskExecutionResponse {
+  TaskExecution execution = 1;
 }
 
 message ListTaskExecutionsRequest {

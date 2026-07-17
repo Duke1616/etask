@@ -10,10 +10,12 @@ import (
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
 	runnerv1 "github.com/Duke1616/etask/api/proto/gen/etask/runner/v1"
+	schedulerv1 "github.com/Duke1616/etask/api/proto/gen/etask/scheduler/v1"
 	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
 	executorartifact "github.com/Duke1616/etask/internal/executor/artifact"
 	grpcapi "github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/grpc/scripts"
+	config "github.com/Duke1616/etask/pkg/config"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/pkg/grpc/pool"
 	registrysdk "github.com/Duke1616/etask/pkg/grpc/registry"
@@ -26,20 +28,20 @@ import (
 // InitExecutor 初始化原生 gRPC 执行器节点
 func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 	var serverCfg grpcpkg.ServerConfig
-	if err := viper.UnmarshalKey("grpc.server.executor", &serverCfg); err != nil {
+	if err := config.UnmarshalKey("grpc.server.executor", &serverCfg); err != nil {
 		panic(err)
 	}
 
 	var clientCfg grpcpkg.ClientConfig
-	if err := viper.UnmarshalKey("grpc.client.scheduler", &clientCfg); err != nil {
+	if err := config.UnmarshalKey("grpc.client.scheduler", &clientCfg); err != nil {
 		panic(err)
 	}
 	var artifactCacheCfg executorartifact.Config
-	if err := viper.UnmarshalKey("executor.artifact_cache", &artifactCacheCfg); err != nil {
+	if err := config.UnmarshalKey("executor.artifact_cache", &artifactCacheCfg); err != nil {
 		panic(err)
 	}
 	var scriptRuntimeCfg scripts.RuntimeConfig
-	if err := viper.UnmarshalKey("runtime.script", &scriptRuntimeCfg); err != nil {
+	if err := config.UnmarshalKey("runtime.script", &scriptRuntimeCfg); err != nil {
 		panic(err)
 	}
 	scriptRuntime, err := scripts.NewRuntime(scriptRuntimeCfg)
@@ -79,9 +81,10 @@ func InitExecutor(etcdClient *clientv3.Client) *executor.Executor {
 // InitSchedulerNodeGRPCServer 初始化 Scheduler gRPC 服务器
 func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcapi.ReporterServer,
 	task *grpcapi.TaskServer, agent *grpcapi.AgentServer, codebook *grpcapi.CodebookServer,
-	runner *grpcapi.RunnerServer, artifact *grpcapi.ArtifactServer) *grpcpkg.Server {
+	runner *grpcapi.RunnerServer, artifact *grpcapi.ArtifactServer,
+	scheduler *grpcapi.SchedulerServer) *grpcpkg.Server {
 	var cfg grpcpkg.ServerConfig
-	if err := viper.UnmarshalKey("grpc.server.scheduler", &cfg); err != nil {
+	if err := config.UnmarshalKey("grpc.server.scheduler", &cfg); err != nil {
 		panic(err)
 	}
 
@@ -93,6 +96,7 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 	codebookv1.RegisterCodebookServiceServer(server.Server, codebook)
 	runnerv1.RegisterRunnerServiceServer(server.Server, runner)
 	artifactv1.RegisterArtifactServiceServer(server.Server, artifact)
+	schedulerv1.RegisterSchedulerServiceServer(server.Server, scheduler)
 
 	return server
 }
@@ -100,7 +104,7 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 func InitExecutorServiceGRPCClients(reg registrysdk.Registry) *pool.Clients[executorv1.ExecutorServiceClient] {
 	const defaultTimeout = time.Second
 	var cfg grpcpkg.ClientConfig
-	if err := viper.UnmarshalKey("grpc.client.executor", &cfg); err != nil {
+	if err := config.UnmarshalKey("grpc.client.executor", &cfg); err != nil {
 		panic(err)
 	}
 

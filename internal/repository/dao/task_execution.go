@@ -26,9 +26,11 @@ const (
 // TaskExecution 任务执行记录表DAO对象
 type TaskExecution struct {
 	ID       int64 `gorm:"type:bigint;primaryKey;autoIncrement;"`
-	TenantID int64 `gorm:"type:bigint unsigned;not null;default:0;index;comment:租户ID"`
+	TenantID int64 `gorm:"type:bigint unsigned;not null;default:0;index;uniqueIndex:uk_execution_request,priority:1;comment:租户ID"`
 	// Source 标识执行记录来自正式任务还是 Codebook 试运行。
-	Source string `gorm:"type:varchar(32);not null;default:'TASK';index;comment:'执行来源：TASK-正式任务，CODEBOOK_PREVIEW-Codebook 试运行'"`
+	Source string `gorm:"type:varchar(32);not null;default:'TASK';index;uniqueIndex:uk_execution_request,priority:2;comment:'执行来源：TASK、CODEBOOK_PREVIEW、WORKFLOW'"`
+	// RequestID 仅供外部来源幂等提交使用；NULL 不参与唯一约束。
+	RequestID sql.NullString `gorm:"type:varchar(128);uniqueIndex:uk_execution_request,priority:3;comment:'外部幂等请求标识'"`
 	// 下面都是创建当前 TaskExecution 时从对应的Task直接拷贝过来的冗余信息
 	TaskID                  int64                                  `gorm:"type:bigint;not null;comment:'任务ID'"`
 	TaskName                string                                 `gorm:"type:varchar(255);not null;comment:'任务名称'"`
@@ -71,6 +73,8 @@ type TaskExecutionDAO interface {
 	BatchCreate(ctx context.Context, executions []TaskExecution) ([]TaskExecution, error)
 	// GetByID 根据ID获取执行记录
 	GetByID(ctx context.Context, id int64) (TaskExecution, error)
+	// FindByRequestID 根据执行来源和幂等请求标识查询执行记录。
+	FindByRequestID(ctx context.Context, source, requestID string) (TaskExecution, error)
 	// UpdateStatus 更新执行状态
 	UpdateStatus(ctx context.Context, id int64, status string) error
 	// FindRetryableExecutions 查找所有可以重试的执行记录
@@ -230,6 +234,14 @@ func (g *GORMTaskExecutionDAO) GetByID(ctx context.Context, id int64) (TaskExecu
 	if err != nil {
 		return TaskExecution{}, fmt.Errorf("%w: ID=%d, %w", errs.ErrExecutionNotFound, id, err)
 	}
+	return execution, err
+}
+
+func (g *GORMTaskExecutionDAO) FindByRequestID(ctx context.Context, source, requestID string) (TaskExecution, error) {
+	var execution TaskExecution
+	err := g.db.WithContext(ctx).
+		Where("source = ? AND request_id = ?", source, requestID).
+		First(&execution).Error
 	return execution, err
 }
 

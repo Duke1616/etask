@@ -59,6 +59,10 @@ func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
 	if err != nil {
 		return err
 	}
+	// 外部工作流执行没有 etask 正式任务，只需持久化执行终态。
+	if evt.TaskID <= 0 {
+		return nil
+	}
 
 	// 计算下次运行时间
 	t, err := c.taskSvc.UpdateNextTime(ctx, evt.TaskID)

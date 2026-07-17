@@ -6,7 +6,7 @@ import (
 	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/pkg/grpc/pool"
-	"github.com/spf13/viper"
+	config "github.com/Duke1616/etask/pkg/config"
 )
 
 func InitRetryCompensator(
@@ -14,7 +14,7 @@ func InitRetryCompensator(
 	execSvc task.ExecutionService,
 ) *compensator.RetryCompensator {
 	var cfg compensator.RetryConfig
-	err := viper.UnmarshalKey("compensator.retry", &cfg)
+	err := config.UnmarshalKey("compensator.retry", &cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -30,7 +30,7 @@ func InitRescheduleCompensator(
 	execSvc task.ExecutionService,
 ) *compensator.RescheduleCompensator {
 	var cfg compensator.RescheduleConfig
-	err := viper.UnmarshalKey("compensator.reschedule", &cfg)
+	err := config.UnmarshalKey("compensator.reschedule", &cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -45,7 +45,7 @@ func InitInterruptCompensator(
 	execSvc task.ExecutionService,
 ) *compensator.InterruptCompensator {
 	var cfg compensator.InterruptConfig
-	err := viper.UnmarshalKey("compensator.interrupt", &cfg)
+	err := config.UnmarshalKey("compensator.interrupt", &cfg)
 	if err != nil {
 		panic(err)
 	}

@@ -14,6 +14,8 @@ const (
 	TaskExecutionSourceTask TaskExecutionSource = "TASK"
 	// TaskExecutionSourceCodebookPreview 表示由 Codebook 试运行产生的临时执行记录。
 	TaskExecutionSourceCodebookPreview TaskExecutionSource = "CODEBOOK_PREVIEW"
+	// TaskExecutionSourceWorkflow 表示由外部工作流系统提交的正式执行记录。
+	TaskExecutionSourceWorkflow TaskExecutionSource = "WORKFLOW"
 )
 
 // String 返回执行来源的字符串值。
@@ -24,6 +26,16 @@ func (s TaskExecutionSource) String() string {
 // IsCodebookPreview 判断当前执行是否来自 Codebook 试运行。
 func (s TaskExecutionSource) IsCodebookPreview() bool {
 	return s == TaskExecutionSourceCodebookPreview
+}
+
+// IsWorkflow 判断当前执行是否来自外部工作流系统。
+func (s TaskExecutionSource) IsWorkflow() bool {
+	return s == TaskExecutionSourceWorkflow
+}
+
+// AllowsEmptyTaskID 判断执行来源是否允许不关联 etask 正式任务。
+func (s TaskExecutionSource) AllowsEmptyTaskID() bool {
+	return s.IsCodebookPreview() || s.IsWorkflow()
 }
 
 // TaskExecutionStatus 任务执行状态
@@ -109,6 +121,7 @@ type TaskExecution struct {
 	ID              int64
 	TenantID        int64               // 租户ID，多租户隔离
 	Source          TaskExecutionSource // 执行来源，区分正式任务与临时试运行
+	RequestID       string              // 外部来源提供的幂等请求标识
 	Deadline        int64               // 任务执行截止时间（毫秒时间戳）
 	ExecutorNodeID  string              // 执行节点的 nodeID，用于记录是哪个节点处理了任务
 	StartTime       int64               // 开始时间

@@ -1,45 +1,52 @@
 log:
   debug: true
 
-# 内置 Shell/Python 处理器运行时。
 runtime:
   script:
     workspace_dir: "/tmp/etask/runs"
+    # 历史工作目录保留时间
     workspace_max_age: 24h
     python_binary: "python"
     shell_binary: "/bin/bash"
-    max_code_size: 4194304
-    max_args_size: 1048576
-    max_variables_size: 1048576
-    max_log_line_size: 1048576
-    max_result_size: 4194304
+    # 脚本代码最大限制
+    max_code_size: "4MB"
+    # 脚本入参最大限制
+    max_args_size: "1MB"
+    # 环境变量最大限制
+    max_variables_size: "1MB"
+    # 单行日志最大限制
+    max_log_line_size: "1MB"
+    # 脚本执行结果最大限制
+    max_result_size: "4MB"
     archive:
       enabled: true
+      # 是否仅归档失败任务
       failed_only: false
       dir: "/var/lib/etask/script-archive"
+      # 归档保留时间
       max_age: 168h
-      max_size: 10737418240
+      # 归档最大容量限制
+      max_size: "10GB"
 
-# 执行节点集群配置
 executor:
-  # 节点实例 ID。
-  # 优先级：环境变量 EXECUTOR_NODE_ID > 此处配置 (executor.id) > grpc.server.executor.id。
-  # 注意：系统会自动将其格式化为 {serviceName}:{id}，如 "etask:node-01"，以确保跨服务唯一。
+  # 节点实例 ID（优先级：环境变量 EXECUTOR_NODE_ID > 此配置）
   id: "node-01"
-  # 任务执行模式：
-  # - PUSH: (默认) 调度中心检测到节点在线后，主动向节点推送任务请求，适用于公网可达的环境。
-  # - PULL: 边缘节点模式。节点主动向中心发起长轮询拉取任务，适用于防火墙内或无固定公网 IP 的环境。
+  # 任务执行模式：PUSH (主动推送模式) 或 PULL (边缘拉取模式)
   mode: "PULL"
-  # 执行器集群功能描述。
   desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
-  # 资源池隔离级别：SHARED（默认）或 DEDICATED（仅可授权一个租户）。
+  # 资源池隔离级别：SHARED(共享) 或 DEDICATED(专有)
   isolation_level: "SHARED"
   artifact_cache:
     dir: "/var/lib/etask/artifact-cache"
-    max_download_size: 536870912
-    max_unpacked_size: 2147483648
+    # 单个压缩制品最大下载限制
+    max_download_size: "512MB"
+    # 单个制品最大解压限制
+    max_unpacked_size: "2GB"
+    # 单个制品最大文件数限制
     max_file_count: 10000
-    max_cache_size: 10737418240
+    # 本地缓存最大大小限制
+    max_cache_size: "10GB"
+
 etcd:
   endpoints:
     - 127.0.0.1:2379
@@ -48,9 +55,11 @@ grpc:
   server:
     executor:
       name: execute
-      listen_addr: "0.0.0.0:9004" # 服务监听地址
-      advertise_addr: ""  # 广播地址，可选,留空则自动检测
-      auth_token: "" # 可选：开启认证
+      listen_addr: "0.0.0.0:9004"
+      # 广播地址，留空则自动检测
+      advertise_addr: ""
+      # 身份认证 Token，留空则不启用
+      auth_token: ""
   client:
     scheduler:
       name: "scheduler"

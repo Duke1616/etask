@@ -30,6 +30,9 @@ type ExecutionService interface {
 	Create(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error)
 	// CreatePreview 创建不依赖正式任务的 Codebook 试运行执行实例。
 	CreatePreview(ctx context.Context, execution domain.TaskExecution, sourceProjectID int64) (domain.TaskExecution, error)
+	// CreateWorkflow 幂等创建由外部工作流提交的正式执行实例。
+	CreateWorkflow(ctx context.Context, execution domain.TaskExecution,
+		sourceProjectID int64) (domain.TaskExecution, bool, error)
 	// FindByID 根据ID获取执行实例
 	FindByID(ctx context.Context, id int64) (domain.TaskExecution, error)
 	// FindRetryableExecutions 查找所有可以重试的执行记录
@@ -141,32 +144,68 @@ func (s *executionService) Create(ctx context.Context, execution domain.TaskExec
 
 func (s *executionService) CreatePreview(ctx context.Context, execution domain.TaskExecution,
 	sourceProjectID int64) (domain.TaskExecution, error) {
-	// 试运行不绑定正式任务，但仍遵循规划器固定的 PUSH/PULL 路由。
 	execution.Source = domain.TaskExecutionSourceCodebookPreview
-	execution.Task.ID = 0
-	execution.Task.Type = domain.TaskTypeOneTime
-	if err := execution.Route.Validate(); err != nil {
-		return domain.TaskExecution{}, fmt.Errorf("试运行路由非法: %w", err)
-	}
-	execution.Task.ExecMode = execution.Route.DispatchMode
-	execution.Task.TenantID = ctxutil.GetTenantID(ctx).Int64()
-	if execution.Task.TenantID <= 0 {
-		return domain.TaskExecution{}, fmt.Errorf("缺少租户上下文，无法创建试运行")
-	}
-	if err := s.taskSvc.AuthorizeExecutionPool(ctx, execution.Task); err != nil {
+	if err := s.prepareDetachedExecution(ctx, &execution, sourceProjectID); err != nil {
 		return domain.TaskExecution{}, err
 	}
-	// 预览与正式任务使用相同的制品解析规则，并排除正在预览的来源项目。
-	if err := s.resolveArtifacts(ctx, &execution, sourceProjectID); err != nil {
-		return domain.TaskExecution{}, err
-	}
-	execution.TenantID = execution.Task.TenantID
 	created, err := s.repo.Create(ctx, execution)
 	if err != nil {
 		return domain.TaskExecution{}, err
 	}
 	s.broadcastExecutionEvent(created.ID)
 	return created, nil
+}
+
+func (s *executionService) CreateWorkflow(ctx context.Context, execution domain.TaskExecution,
+	sourceProjectID int64) (domain.TaskExecution, bool, error) {
+	if strings.TrimSpace(execution.RequestID) == "" {
+		return domain.TaskExecution{}, false, fmt.Errorf("工作流执行缺少幂等请求标识")
+	}
+	if existing, ok, err := s.repo.FindByRequestID(ctx, domain.TaskExecutionSourceWorkflow,
+		execution.RequestID); err != nil {
+		return domain.TaskExecution{}, false, err
+	} else if ok {
+		return existing, false, nil
+	}
+
+	execution.Source = domain.TaskExecutionSourceWorkflow
+	if err := s.prepareDetachedExecution(ctx, &execution, sourceProjectID); err != nil {
+		return domain.TaskExecution{}, false, err
+	}
+	created, err := s.repo.Create(ctx, execution)
+	if err != nil {
+		// 并发提交可能同时通过首次查询；唯一约束的获胜记录就是幂等结果。
+		if existing, ok, findErr := s.repo.FindByRequestID(ctx, domain.TaskExecutionSourceWorkflow,
+			execution.RequestID); findErr == nil && ok {
+			return existing, false, nil
+		}
+		return domain.TaskExecution{}, false, err
+	}
+	s.broadcastExecutionEvent(created.ID)
+	return created, true, nil
+}
+
+// prepareDetachedExecution 为不绑定 etask 正式任务的执行补齐租户、路由和制品快照。
+func (s *executionService) prepareDetachedExecution(ctx context.Context, execution *domain.TaskExecution,
+	sourceProjectID int64) error {
+	execution.Task.ID = 0
+	execution.Task.Type = domain.TaskTypeOneTime
+	if err := execution.Route.Validate(); err != nil {
+		return fmt.Errorf("执行路由非法: %w", err)
+	}
+	execution.Task.ExecMode = execution.Route.DispatchMode
+	execution.Task.TenantID = ctxutil.GetTenantID(ctx).Int64()
+	if execution.Task.TenantID <= 0 {
+		return fmt.Errorf("缺少租户上下文，无法创建执行记录")
+	}
+	if err := s.taskSvc.AuthorizeExecutionPool(ctx, execution.Task); err != nil {
+		return err
+	}
+	if err := s.resolveArtifacts(ctx, execution, sourceProjectID); err != nil {
+		return err
+	}
+	execution.TenantID = execution.Task.TenantID
+	return nil
 }
 
 func (s *executionService) resolveArtifacts(ctx context.Context, execution *domain.TaskExecution,
@@ -390,6 +429,9 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 	if execution.Source.IsCodebookPreview() {
 		return s.updatePreviewState(ctx, execution, state)
 	}
+	if execution.Source.IsWorkflow() {
+		return s.updateWorkflowState(ctx, execution, state)
+	}
 
 	switch {
 	case state.Status.IsRunning():
@@ -405,8 +447,7 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 			// 达到最大重试次数
 			if errors.Is(err, errs.ErrExecutionMaxRetriesExceeded) {
 				// NOTE: 只发送完成事件,由消费者统一更新终止状态
-				s.sendCompletedEvent(ctx, state, execution)
-				return nil
+				return s.sendCompletedEvent(ctx, state, execution)
 			}
 			// 其他错误才记录并返回
 			s.logger.Error("更新任务执行记录的重试结果失败",
@@ -429,8 +470,7 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 		return nil
 	case state.Status.IsTerminalStatus():
 		// 只发送完成事件,由消费者统一更新终止状态,避免重复更新
-		s.sendCompletedEvent(ctx, state, execution)
-		return nil
+		return s.sendCompletedEvent(ctx, state, execution)
 	default:
 		s.logger.Error("非法上报状态",
 			elog.Int64("taskID", execution.Task.ID),
@@ -453,6 +493,26 @@ func (s *executionService) updatePreviewState(ctx context.Context, execution dom
 	case state.Status.IsFailedRetryable(), state.Status.IsFailedRescheduled():
 		state.Status = domain.TaskExecutionStatusFailed
 		return s.updateState(ctx, execution, state)
+	default:
+		return errs.ErrInvalidTaskExecutionStatus
+	}
+}
+
+// updateWorkflowState 将 etask 内部可重试状态收敛为一次工作流尝试的明确终态。
+// 工作流层需要重试时会创建新的 attempt，而不是复用当前 execution。
+func (s *executionService) updateWorkflowState(ctx context.Context, execution domain.TaskExecution,
+	state domain.ExecutionState) error {
+	switch {
+	case state.Status.IsRunning():
+		if execution.Status.IsRunning() {
+			return s.updateRunningProgress(ctx, state)
+		}
+		return s.setRunningState(ctx, state)
+	case state.Status.IsSuccess(), state.Status.IsFailed():
+		return s.sendCompletedEvent(ctx, state, execution)
+	case state.Status.IsFailedRetryable(), state.Status.IsFailedRescheduled():
+		state.Status = domain.TaskExecutionStatusFailed
+		return s.sendCompletedEvent(ctx, state, execution)
 	default:
 		return errs.ErrInvalidTaskExecutionStatus
 	}
@@ -547,10 +607,10 @@ func (s *executionService) updateState(ctx context.Context, execution domain.Tas
 	return nil
 }
 
-func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.ExecutionState, execution domain.TaskExecution) {
+func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.ExecutionState,
+	execution domain.TaskExecution) error {
 	if !state.Status.IsTerminalStatus() {
-		// 非终止状态不用做处理
-		return
+		return errs.ErrInvalidTaskExecutionStatus
 	}
 	err := s.producer.Produce(ctx, event.Event{
 		ExecID:         execution.ID,
@@ -560,10 +620,13 @@ func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.
 		TaskID:         execution.Task.ID,
 		Name:           execution.Task.Name,
 		TaskResult:     state.TaskResult,
+		Source:         execution.Source,
+		RequestID:      execution.RequestID,
 	})
 	if err != nil {
-		s.logger.Error("发送完成事件失败", elog.Int64("taskID", execution.Task.ID), elog.FieldErr(err))
+		return fmt.Errorf("发送任务完成事件失败: %w", err)
 	}
+	return nil
 }
 
 func (s *executionService) ListByTaskID(ctx context.Context, taskID int64, offset, limit int) ([]domain.TaskExecution, int64, error) {
@@ -581,7 +644,7 @@ func (s *executionService) broadcastExecutionEvent(id int64) {
 			s.logger.Error("广播执行事件时获取记录失败", elog.Int64("id", id), elog.FieldErr(err))
 			return
 		}
-		if exec.Source.IsCodebookPreview() {
+		if exec.Task.ID <= 0 {
 			return
 		}
 

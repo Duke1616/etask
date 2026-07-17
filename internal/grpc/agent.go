@@ -187,6 +187,19 @@ func (s *AgentServer) ListTaskExecutions(ctx context.Context, req *executorv1.Li
 	}, nil
 }
 
+// GetTaskExecution 根据执行 ID 获取执行记录。
+func (s *AgentServer) GetTaskExecution(ctx context.Context,
+	req *executorv1.GetTaskExecutionRequest) (*executorv1.GetTaskExecutionResponse, error) {
+	if req.GetExecutionId() <= 0 {
+		return nil, fmt.Errorf("执行 ID 非法: %d", req.GetExecutionId())
+	}
+	execution, err := s.execSvc.FindByID(ctx, req.GetExecutionId())
+	if err != nil {
+		return nil, err
+	}
+	return &executorv1.GetTaskExecutionResponse{Execution: toProtoTaskExecution(execution)}, nil
+}
+
 // GetExecutionLogs 获取执行日志
 func (s *AgentServer) GetExecutionLogs(ctx context.Context, req *executorv1.GetExecutionLogsRequest) (*executorv1.GetExecutionLogsResponse, error) {
 	logs, _, err := s.logSvc.GetLogs(ctx, req.GetExecutionId(), req.GetMinId(), int(req.GetLimit()))

@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package etask.scheduler.v1;
+
+option go_package = "etask/scheduler/v1;scheduler";
+
+// RunRunnerRequest 描述外部系统提交的一次 Runner 正式执行。
+message RunRunnerRequest {
+  string request_id = 1;             // 调用方生成的租户内唯一幂等标识
+  int64 runner_id = 2;               // 需要执行的 Runner ID
+  map<string, string> params = 3;    // 本次执行动态参数
+  map<string, string> variables = 4; // 本次执行临时变量覆盖
+}
+
+message RunRunnerResponse {
+  int64 execution_id = 1;
+  bool created = 2; // false 表示命中已有幂等执行
+}
+
+service SchedulerService {
+  // RunRunner 幂等创建并触发外部工作流 Runner 执行。
+  rpc RunRunner(RunRunnerRequest) returns (RunRunnerResponse);
+}

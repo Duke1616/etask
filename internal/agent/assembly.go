@@ -17,9 +17,9 @@ import (
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/ecodeclub/mq-api"
 	"github.com/google/uuid"
-	"github.com/spf13/viper"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	config "github.com/Duke1616/etask/pkg/config"
 )
 
 type Instance struct {
@@ -32,11 +32,11 @@ type Instance struct {
 
 // InitScriptHandlers 使用 Agent 的脚本运行时配置创建任务处理器。
 func InitScriptHandlers() []executor.TaskHandler {
-	var config scripts.RuntimeConfig
-	if err := viper.UnmarshalKey("runtime.script", &config); err != nil {
+	var configVal scripts.RuntimeConfig
+	if err := config.UnmarshalKey("runtime.script", &configVal); err != nil {
 		panic(err)
 	}
-	runtime, err := scripts.NewRuntime(config)
+	runtime, err := scripts.NewRuntime(configVal)
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +77,7 @@ func InitRegistry(etcdClient *clientv3.Client) registry.Registry {
 func initExecuteConsumer(q mq.MQ, svc service.Service, producer event.ExecuteResultProducer,
 	reg registry.Registry) *event.ExecuteConsumer {
 	var cfg Instance
-	if err := viper.UnmarshalKey("agent", &cfg); err != nil {
+	if err := config.UnmarshalKey("agent", &cfg); err != nil {
 		panic(err)
 	}
 
@@ -103,19 +103,19 @@ func initExecuteConsumer(q mq.MQ, svc service.Service, producer event.ExecuteRes
 }
 
 func initArtifactPreparer() executor.ArtifactPreparer {
-	var config executorartifact.Config
-	if err := viper.UnmarshalKey("agent.artifact_cache", &config); err != nil {
+	var configVal executorartifact.Config
+	if err := config.UnmarshalKey("agent.artifact_cache", &configVal); err != nil {
 		panic(err)
 	}
-	return executorartifact.NewRuntime(config)
+	return executorartifact.NewRuntime(configVal)
 }
 
 func initSchedulerConnection(etcdClient *clientv3.Client) *grpc.ClientConn {
-	var config grpcpkg.ClientConfig
-	if err := viper.UnmarshalKey("grpc.client.scheduler", &config); err != nil {
+	var configVal grpcpkg.ClientConfig
+	if err := config.UnmarshalKey("grpc.client.scheduler", &configVal); err != nil {
 		panic(err)
 	}
-	connection, err := schedulerConnection(config, etcdClient)
+	connection, err := schedulerConnection(configVal, etcdClient)
 	if err != nil {
 		panic(fmt.Errorf("创建 Agent 调度中心连接失败: %w", err))
 	}

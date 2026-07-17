@@ -9,6 +9,7 @@ import (
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/pkg/sqlx"
 	"github.com/ecodeclub/ekit/slice"
+	"gorm.io/gorm"
 )
 
 type TaskExecutionRepository interface {
@@ -18,6 +19,8 @@ type TaskExecutionRepository interface {
 	UpdateStatus(ctx context.Context, id int64, status domain.TaskExecutionStatus) error
 	// GetByID 根据ID获取执行实例
 	GetByID(ctx context.Context, id int64) (domain.TaskExecution, error)
+	// FindByRequestID 根据执行来源和幂等请求标识查询执行实例。
+	FindByRequestID(ctx context.Context, source domain.TaskExecutionSource, requestID string) (domain.TaskExecution, bool, error)
 	// FindRetryableExecutions 查找所有可以重试的执行记录
 	// limit: 查询结果数量限制
 	FindRetryableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
@@ -127,7 +130,7 @@ func (r *taskExecutionRepository) Create(ctx context.Context, execution domain.T
 	if execution.Source == "" {
 		execution.Source = domain.TaskExecutionSourceTask
 	}
-	if execution.Task.ID == 0 && !execution.Source.IsCodebookPreview() {
+	if execution.Task.ID == 0 && !execution.Source.AllowsEmptyTaskID() {
 		return domain.TaskExecution{}, errors.New("任务 ID 不能为空")
 	}
 
@@ -153,6 +156,18 @@ func (r *taskExecutionRepository) GetByID(ctx context.Context, id int64) (domain
 		return domain.TaskExecution{}, err
 	}
 	return r.toDomain(daoExecution), nil
+}
+
+func (r *taskExecutionRepository) FindByRequestID(ctx context.Context, source domain.TaskExecutionSource,
+	requestID string) (domain.TaskExecution, bool, error) {
+	execution, err := r.dao.FindByRequestID(ctx, source.String(), requestID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.TaskExecution{}, false, nil
+	}
+	if err != nil {
+		return domain.TaskExecution{}, false, err
+	}
+	return r.toDomain(execution), true, nil
 }
 
 func (r *taskExecutionRepository) FindRetryableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error) {
@@ -212,6 +227,10 @@ func (r *taskExecutionRepository) ClaimPullTask(ctx context.Context, serviceName
 
 // toEntity 将领域模型转换为DAO模型
 func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.TaskExecution {
+	var requestID sql.NullString
+	if execution.RequestID != "" {
+		requestID = sql.NullString{String: execution.RequestID, Valid: true}
+	}
 	var grpcConfig sqlx.JSONColumn[domain.GrpcConfig]
 	if execution.Task.GrpcConfig != nil {
 		grpcConfig = sqlx.JSONColumn[domain.GrpcConfig]{Val: *execution.Task.GrpcConfig, Valid: true}
@@ -248,9 +267,10 @@ func (r *taskExecutionRepository) toEntity(execution domain.TaskExecution) dao.T
 	}
 
 	return dao.TaskExecution{
-		ID:       execution.ID,
-		TenantID: execution.TenantID,
-		Source:   execution.Source.String(),
+		ID:        execution.ID,
+		TenantID:  execution.TenantID,
+		Source:    execution.Source.String(),
+		RequestID: requestID,
 		// 从Task展开的冗余字段
 		TaskID:                  execution.Task.ID,
 		TaskName:                execution.Task.Name,
@@ -318,9 +338,10 @@ func (r *taskExecutionRepository) toDomain(daoExecution dao.TaskExecution) domai
 	}
 
 	return domain.TaskExecution{
-		ID:       daoExecution.ID,
-		TenantID: daoExecution.TenantID,
-		Source:   domain.TaskExecutionSource(daoExecution.Source),
+		ID:        daoExecution.ID,
+		TenantID:  daoExecution.TenantID,
+		Source:    domain.TaskExecutionSource(daoExecution.Source),
+		RequestID: daoExecution.RequestID.String,
 		Task: domain.Task{
 			ID:                  daoExecution.TaskID,
 			TenantID:            daoExecution.TenantID,

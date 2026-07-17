@@ -3,12 +3,12 @@ package ioc
 import (
 	artifactSvc "github.com/Duke1616/etask/internal/service/artifact"
 	"github.com/Duke1616/etask/pkg/blobstore"
-	"github.com/spf13/viper"
+	config "github.com/Duke1616/etask/pkg/config"
 )
 
 func InitArtifactConfig() artifactSvc.Config {
 	var cfg artifactSvc.Config
-	if err := viper.UnmarshalKey("artifact", &cfg); err != nil {
+	if err := config.UnmarshalKey("artifact", &cfg); err != nil {
 		panic(err)
 	}
 	return cfg

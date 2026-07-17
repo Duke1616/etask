@@ -1,11 +1,27 @@
 package grpc
 
 import (
+	"context"
 	"testing"
 
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
+	"github.com/Duke1616/etask/internal/domain"
+	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetTaskExecution(t *testing.T) {
+	server := &AgentServer{execSvc: &executionServiceStub{execution: domain.TaskExecution{
+		ID: 9, Status: domain.TaskExecutionStatusSuccess, TaskResult: `{"ok":true}`,
+	}}}
+
+	response, err := server.GetTaskExecution(context.Background(),
+		&executorv1.GetTaskExecutionRequest{ExecutionId: 9})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(9), response.GetExecution().GetId())
+	require.Equal(t, executorv1.ExecutionStatus_SUCCESS, response.GetExecution().GetStatus())
+}
 
 func TestPullTaskRejectsInvalidRequest(t *testing.T) {
 	testCases := []struct {
@@ -40,4 +56,13 @@ func TestNormalizeHandlerNames(t *testing.T) {
 			require.Equal(t, tc.want, normalizeHandlerNames(tc.values))
 		})
 	}
+}
+
+type executionServiceStub struct {
+	taskSvc.ExecutionService
+	execution domain.TaskExecution
+}
+
+func (s *executionServiceStub) FindByID(context.Context, int64) (domain.TaskExecution, error) {
+	return s.execution, nil
 }

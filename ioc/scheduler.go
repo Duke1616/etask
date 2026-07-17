@@ -6,7 +6,7 @@ import (
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/google/uuid"
-	"github.com/spf13/viper"
+	config "github.com/Duke1616/etask/pkg/config"
 )
 
 // InitNodeID 创建本次进程使用的调度节点 ID。
@@ -22,7 +22,7 @@ func InitScheduler(
 	acquirer acquirer.TaskAcquirer,
 ) *scheduler.Scheduler {
 	var cfg scheduler.Config
-	err := viper.UnmarshalKey("scheduler", &cfg)
+	err := config.UnmarshalKey("scheduler", &cfg)
 	if err != nil {
 		panic(err)
 	}

@@ -1,71 +1,82 @@
 # ework-runner 全量配置文件 (all-in-one 模式示例)
 
-# 日志配置
 log:
-  debug: true # 是否开启调试模式，开启后会打印更多详细日志
+  debug: true
 
-# Agent 模块配置 (基于 Kafka 队列的异步执行器)
 agent:
-  name: Kafka-Agent # 实例显示名称
-  topic: agent_execute # 监听的任务消息队列 Topic
-  worker_count: 4 # 同一 Agent 进程内并发消费协程数
-  desc: 异步任务执行代理：负责从消息队列拉取并执行来自调度中心的任务指令 # 描述信息，展示在管理后台
-  isolation_level: "SHARED" # 资源池隔离级别：SHARED 或 DEDICATED
+  name: "Kafka-Agent"
+  topic: "agent_execute"
+  worker_count: 4
+  desc: "异步任务执行代理：负责从消息队列拉取并执行来自调度中心的任务指令"
+  # 资源池隔离级别：SHARED(共享) 或 DEDICATED(专有)
+  isolation_level: "SHARED"
   artifact_cache:
     dir: "/var/lib/etask/agent-artifact-cache"
-    max_download_size: 536870912 # 单个压缩制品最大 512MB
-    max_unpacked_size: 2147483648 # 单个制品最大解压 2GB
+    # 单个压缩制品最大下载限制
+    max_download_size: "512MB"
+    # 单个制品最大解压限制
+    max_unpacked_size: "2GB"
+    # 单个制品最大文件数限制
     max_file_count: 10000
-    max_cache_size: 10737418240 # 本地制品缓存最大 10GB
+    # 本地缓存最大大小限制
+    max_cache_size: "10GB"
 
-# Agent 与 Executor 共享脚本处理器实现，但各自在自己的进程内创建运行时。
 runtime:
   script:
     workspace_dir: "/tmp/etask/runs"
+    # 历史工作目录保留时间
     workspace_max_age: 24h
     python_binary: "python"
     shell_binary: "/bin/bash"
-    max_code_size: 4194304
-    max_args_size: 1048576
-    max_variables_size: 1048576
-    max_log_line_size: 1048576
-    max_result_size: 4194304
+    # 脚本代码最大限制
+    max_code_size: "4MB"
+    # 脚本入参最大限制
+    max_args_size: "1MB"
+    # 环境变量最大限制
+    max_variables_size: "1MB"
+    # 单行日志最大限制
+    max_log_line_size: "1MB"
+    # 脚本执行结果最大限制
+    max_result_size: "4MB"
     archive:
       enabled: true
+      # 是否仅归档失败任务
       failed_only: false
       dir: "/var/lib/etask/script-archive"
+      # 归档保留时间
       max_age: 168h
-      max_size: 10737418240
+      # 归档最大容量限制
+      max_size: "10GB"
 
-# 执行节点集群配置
 executor:
-  # 节点实例 ID。
-  # 优先级：环境变量 EXECUTOR_NODE_ID > 此处配置 (executor.id) > grpc.server.executor.id。
-  # 注意：系统会自动将其格式化为 {serviceName}:{id}，如 "etask:node-01"，以确保跨服务唯一。
+  # 节点实例 ID（优先级：环境变量 EXECUTOR_NODE_ID > 此配置）
   id: "node-01"
-  # 任务执行模式：
-  # - PUSH: (默认) 调度中心检测到节点在线后，主动向节点推送任务请求，适用于公网可达的环境。
-  # - PULL: 边缘节点模式。节点主动向中心发起长轮询拉取任务，适用于防火墙内或无固定公网 IP 的环境。
+  # 任务执行模式：PUSH (主动推送模式) 或 PULL (边缘拉取模式)
   mode: "PULL"
-  # 执行器集群功能描述。
   desc: "通用计算节点：提供 Shell 与 Python 脚本等系统级基础执行能力的默认执行器集群"
-  isolation_level: "SHARED" # 资源池隔离级别：SHARED 或 DEDICATED
+  # 资源池隔离级别：SHARED(共享) 或 DEDICATED(专有)
+  isolation_level: "SHARED"
   artifact_cache:
     dir: "/var/lib/etask/artifact-cache"
-    max_download_size: 536870912 # 单个压缩制品最大 512MB
-    max_unpacked_size: 2147483648 # 单个制品最大解压 2GB
+    # 单个压缩制品最大下载限制
+    max_download_size: "512MB"
+    # 单个制品最大解压限制
+    max_unpacked_size: "2GB"
+    # 单个制品最大文件数限制
     max_file_count: 10000
-    max_cache_size: 10737418240 # 本地制品缓存最大 10GB
-# 制品仓库配置。普通项目保持单文件运行；租户内全部已发布制品库按各自命名空间自动注入。
+    # 本地缓存最大大小限制
+    max_cache_size: "10GB"
+
 artifact:
   temp_dir: "/tmp/etask/artifacts"
+  # 存储驱动类型：local 或 s3
   storage:
-    driver: "local" # local 或 s3
+    driver: "local"
     local:
       root: "/var/lib/etask/artifact-store"
     s3:
       endpoint: "http://minio:9000"
-      secure: false # endpoint 未携带协议时使用；携带 http/https 时以协议为准
+      secure: false
       region: "us-east-1"
       bucket: "etask-artifacts"
       prefix: "codebook"
@@ -73,11 +84,9 @@ artifact:
       secret_key: ""
       session_token: ""
 
-# 数据库配置 (MySQL)
 mysql:
   dsn: "root:123456@tcp(127.0.0.1:3306)/etask?charset=utf8mb4&collation=utf8mb4_general_ci&parseTime=True&loc=Local&timeout=1s&readTimeout=3s&writeTimeout=3s&multiStatements=true&interpolateParams=true"
 
-# 缓存配置 (Redis)
 redis:
   addr: "127.0.0.1:6379"
   password: "1234567890"
@@ -86,71 +95,74 @@ encryption:
   version: "V1"
   key: "1234567890"
 
-# 消息队列配置 (Kafka)
 kafka:
   network: tcp
   addresses:
     - 127.0.0.1:9094
 
-# 注册中心配置 (Etcd)
 etcd:
   endpoints:
     - 127.0.0.1:2379
 
-# web 配置: 对外暴露 http 接口
 web:
   host: "0.0.0.0"
   port: 8765
 
-# 策略鉴权：登录验证与权限鉴权服务地址
 policy:
   auth_url: http://127.0.0.1:8000
 
-# gRPC 服务及客户端配置
 grpc:
   server:
-    # 调度中心 gRPC Server 配置
     scheduler:
-      name: scheduler # 注册到 Etcd 的服务名称
-      listen_addr: "0.0.0.0:9002" # 监听端口
-      advertise_addr: ""  # 广播地址，留空则自动探测物理 IP
-      auth_token: "" # JWT 认证 Token，留空则不开启
-    # 执行器 gRPC Server 配置
+      name: scheduler
+      listen_addr: "0.0.0.0:9002"
+      # 广播地址，留空则自动检测
+      advertise_addr: ""
+      # 身份认证 Token，留空则不启用
+      auth_token: ""
     executor:
-      name: execute # 执行器分组名称
-      listen_addr: "0.0.0.0:9004" # 监听端口
-      advertise_addr: ""  # 广播地址
-      auth_token: "" # JWT 认证 Token
+      name: execute
+      listen_addr: "0.0.0.0:9004"
+      # 广播地址，留空则自动检测
+      advertise_addr: ""
+      # 身份认证 Token，留空则不启用
+      auth_token: ""
   client:
-    # 内部调度中心客户端 (用于执行器上报结果)
     scheduler:
       name: "scheduler"
 
-# 调度引擎核心参数
 scheduler:
-  batchTimeout: 3000000000 # 批量获取任务的超时时间 (纳秒, 3s)
-  batchSize: 100 # 每次调度扫描任务的最大数量
-  preemptedTimeout: 600000000000 # 抢占超时时间 (纳秒, 10m)，超过此时间未执行则重新触发
-  scheduleInterval: 10000000000 # 核心调度循环间隔 (纳秒, 10s)
-  renewInterval: 5000000000 # 任务续约间隔 (纳秒, 5s)
-  maxConcurrentTasks: 1000 # 节点支持的最大并发执行任务数
-  tokenAcquireTimeout: 3000000000 # 令牌获取超时 (纳秒, 3s)
-  pollInterval: 1000000000 # 轮询间隔 (纳秒, 1s)
-  reportTimeout: 10000000000 # 状态上报超时 (纳秒, 10s)
+  # 批量获取任务的超时时间（纳秒）
+  batchTimeout: 3000000000
+  # 每次调度循环扫描的最大任务数
+  batchSize: 100
+  # 任务抢占超时时间（纳秒）
+  preemptedTimeout: 600000000000
+  # 核心调度循环间隔（纳秒）
+  scheduleInterval: 10000000000
+  # 任务续约间隔（纳秒）
+  renewInterval: 5000000000
+  maxConcurrentTasks: 1000
+  # 任务执行令牌获取超时时间（纳秒）
+  tokenAcquireTimeout: 3000000000
+  # 轮询扫描未处理任务的最小间隔时间（纳秒）
+  pollInterval: 1000000000
+  # 节点状态和结果上报超时时间（纳秒）
+  reportTimeout: 10000000000
 
-# 补偿机制相关配置
 compensator:
-  # 重试补偿：处理执行失败的任务
   retry:
-    maxRetryCount: 3 # 最大重试次数
-    prepareTimeoutWindowMs: 10000000000 # 准备阶段的超时窗口
-    batchSize: 100 # 单次补偿扫描的任务量
-    minDuration: 1000000000 # 两次补偿执行的最小间隔
-  # 重新调度补偿：处理抢占成功但节点宕机未运行的任务
+    maxRetryCount: 3
+    # 任务准备阶段的超时窗口（纳秒）
+    prepareTimeoutWindowMs: 10000000000
+    batchSize: 100
+    # 重试补偿执行的最小间隔（纳秒）
+    minDuration: 1000000000
   reschedule:
     batchSize: 100
+    # 重新调度补偿执行的最小间隔（纳秒）
     minDuration: 1000000000
-  # 中断补偿：处理需要强行终止的任务
   interrupt:
     batchSize: 100
+    # 中断检查补偿执行的最小间隔（纳秒）
     minDuration: 1000000000

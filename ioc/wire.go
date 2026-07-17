@@ -72,6 +72,9 @@ func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
 		BindingResolverSet,
 		TaskExecutionSet,
 		SchedulerSet,
+		GrpcSet,
+		InitInvoker,
+		InitRoutePlanner,
 		AppSet,
 		ProducerSet,
 		// 从 Base 中提取依赖

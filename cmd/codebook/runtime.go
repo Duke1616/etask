@@ -15,6 +15,7 @@ import (
 	"github.com/Duke1616/etask/pkg/blobstore"
 	"github.com/spf13/viper"
 	"gorm.io/gorm"
+	config "github.com/Duke1616/etask/pkg/config"
 )
 
 const systemCodebookAuthorUserID int64 = 1
@@ -69,7 +70,7 @@ func systemOperationContext(ctx context.Context) context.Context {
 
 func loadArtifactStorage() (artifactsvc.Config, blobstore.Store, error) {
 	var cfg artifactsvc.Config
-	if err := viper.UnmarshalKey("artifact", &cfg); err != nil {
+	if err := config.UnmarshalKey("artifact", &cfg); err != nil {
 		return artifactsvc.Config{}, nil, fmt.Errorf("读取制品仓库配置失败: %w", err)
 	}
 	store, err := blobstore.New(cfg.Storage)

@@ -10,6 +10,7 @@ import (
 	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	previewSvc "github.com/Duke1616/etask/internal/service/preview"
 	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
+	submissionSvc "github.com/Duke1616/etask/internal/service/submission"
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	taskBinding "github.com/Duke1616/etask/internal/service/task/binding"
 	variableSvc "github.com/Duke1616/etask/internal/service/variable"
@@ -175,6 +176,8 @@ var (
 		grpc.NewCodebookServer,
 		grpc.NewRunnerServer,
 		grpc.NewArtifactServer,
+		submissionSvc.NewService,
+		grpc.NewSchedulerServer,
 		InitTasks,
 		InitSchedulerNodeGRPCServer,
 	)

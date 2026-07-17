@@ -1,51 +1,72 @@
+# 日志配置
 log:
   debug: true
 
-# Kafka Agent 可独立部署，不需要数据库或 Executor gRPC 服务。
+# Kafka Agent 配置
 agent:
   name: "Kafka-Agent"
   topic: "agent_execute"
   worker_count: 4
   desc: "隔离网络内的异步脚本执行代理"
+  # 资源池隔离级别：SHARED(共享) 或 DEDICATED(专有)
   isolation_level: "SHARED"
   artifact_cache:
     dir: "/var/lib/etask/agent-artifact-cache"
-    max_download_size: 536870912
-    max_unpacked_size: 2147483648
+    # 单个压缩制品最大下载限制
+    max_download_size: "512MB"
+    # 单个制品最大解压限制
+    max_unpacked_size: "2GB"
+    # 单个制品最大文件数限制
     max_file_count: 10000
-    max_cache_size: 10737418240
+    # 本地缓存最大大小限制
+    max_cache_size: "10GB"
 
+# 脚本运行环境配置
 runtime:
   script:
     workspace_dir: "/tmp/etask/runs"
+    # 历史工作目录保留时间
     workspace_max_age: 24h
     python_binary: "python"
     shell_binary: "/bin/bash"
-    max_code_size: 4194304
-    max_args_size: 1048576
-    max_variables_size: 1048576
-    max_log_line_size: 1048576
-    max_result_size: 4194304
+    # 脚本代码最大限制
+    max_code_size: "4MB"
+    # 脚本入参最大限制
+    max_args_size: "1MB"
+    # 环境变量最大限制
+    max_variables_size: "1MB"
+    # 单行日志最大限制
+    max_log_line_size: "1MB"
+    # 脚本执行结果最大限制
+    max_result_size: "4MB"
+    # 历史脚本归档配置
     archive:
       enabled: true
+      # 是否仅归档失败任务
       failed_only: false
       dir: "/var/lib/etask/script-archive"
+      # 归档保留时间
       max_age: 168h
-      max_size: 10737418240
+      # 归档最大容量限制
+      max_size: "10GB"
 
+# Kafka 配置
 kafka:
   network: tcp
   addresses:
     - 127.0.0.1:9094
 
+# Etcd 注册中心配置
 etcd:
   endpoints:
     - 127.0.0.1:2379
 
-# 制品下载通道。address 非空时直连 Scheduler，不依赖 Etcd 服务发现；留空时按 name 发现。
+# gRPC 客户端连接配置
 grpc:
   client:
     scheduler:
       name: "scheduler"
+      # 调度中心直连地址，留空则通过 Etcd 自动发现
       address: ""
+      # 身份认证 Token，留空则不启用
       auth_token: ""
