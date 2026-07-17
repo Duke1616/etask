@@ -55,8 +55,7 @@ func (c Command) Validate() error {
 		return fmt.Errorf("Agent 执行命令身份信息非法: dispatch_id=%q execution_id=%d tenant_id=%d handler=%q",
 			c.DispatchID, c.ExecutionID, c.TenantID, c.Handler)
 	}
-	if c.Source != domain.TaskExecutionSourceTask &&
-		c.Source != domain.TaskExecutionSourceCodebookPreview {
+	if !c.Source.IsValid() {
 		return fmt.Errorf("Agent 执行命令来源非法: execution_id=%d source=%s", c.ExecutionID, c.Source)
 	}
 	if c.Source == domain.TaskExecutionSourceTask && c.TaskID <= 0 {

@@ -117,8 +117,13 @@ grpc:
       # 身份认证 Token，留空则不启用
       auth_token: ""
   client:
+    # Executor 和 Agent 访问调度中心时使用，需与 server.scheduler.auth_token 一致
     scheduler:
       name: "scheduler"
+      auth_token: ""
+    # 调度中心访问 Executor 时使用，需与 server.executor.auth_token 一致
+    executor:
+      auth_token: ""
 
 scheduler:
   # 批量获取任务的超时时间（纳秒）

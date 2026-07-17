@@ -55,6 +55,9 @@ grpc:
       # 身份认证 Token，留空则不启用
       auth_token: ""
   client:
+    # 调度中心访问 Executor 时使用，需与 Executor Server 的 auth_token 一致
+    executor:
+      auth_token: ""
 
 scheduler:
   # 批量获取任务的超时时间（纳秒）

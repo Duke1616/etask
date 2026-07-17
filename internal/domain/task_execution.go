@@ -23,6 +23,16 @@ func (s TaskExecutionSource) String() string {
 	return string(s)
 }
 
+// IsValid 判断执行来源是否属于当前领域支持的类型。
+func (s TaskExecutionSource) IsValid() bool {
+	switch s {
+	case TaskExecutionSourceTask, TaskExecutionSourceCodebookPreview, TaskExecutionSourceWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // IsCodebookPreview 判断当前执行是否来自 Codebook 试运行。
 func (s TaskExecutionSource) IsCodebookPreview() bool {
 	return s == TaskExecutionSourceCodebookPreview

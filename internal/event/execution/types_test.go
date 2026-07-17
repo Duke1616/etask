@@ -15,6 +15,7 @@ func TestNewCommand(t *testing.T) {
 	}{
 		{name: "正式任务", exec: commandExecution(domain.TaskExecutionSourceTask, 30)},
 		{name: "试运行允许任务 ID 为空", exec: commandExecution(domain.TaskExecutionSourceCodebookPreview, 0)},
+		{name: "工作流允许任务 ID 为空", exec: commandExecution(domain.TaskExecutionSourceWorkflow, 0)},
 		{name: "拒绝未声明来源", exec: commandExecution("", 30), wantErr: "来源非法"},
 		{name: "拒绝缺少处理器配置", exec: domain.TaskExecution{ID: 10, TenantID: 20}, wantErr: "缺少处理器配置"},
 	}
