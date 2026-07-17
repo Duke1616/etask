@@ -54,10 +54,12 @@ func main() {
 func startServer() {
 	// 1. 初始化所有模块共享的基础设施（仅连接，不启动业务）
 	base := ioc.InitBase()
-	app := &ioc.App{Base: base}
+	app := ioc.NewApp()
 
-	// 2. 根据运行模式自动加载所需模块（表驱动，新增模式无需改此函数）
-	app.LoadByModes(base, modes)
+	// 2. 按固定顺序加载所需模块，并拒绝未知模式。
+	if err := app.LoadByModes(base, modes); err != nil {
+		elog.Panic("load_mode_error", elog.FieldErr(err))
+	}
 
 	// 3. 启动已加载模块的服务和后台任务
 	ctx := context.Background()

@@ -2,14 +2,14 @@ package ioc
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
-	"github.com/Duke1616/etask/internal/agent"
 	"github.com/Duke1616/etask/internal/grpc/scripts"
 	"github.com/Duke1616/etask/internal/service/scheduler"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/sdk/executor"
-	"github.com/ecodeclub/mq-api"
 	"github.com/gotomicro/ego/server"
 	"github.com/gotomicro/ego/server/egin"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -22,215 +22,102 @@ const (
 	ModeExecutor  = "executor"
 )
 
-// Module 模块接口，所有可加载模块必须实现 Register 和 Servers 方法
-// Register: 将模块资源注册到 App 容器
-// Servers: 返回该模块需要启动的 server.Server 列表
-type Module interface {
-	// Register 将模块资源注册到应用容器。
-	Register(app *App)
-	// Servers 返回模块需要启动的服务列表。
-	Servers() []server.Server
-}
-
-// ModuleInitFunc 模块初始化函数，接收共享基础设施，返回 Module 实例
-type ModuleInitFunc func(base *Base) Module
-
-// modeModules 模式 → 模块初始化函数的映射表（表驱动设计）
-// 新增模式只需在此表添加一行，无需修改 startServer / GetServers / StartBackgroundTasks
-var modeModules = map[string][]ModuleInitFunc{
-	ModeScheduler: {
-		func(base *Base) Module { return InitWebModule(base) },
-		func(base *Base) Module { return InitSchedulerModule(base) },
-		wrapGRPCServer(InitSchedulerServerModule),
-	},
-	ModeExecutor: {
-		wrapExecutor(InitExecutorModule),
-	},
-	ModeAgent: {
-		wrapAgent(InitAgentModule),
-	},
-}
-
-// --- 适配器：将外部包的类型包装为 Module ---
-// 这些轻量 wrapper 只负责将外部模块注册到 App 容器。
-
-type grpcServerModule struct {
-	server *grpcpkg.Server
-}
-
-func (m *grpcServerModule) Register(app *App) { app.Server = m.server }
-func (m *grpcServerModule) Servers() []server.Server {
-	if m.server != nil {
-		return []server.Server{m.server}
-	}
-	return nil
-}
-
-type agentModuleWrapper struct {
-	module *agent.Module
-}
-
-func (m *agentModuleWrapper) Register(app *App) { app.Agent = m.module }
-func (m *agentModuleWrapper) Servers() []server.Server {
-	if m.module != nil {
-		return []server.Server{m.module}
-	}
-	return nil
-}
-
-type executorModuleWrapper struct {
-	exec *executor.Executor
-}
-
-func (m *executorModuleWrapper) Register(app *App) { app.Executor = m.exec }
-func (m *executorModuleWrapper) Servers() []server.Server {
-	if m.exec != nil {
-		return []server.Server{m.exec}
-	}
-	return nil
-}
-
-func wrapGRPCServer(fn func(base *Base) *grpcpkg.Server) ModuleInitFunc {
-	return func(base *Base) Module { return &grpcServerModule{server: fn(base)} }
-}
-
-func wrapAgent(fn func(base *Base) *agent.Module) ModuleInitFunc {
-	return func(base *Base) Module { return &agentModuleWrapper{module: fn(base)} }
-}
-
-func wrapExecutor(fn func(base *Base) *executor.Executor) ModuleInitFunc {
-	return func(base *Base) Module { return &executorModuleWrapper{exec: fn(base)} }
-}
-
-// IsDBRequired 判断是否需要数据库连接
-func IsDBRequired(modes []string) bool {
-	for _, m := range modes {
-		// 只有 all 模式或明确的 scheduler 模式需要数据库
-		if m == ModeAll || m == ModeScheduler {
-			return true
-		}
-	}
-	return false
-}
-
-// Task 调度平台上的长任务 —— 各种补偿任务、消费者等
+// Task 是随应用生命周期启动的后台任务。
 type Task interface {
 	// Start 启动后台任务。
 	Start(ctx context.Context)
 }
 
-// Base 基础基础设施（共享连接、客户端等）
+// Base 保存所有运行模式都会使用的服务发现基础设施。
 type Base struct {
-	Registry         registry.Registry
-	MQ               mq.MQ
-	Etcd             *clientv3.Client
+	Registry registry.Registry
+	Etcd     *clientv3.Client
+}
+
+// ExecutionRuntime 保存 Agent 和 Executor 共享的本地执行能力。
+type ExecutionRuntime struct {
 	ArtifactPreparer executor.ArtifactPreparer
 	ScriptRuntime    *scripts.Runtime
 }
 
-// WebModule Web 模块资源
-type WebModule struct {
-	Web *egin.Component
-}
-
-// SchedulerModule 调度中心模块资源
-type SchedulerModule struct {
-	Svc   *scheduler.Scheduler
-	Tasks []Task
-}
-
-// App 模块化容器
-type App struct {
+// SchedulerApplication 聚合调度中心共享依赖构建出的全部服务。
+type SchedulerApplication struct {
 	Web       *egin.Component
-	Server    *grpcpkg.Server
+	GRPC      *grpcpkg.Server
 	Scheduler *scheduler.Scheduler
-	Agent     *agent.Module
-	Executor  *executor.Executor
 	Tasks     []Task
-
-	modules []Module // 已加载模块列表，用于 GetServers 遍历
-
-	// 共享基础资源
-	Base *Base
 }
 
-// Register 让 WebModule 自己注册到 App 容器
-func (m *WebModule) Register(app *App) { app.Web = m.Web }
+// Servers 返回调度中心需要启动的服务。
+func (a *SchedulerApplication) Servers() []server.Server {
+	return []server.Server{a.Web, a.GRPC, a.Scheduler}
+}
 
-// Servers 让 WebModule 自己提供需要启动的服务
-func (m *WebModule) Servers() []server.Server {
-	if m.Web != nil {
-		return []server.Server{m.Web}
+// App 保存当前进程实际启用的服务和后台任务。
+type App struct {
+	servers []server.Server
+	tasks   []Task
+}
+
+// NewApp 创建空应用容器。
+func NewApp() *App { return &App{} }
+
+// LoadByModes 按固定顺序装配所选运行模式。
+func (a *App) LoadByModes(base *Base, modes []string) error {
+	selected, err := normalizeModes(modes)
+	if err != nil {
+		return err
+	}
+	if selected[ModeScheduler] {
+		application := InitSchedulerApplication(base)
+		a.servers = append(a.servers, application.Servers()...)
+		a.tasks = append(a.tasks, application.Tasks...)
+	}
+
+	var runtime *ExecutionRuntime
+	if selected[ModeAgent] || selected[ModeExecutor] {
+		runtime = InitExecutionRuntime()
+	}
+	if selected[ModeAgent] {
+		a.servers = append(a.servers, InitAgentModule(base, runtime))
+	}
+	if selected[ModeExecutor] {
+		a.servers = append(a.servers, InitExecutorModule(base, runtime))
 	}
 	return nil
 }
 
-// Register 让 SchedulerModule 自己注册到 App 容器
-func (m *SchedulerModule) Register(app *App) {
-	app.Scheduler = m.Svc
-	app.Tasks = append(app.Tasks, m.Tasks...)
+// GetServers 返回当前进程需要启动的服务副本。
+func (a *App) GetServers() []server.Server {
+	return append([]server.Server(nil), a.servers...)
 }
 
-// Servers 让 SchedulerModule 自己提供需要启动的服务
-func (m *SchedulerModule) Servers() []server.Server {
-	if m.Svc != nil {
-		return []server.Server{m.Svc}
+// StartBackgroundTasks 启动当前模式附带的后台任务。
+func (a *App) StartBackgroundTasks(ctx context.Context) {
+	for _, task := range a.tasks {
+		go task.Start(ctx)
 	}
-	return nil
 }
 
-// Load 加载模块到容器（通过 Module 接口，无需 any 和 type switch）
-func (a *App) Load(m Module) {
-	m.Register(a)
-	a.modules = append(a.modules, m)
-}
-
-// LoadByModes 根据运行模式自动加载所需模块
-// "all" 模式会加载所有模式的模块；其它模式仅加载对应模块
-func (a *App) LoadByModes(base *Base, modes []string) {
-	modeMap := a.resolveModes(modes)
-	includeAll := modeMap[ModeAll]
-
-	for mode, initFuncs := range modeModules {
-		if includeAll || modeMap[mode] {
-			for _, fn := range initFuncs {
-				a.Load(fn(base))
-			}
+func normalizeModes(modes []string) (map[string]bool, error) {
+	selected := make(map[string]bool, 3)
+	for _, mode := range modes {
+		mode = strings.ToLower(strings.TrimSpace(mode))
+		switch mode {
+		case ModeAll:
+			selected[ModeScheduler] = true
+			selected[ModeAgent] = true
+			selected[ModeExecutor] = true
+		case ModeScheduler, ModeAgent, ModeExecutor:
+			selected[mode] = true
+		case "":
+			return nil, fmt.Errorf("启动模式不能为空")
+		default:
+			return nil, fmt.Errorf("不支持的启动模式: %s", mode)
 		}
 	}
-}
-
-// GetServers 获取所有已加载模块的服务列表
-// 每个 Module 自己通过 Servers() 方法提供需要启动的服务，无需手动列举 App 字段
-func (a *App) GetServers() []server.Server {
-	var res []server.Server
-	for _, m := range a.modules {
-		res = append(res, m.Servers()...)
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("至少需要指定一个启动模式")
 	}
-	return res
-}
-
-// StartBackgroundTasks 启动所有已加载模块的后台任务
-// 与 GetServers 同理：未加载的模块 Tasks 为空，无需 mode 过滤
-func (a *App) StartBackgroundTasks(ctx context.Context) {
-	if len(a.Tasks) > 0 {
-		a.StartSchedulerTasks(ctx)
-	}
-}
-
-func (a *App) resolveModes(modes []string) map[string]bool {
-	res := make(map[string]bool)
-	for _, m := range modes {
-		res[m] = true
-	}
-	return res
-}
-
-func (a *App) StartSchedulerTasks(ctx context.Context) {
-	// 启动调度中心配套的各个异步任务（如补偿、重试、已完成任务上报等）
-	for _, t := range a.Tasks {
-		go func(t Task) {
-			t.Start(ctx)
-		}(t)
-	}
+	return selected, nil
 }

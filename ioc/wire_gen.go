@@ -8,7 +8,7 @@ package ioc
 
 import (
 	"github.com/Duke1616/etask/internal/agent"
-	grpc2 "github.com/Duke1616/etask/internal/grpc"
+	"github.com/Duke1616/etask/internal/grpc"
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	"github.com/Duke1616/etask/internal/service/artifact"
@@ -20,6 +20,7 @@ import (
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/internal/service/task/binding"
 	"github.com/Duke1616/etask/internal/service/variable"
+	"github.com/Duke1616/etask/internal/sse"
 	artifact2 "github.com/Duke1616/etask/internal/web/artifact"
 	codebook2 "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/manager"
@@ -28,159 +29,35 @@ import (
 	"github.com/Duke1616/etask/internal/web/resource"
 	runner2 "github.com/Duke1616/etask/internal/web/runner"
 	variable2 "github.com/Duke1616/etask/internal/web/variable"
-	"github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 )
 
 // Injectors from wire.go:
 
-// InitBase 初始化所有共享基础设施（建立连接，但不运行业务）
+// InitBase 初始化所有运行模式共享的服务发现基础设施。
 func InitBase() *Base {
 	client := InitEtcdClient()
 	registry := InitRegistry(client)
-	mq := InitMQ()
-	preparer := InitArtifactPreparer()
-	runtime := InitScriptRuntime()
 	base := &Base{
-		Registry:         registry,
-		MQ:               mq,
-		Etcd:             client,
-		ArtifactPreparer: preparer,
-		ScriptRuntime:    runtime,
+		Registry: registry,
+		Etcd:     client,
 	}
 	return base
 }
 
-// InitSchedulerModule 专门用于构造 Scheduler 模块及其配套后台任务
-func InitSchedulerModule(base *Base) *SchedulerModule {
-	string2 := InitNodeID()
-	db := InitDB()
-	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
-	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO)
-	taskDAO := dao.NewGORMTaskDAO(db)
-	taskRepository := repository.NewTaskRepository(taskDAO)
-	executionPoolDAO := dao.NewGORMExecutionPoolDAO(db)
-	executionPoolRepository := repository.NewExecutionPoolRepository(executionPoolDAO)
-	executionPoolBindingDAO := dao.NewGORMExecutionPoolBindingDAO(db)
-	executionPoolBindingRepository := repository.NewExecutionPoolBindingRepository(executionPoolBindingDAO)
-	bindingService := pool.NewBindingService(executionPoolRepository, executionPoolBindingRepository)
-	service := task.NewService(taskRepository, bindingService)
-	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
-	taskExecutionLogRepository := repository.NewTaskExecutionLogRepository(taskExecutionLogDAO)
-	logService := task.NewLogService(taskExecutionLogRepository)
-	mq := base.MQ
-	completeProducer := InitCompleteProducer(mq)
-	registry := base.Registry
-	codebookDAO := dao.NewGORMCodebookDAO(db)
-	codebookProjectDAO := dao.NewGORMCodebookProjectDAO(db)
-	iCodebookRepository := repository.NewCodebookRepository(codebookDAO, codebookProjectDAO)
-	codebookService := codebook.NewService(iCodebookRepository)
-	runnerDAO := dao.NewGORMRunnerDAO(db)
-	variableDAO := dao.NewGORMVariableDAO(db)
-	crypto := InitCrypto()
-	runnerRepository := repository.NewRunnerRepository(runnerDAO, variableDAO, crypto)
-	runnerService := runner.NewService(runnerRepository)
-	bindingRegistry := binding.NewScriptBindingResolvers(codebookService, runnerService)
-	config := InitArtifactConfig()
-	artifactDAO := dao.NewGORMArtifactDAO(db)
-	artifactRepository := repository.NewArtifactRepository(artifactDAO, codebookDAO, codebookProjectDAO)
-	store := InitArtifactStore(config)
-	artifactService := artifact.NewService(config, artifactRepository, store)
-	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry, bindingRegistry, artifactService, codebookService)
-	taskAcquirer := InitMySQLTaskAcquirer(taskRepository)
-	clients := InitExecutorServiceGRPCClients(registry)
-	invoker := InitInvoker(clients, mq)
-	executorNodePicker := InitExecutorNodePicker(registry)
-	routePlanner := InitRoutePlanner(executionPoolRepository, executorNodePicker)
-	dispatcher := InitDispatcher(string2, executionService, taskAcquirer, invoker, routePlanner)
-	scheduler := InitScheduler(string2, dispatcher, service, taskAcquirer)
-	retryCompensator := InitRetryCompensator(dispatcher, executionService)
-	rescheduleCompensator := InitRescheduleCompensator(dispatcher, executionService)
-	interruptCompensator := InitInterruptCompensator(clients, executionService)
-	completeConsumer := InitCompleteEventConsumer(mq, service, executionService, taskAcquirer)
-	client := base.Etcd
-	syncer := pool.NewSyncer(executionPoolRepository, client)
-	agentResultConsumer := InitAgentResultConsumer(mq, executionService)
-	v := InitTasks(retryCompensator, rescheduleCompensator, interruptCompensator, completeConsumer, syncer, agentResultConsumer)
-	schedulerModule := &SchedulerModule{
-		Svc:   scheduler,
-		Tasks: v,
+// InitExecutionRuntime 初始化 Agent 和 Executor 共享的本地执行能力。
+func InitExecutionRuntime() *ExecutionRuntime {
+	preparer := InitArtifactPreparer()
+	runtime := InitScriptRuntime()
+	executionRuntime := &ExecutionRuntime{
+		ArtifactPreparer: preparer,
+		ScriptRuntime:    runtime,
 	}
-	return schedulerModule
+	return executionRuntime
 }
 
-// InitExecutorModule 专门用于构造原生执行器模块
-func InitExecutorModule(base *Base) *executor.Executor {
-	client := base.Etcd
-	preparer := base.ArtifactPreparer
-	runtime := base.ScriptRuntime
-	executorExecutor := InitExecutor(client, preparer, runtime)
-	return executorExecutor
-}
-
-// InitAgentModule 专门用于构造异步代理模块 (包含 Kafka 消费者)
-func InitAgentModule(base *Base) *agent.Module {
-	mq := base.MQ
-	client := base.Etcd
-	preparer := base.ArtifactPreparer
-	runtime := base.ScriptRuntime
-	module := agent.InitModule(mq, client, preparer, runtime)
-	return module
-}
-
-// InitSchedulerServerModule 构造调度中心的 gRPC 服务端 (负责接收上报、下发任务及服务注册)
-func InitSchedulerServerModule(base *Base) *grpc.Server {
-	registry := base.Registry
-	string2 := InitNodeID()
-	db := InitDB()
-	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
-	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO)
-	taskDAO := dao.NewGORMTaskDAO(db)
-	taskRepository := repository.NewTaskRepository(taskDAO)
-	executionPoolDAO := dao.NewGORMExecutionPoolDAO(db)
-	executionPoolRepository := repository.NewExecutionPoolRepository(executionPoolDAO)
-	executionPoolBindingDAO := dao.NewGORMExecutionPoolBindingDAO(db)
-	executionPoolBindingRepository := repository.NewExecutionPoolBindingRepository(executionPoolBindingDAO)
-	bindingService := pool.NewBindingService(executionPoolRepository, executionPoolBindingRepository)
-	service := task.NewService(taskRepository, bindingService)
-	taskExecutionLogDAO := dao.NewGORMTaskExecutionLogDAO(db)
-	taskExecutionLogRepository := repository.NewTaskExecutionLogRepository(taskExecutionLogDAO)
-	logService := task.NewLogService(taskExecutionLogRepository)
-	mq := base.MQ
-	completeProducer := InitCompleteProducer(mq)
-	codebookDAO := dao.NewGORMCodebookDAO(db)
-	codebookProjectDAO := dao.NewGORMCodebookProjectDAO(db)
-	iCodebookRepository := repository.NewCodebookRepository(codebookDAO, codebookProjectDAO)
-	codebookService := codebook.NewService(iCodebookRepository)
-	runnerDAO := dao.NewGORMRunnerDAO(db)
-	variableDAO := dao.NewGORMVariableDAO(db)
-	crypto := InitCrypto()
-	runnerRepository := repository.NewRunnerRepository(runnerDAO, variableDAO, crypto)
-	runnerService := runner.NewService(runnerRepository)
-	bindingRegistry := binding.NewScriptBindingResolvers(codebookService, runnerService)
-	config := InitArtifactConfig()
-	artifactDAO := dao.NewGORMArtifactDAO(db)
-	artifactRepository := repository.NewArtifactRepository(artifactDAO, codebookDAO, codebookProjectDAO)
-	store := InitArtifactStore(config)
-	artifactService := artifact.NewService(config, artifactRepository, store)
-	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry, bindingRegistry, artifactService, codebookService)
-	reporterServer := grpc2.NewReporterServer(executionService)
-	taskServer := grpc2.NewTaskServer(service)
-	agentServer := grpc2.NewAgentServer(taskExecutionRepository, executionService, logService, bindingService)
-	codebookServer := grpc2.NewCodebookServer(codebookService)
-	runnerServer := grpc2.NewRunnerServer(runnerService)
-	artifactServer := grpc2.NewArtifactServer(artifactService)
-	executorNodePicker := InitExecutorNodePicker(registry)
-	routePlanner := InitRoutePlanner(executionPoolRepository, executorNodePicker)
-	clients := InitExecutorServiceGRPCClients(registry)
-	invoker := InitInvoker(clients, mq)
-	submissionService := submission.NewService(runnerService, codebookService, executionService, routePlanner, invoker)
-	schedulerServer := grpc2.NewSchedulerServer(submissionService)
-	server := InitSchedulerNodeGRPCServer(registry, reporterServer, taskServer, agentServer, codebookServer, runnerServer, artifactServer, schedulerServer)
-	return server
-}
-
-func InitWebModule(base *Base) *WebModule {
+// InitSchedulerApplication 使用一套共享依赖构建调度器、Web、gRPC 和后台任务。
+func InitSchedulerApplication(base *Base) *SchedulerApplication {
 	v := InitGinMiddlewares()
 	sdk := InitPolicySDK()
 	syncer := InitPermSyncer()
@@ -200,7 +77,7 @@ func InitWebModule(base *Base) *WebModule {
 	string2 := InitNodeID()
 	taskExecutionDAO := dao.NewGORMTaskExecutionDAO(db)
 	taskExecutionRepository := repository.NewTaskExecutionRepository(taskExecutionDAO)
-	mq := base.MQ
+	mq := InitMQ()
 	completeProducer := InitCompleteProducer(mq)
 	registry := base.Registry
 	codebookDAO := dao.NewGORMCodebookDAO(db)
@@ -218,8 +95,9 @@ func InitWebModule(base *Base) *WebModule {
 	artifactRepository := repository.NewArtifactRepository(artifactDAO, codebookDAO, codebookProjectDAO)
 	store := InitArtifactStore(config)
 	artifactService := artifact.NewService(config, artifactRepository, store)
-	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry, bindingRegistry, artifactService, codebookService)
-	handler := manager.NewHandler(service, logService, executionService)
+	hubs := sse.NewHubs()
+	executionService := task.NewExecutionService(string2, taskExecutionRepository, service, logService, completeProducer, registry, bindingRegistry, artifactService, codebookService, hubs)
+	handler := manager.NewHandler(service, logService, executionService, hubs)
 	workspaceService := codebook.NewWorkspaceService(iCodebookRepository, artifactService)
 	codebookHandler := codebook2.NewHandler(codebookService, workspaceService)
 	artifactHandler := artifact2.NewHandler(artifactService)
@@ -239,8 +117,49 @@ func InitWebModule(base *Base) *WebModule {
 	resourceHandler := resource.NewHandler(catalogService)
 	listener := InitListener()
 	component := InitGinWebServer(v, sdk, syncer, v2, handler, codebookHandler, artifactHandler, previewHandler, runnerHandler, variableHandler, adminHandler, resourceHandler, listener)
-	webModule := &WebModule{
-		Web: component,
+	reporterServer := grpc.NewReporterServer(executionService)
+	taskServer := grpc.NewTaskServer(service)
+	agentServer := grpc.NewAgentServer(taskExecutionRepository, executionService, logService, bindingService)
+	codebookServer := grpc.NewCodebookServer(codebookService)
+	runnerServer := grpc.NewRunnerServer(runnerService)
+	artifactServer := grpc.NewArtifactServer(artifactService)
+	submissionService := submission.NewService(runnerService, codebookService, executionService, routePlanner, invoker)
+	schedulerServer := grpc.NewSchedulerServer(submissionService)
+	server := InitSchedulerNodeGRPCServer(registry, reporterServer, taskServer, agentServer, codebookServer, runnerServer, artifactServer, schedulerServer)
+	taskAcquirer := InitMySQLTaskAcquirer(taskRepository)
+	dispatcher := InitDispatcher(string2, executionService, taskAcquirer, invoker, routePlanner)
+	scheduler := InitScheduler(string2, dispatcher, service, taskAcquirer)
+	retryCompensator := InitRetryCompensator(dispatcher, executionService)
+	rescheduleCompensator := InitRescheduleCompensator(dispatcher, executionService)
+	interruptCompensator := InitInterruptCompensator(clients, executionService)
+	completeConsumer := InitCompleteEventConsumer(mq, service, executionService, taskAcquirer, hubs)
+	poolSyncer := pool.NewSyncer(executionPoolRepository, client)
+	agentResultConsumer := InitAgentResultConsumer(mq, executionService)
+	v3 := InitTasks(retryCompensator, rescheduleCompensator, interruptCompensator, completeConsumer, poolSyncer, agentResultConsumer)
+	schedulerApplication := &SchedulerApplication{
+		Web:       component,
+		GRPC:      server,
+		Scheduler: scheduler,
+		Tasks:     v3,
 	}
-	return webModule
+	return schedulerApplication
+}
+
+// InitExecutorModule 构造原生 Executor 模块。
+func InitExecutorModule(base *Base, runtime *ExecutionRuntime) *executor.Executor {
+	client := base.Etcd
+	preparer := runtime.ArtifactPreparer
+	scriptsRuntime := runtime.ScriptRuntime
+	executorExecutor := InitExecutor(client, preparer, scriptsRuntime)
+	return executorExecutor
+}
+
+// InitAgentModule 构造 Kafka Agent 模块。
+func InitAgentModule(base *Base, runtime *ExecutionRuntime) *agent.Module {
+	mq := InitMQ()
+	client := base.Etcd
+	preparer := runtime.ArtifactPreparer
+	scriptsRuntime := runtime.ScriptRuntime
+	module := agent.InitModule(mq, client, preparer, scriptsRuntime)
+	return module
 }

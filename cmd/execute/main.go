@@ -16,10 +16,12 @@ func main() {
 
 	// 1. 初始化共享基础设施
 	base := ioc.InitBase()
-	app := &ioc.App{Base: base}
+	app := ioc.NewApp()
 
 	// 2. 按模式加载 Executor 模块
-	app.LoadByModes(base, []string{ioc.ModeExecutor})
+	if err := app.LoadByModes(base, []string{ioc.ModeExecutor}); err != nil {
+		elog.Panic("load_mode_error", elog.FieldErr(err))
+	}
 
 	// 3. 启动服务
 	if err := ego.New().Serve(app.GetServers()...).Run(); err != nil {

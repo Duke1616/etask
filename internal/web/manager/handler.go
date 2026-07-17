@@ -19,6 +19,7 @@ type Handler struct {
 	svc     task.Service
 	logSvc  task.LogService
 	execSvc task.ExecutionService
+	events  *sse.Hubs
 	capability.IRegistry
 }
 
@@ -38,11 +39,13 @@ func (h *Handler) IdentifyRoutes(server *gin.Engine) {
 	g.GET("/tasks/:id/executions/stream", ginx.W(h.StreamTaskExecutions))
 }
 
-func NewHandler(svc task.Service, logSvc task.LogService, execSvc task.ExecutionService) *Handler {
+func NewHandler(svc task.Service, logSvc task.LogService, execSvc task.ExecutionService,
+	events *sse.Hubs) *Handler {
 	return &Handler{
 		svc:       svc,
 		logSvc:    logSvc,
 		execSvc:   execSvc,
+		events:    events,
 		IRegistry: capability.NewRegistry("task", "manager", "任务管理"),
 	}
 }
@@ -138,7 +141,7 @@ func (h *Handler) Stop(ctx *ginx.Context) (ginx.Result, error) {
 
 	// 停止成功后，主动拉取最新任务状态并广播
 	if t, errGet := h.svc.GetByID(ctx, id); errGet == nil {
-		sse.GetSSEHub().Broadcast(sse.TaskStatusEvent{
+		h.events.Tasks.Broadcast(sse.TaskStatusEvent{
 			TaskID:   t.ID,
 			Status:   t.Status.String(),
 			NextTime: t.NextTime,
@@ -161,7 +164,7 @@ func (h *Handler) Run(ctx *ginx.Context, req RunTaskReq) (ginx.Result, error) {
 
 	// 启动成功后，主动拉取最新任务状态并广播
 	if t, errGet := h.svc.GetByID(ctx, req.ID); errGet == nil {
-		sse.GetSSEHub().Broadcast(sse.TaskStatusEvent{
+		h.events.Tasks.Broadcast(sse.TaskStatusEvent{
 			TaskID:   t.ID,
 			Status:   t.Status.String(),
 			NextTime: t.NextTime,
@@ -175,7 +178,7 @@ func (h *Handler) Run(ctx *ginx.Context, req RunTaskReq) (ginx.Result, error) {
 
 // StreamEvents 实时向前端推送任务状态变更事件流的 SSE 接口
 func (h *Handler) StreamEvents(ctx *ginx.Context) (ginx.Result, error) {
-	sse.GetSSEHub().Stream(ctx, sse.TASK_STATUS_CHANGE_EVENT, 20*time.Second)
+	h.events.Tasks.Stream(ctx, sse.TASK_STATUS_CHANGE_EVENT, 20*time.Second)
 	return ginx.Result{}, nil
 }
 
@@ -188,7 +191,7 @@ func (h *Handler) StreamExecutionLogs(ctx *ginx.Context) (ginx.Result, error) {
 	if _, err = h.execSvc.FindByID(ctx, id); err != nil {
 		return systemErrorResult, err
 	}
-	sse.GetExecutionLogsHub().Stream(ctx, id, sse.TASK_LOG_EVENT, 20*time.Second)
+	h.events.Logs.Stream(ctx, id, sse.TASK_LOG_EVENT, 20*time.Second)
 	return ginx.Result{}, nil
 }
 
@@ -198,7 +201,7 @@ func (h *Handler) StreamTaskExecutions(ctx *ginx.Context) (ginx.Result, error) {
 	if err != nil {
 		return systemErrorResult, err
 	}
-	sse.GetTaskExecutionsHub().Stream(ctx, id, sse.TASK_EXECUTION_EVENT, 20*time.Second)
+	h.events.Executions.Stream(ctx, id, sse.TASK_EXECUTION_EVENT, 20*time.Second)
 	return ginx.Result{}, nil
 }
 

@@ -24,16 +24,19 @@ type Consumer struct {
 	execSvc task.ExecutionService
 	taskSvc task.Service
 	acquire acquirer.TaskAcquirer
+	events  *sse.Hubs
 }
 
 func NewConsumer(execSvc task.ExecutionService,
 	taskSvc task.Service,
 	acquirer acquirer.TaskAcquirer,
+	events *sse.Hubs,
 ) *Consumer {
 	return &Consumer{
 		taskSvc: taskSvc,
 		execSvc: execSvc,
 		acquire: acquirer,
+		events:  events,
 	}
 }
 
@@ -71,7 +74,7 @@ func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
 	}
 
 	// 广播事件：实时刷新任务列表状态和下一次触发时间
-	sse.GetSSEHub().Broadcast(sse.TaskStatusEvent{
+	c.events.Tasks.Broadcast(sse.TaskStatusEvent{
 		TaskID:   t.ID,
 		Status:   t.Status.String(),
 		NextTime: t.NextTime,

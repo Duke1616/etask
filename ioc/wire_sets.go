@@ -14,6 +14,7 @@ import (
 	taskSvc "github.com/Duke1616/etask/internal/service/task"
 	taskBinding "github.com/Duke1616/etask/internal/service/task/binding"
 	variableSvc "github.com/Duke1616/etask/internal/service/variable"
+	internalSSE "github.com/Duke1616/etask/internal/sse"
 	artifactWeb "github.com/Duke1616/etask/internal/web/artifact"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/manager"
@@ -28,11 +29,15 @@ import (
 var (
 	BaseSet = wire.NewSet(
 		InitEtcdClient,
-		InitMQ,
 		InitRegistry,
+	)
+
+	ExecutionRuntimeSet = wire.NewSet(
 		InitArtifactPreparer,
 		InitScriptRuntime,
 	)
+
+	EventSet = wire.NewSet(internalSSE.NewHubs)
 
 	WebSetup = wire.NewSet(
 		InitPolicySDK,
@@ -91,19 +96,6 @@ var (
 	PreviewSet = wire.NewSet(
 		previewSvc.NewService,
 		previewWeb.NewHandler,
-	)
-
-	MaterializerCoreSet = wire.NewSet(
-		dao.NewGORMCodebookDAO,
-		dao.NewGORMCodebookProjectDAO,
-		repository.NewCodebookRepository,
-		codebookSvc.NewService,
-		dao.NewGORMRunnerDAO,
-		dao.NewGORMVariableDAO,
-		InitCrypto,
-		repository.NewRunnerRepository,
-		runnerSvc.NewService,
-		taskBinding.NewScriptBindingResolvers,
 	)
 
 	BindingResolverSet = wire.NewSet(

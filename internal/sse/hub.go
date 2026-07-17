@@ -1,10 +1,6 @@
 package sse
 
-import (
-	"sync"
-
-	"github.com/Duke1616/etask/pkg/sse"
-)
+import ssekit "github.com/Duke1616/etask/pkg/sse"
 
 const (
 	TASK_STATUS_CHANGE_EVENT = "task_status_change"
@@ -42,35 +38,18 @@ type TaskExecutionEvent struct {
 	CTime           int64  `json:"c_time"`
 }
 
-var (
-	globalSSEHub      *sse.Hub[TaskStatusEvent]
-	executionLogsHub  *sse.TopicHub[int64, TaskLogEvent]
-	taskExecutionsHub *sse.TopicHub[int64, TaskExecutionEvent]
-	once              sync.Once
-	logOnce           sync.Once
-	execOnce          sync.Once
-)
-
-// GetSSEHub 获取全局任务状态推送中心单例
-func GetSSEHub() *sse.Hub[TaskStatusEvent] {
-	once.Do(func() {
-		globalSSEHub = sse.NewHub[TaskStatusEvent]()
-	})
-	return globalSSEHub
+// Hubs 汇总调度中心进程内共享的实时事件通道。
+type Hubs struct {
+	Tasks      *ssekit.Hub[TaskStatusEvent]
+	Logs       *ssekit.TopicHub[int64, TaskLogEvent]
+	Executions *ssekit.TopicHub[int64, TaskExecutionEvent]
 }
 
-// GetExecutionLogsHub 获取全局日志推送中心单例
-func GetExecutionLogsHub() *sse.TopicHub[int64, TaskLogEvent] {
-	logOnce.Do(func() {
-		executionLogsHub = sse.NewTopicHub[int64, TaskLogEvent]()
-	})
-	return executionLogsHub
-}
-
-// GetTaskExecutionsHub 获取全局执行记录推送中心单例
-func GetTaskExecutionsHub() *sse.TopicHub[int64, TaskExecutionEvent] {
-	execOnce.Do(func() {
-		taskExecutionsHub = sse.NewTopicHub[int64, TaskExecutionEvent]()
-	})
-	return taskExecutionsHub
+// NewHubs 创建一组独立的实时事件通道。
+func NewHubs() *Hubs {
+	return &Hubs{
+		Tasks:      ssekit.NewHub[TaskStatusEvent](),
+		Logs:       ssekit.NewTopicHub[int64, TaskLogEvent](),
+		Executions: ssekit.NewTopicHub[int64, TaskExecutionEvent](),
+	}
 }

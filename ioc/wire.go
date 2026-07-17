@@ -5,85 +5,24 @@ package ioc
 
 import (
 	"github.com/Duke1616/etask/internal/agent"
-	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/google/wire"
 )
 
-// InitBase 初始化所有共享基础设施（建立连接，但不运行业务）
+// InitBase 初始化所有运行模式共享的服务发现基础设施。
 func InitBase() *Base {
-	wire.Build(
-		BaseSet,
-		wire.Struct(new(Base), "*"),
-	)
-	return new(Base)
-}
-
-// InitSchedulerModule 专门用于构造 Scheduler 模块及其配套后台任务
-func InitSchedulerModule(base *Base) *SchedulerModule {
-	wire.Build(
-		TaskSet,
-		TaskExecutionSet,
-		SchedulerSet,
-		CompensatorSet,
-		ConsumerSet,
-		ProducerSet,
-		GrpcSet,
-		ExecutionPoolSet,
-		MaterializerCoreSet,
-		ArtifactSet,
-		InitRoutePlanner,
-		InitDispatcher,
-		InitInvoker,
-		// 从 Base 中提取基础资源
-		wire.FieldsOf(new(*Base), "Registry", "MQ", "Etcd"),
-		InitTasks,
-		wire.Struct(new(SchedulerModule), "Svc", "Tasks"),
-	)
+	wire.Build(BaseSet, wire.Struct(new(Base), "*"))
 	return nil
 }
 
-// InitExecutorModule 专门用于构造原生执行器模块
-func InitExecutorModule(base *Base) *executor.Executor {
-	wire.Build(
-		InitExecutor,
-		wire.FieldsOf(new(*Base), "Etcd", "ArtifactPreparer", "ScriptRuntime"),
-	)
+// InitExecutionRuntime 初始化 Agent 和 Executor 共享的本地执行能力。
+func InitExecutionRuntime() *ExecutionRuntime {
+	wire.Build(ExecutionRuntimeSet, wire.Struct(new(ExecutionRuntime), "*"))
 	return nil
 }
 
-// InitAgentModule 专门用于构造异步代理模块 (包含 Kafka 消费者)
-func InitAgentModule(base *Base) *agent.Module {
-	wire.Build(
-		AgentSet,
-		wire.FieldsOf(new(*Base), "MQ", "Etcd", "ArtifactPreparer", "ScriptRuntime"),
-	)
-	return nil
-}
-
-// InitSchedulerServerModule 构造调度中心的 gRPC 服务端 (负责接收上报、下发任务及服务注册)
-func InitSchedulerServerModule(base *Base) *grpcpkg.Server {
-	wire.Build(
-		TaskSet,
-		CodebookSet,
-		ArtifactSet,
-		RunnerSet,
-		ExecutionPoolBindingSet,
-		BindingResolverSet,
-		TaskExecutionSet,
-		SchedulerSet,
-		GrpcSet,
-		InitInvoker,
-		InitRoutePlanner,
-		AppSet,
-		ProducerSet,
-		// 从 Base 中提取依赖
-		wire.FieldsOf(new(*Base), "Registry", "MQ"),
-	)
-	return nil
-}
-
-func InitWebModule(base *Base) *WebModule {
+// InitSchedulerApplication 使用一套共享依赖构建调度器、Web、gRPC 和后台任务。
+func InitSchedulerApplication(base *Base) *SchedulerApplication {
 	wire.Build(
 		TaskSet,
 		CodebookSet,
@@ -94,18 +33,42 @@ func InitWebModule(base *Base) *WebModule {
 		TaskExecutionSet,
 		BindingResolverSet,
 		ExecutorSet,
-		ExecutionPoolBindingSet,
-		WebSetup,
+		ExecutionPoolSet,
+		SchedulerSet,
+		CompensatorSet,
+		ConsumerSet,
 		ProducerSet,
 		GrpcSet,
-		InitInvoker,
-		InitExecutorNodePicker,
+		AppSet,
+		WebSetup,
+		EventSet,
+		InitMQ,
 		InitRoutePlanner,
-		InitNodeID,
+		InitDispatcher,
+		InitInvoker,
+		wire.FieldsOf(new(*Base), "Registry", "Etcd"),
+		wire.Struct(new(SchedulerApplication), "*"),
+	)
+	return nil
+}
 
-		// 从 Base 中提取依赖，避免重复绑定 BaseSet/WebSetup
-		wire.FieldsOf(new(*Base), "Registry", "MQ", "Etcd"),
-		wire.Struct(new(WebModule), "*"),
+// InitExecutorModule 构造原生 Executor 模块。
+func InitExecutorModule(base *Base, runtime *ExecutionRuntime) *executor.Executor {
+	wire.Build(
+		InitExecutor,
+		wire.FieldsOf(new(*Base), "Etcd"),
+		wire.FieldsOf(new(*ExecutionRuntime), "ArtifactPreparer", "ScriptRuntime"),
+	)
+	return nil
+}
+
+// InitAgentModule 构造 Kafka Agent 模块。
+func InitAgentModule(base *Base, runtime *ExecutionRuntime) *agent.Module {
+	wire.Build(
+		AgentSet,
+		InitMQ,
+		wire.FieldsOf(new(*Base), "Etcd"),
+		wire.FieldsOf(new(*ExecutionRuntime), "ArtifactPreparer", "ScriptRuntime"),
 	)
 	return nil
 }

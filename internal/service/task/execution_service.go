@@ -83,6 +83,7 @@ type executionService struct {
 	resolvers    *executor.BindingResolverRegistry
 	artifactSvc  artifactSvc.Service
 	codebookSvc  codebookSvc.Service
+	events       *sse.Hubs
 	logger       *elog.Component
 }
 
@@ -97,6 +98,7 @@ func NewExecutionService(
 	resolvers *executor.BindingResolverRegistry,
 	artifactSvc artifactSvc.Service,
 	codebookSvc codebookSvc.Service,
+	events *sse.Hubs,
 ) ExecutionService {
 	return &executionService{
 		nodeID:      nodeID,
@@ -108,6 +110,7 @@ func NewExecutionService(
 		resolvers:   resolvers,
 		artifactSvc: artifactSvc,
 		codebookSvc: codebookSvc,
+		events:      events,
 		logger:      elog.DefaultLogger.With(elog.FieldComponentName("service.execution")),
 	}
 }
@@ -372,7 +375,7 @@ func (s *executionService) HandleReports(ctx context.Context, reports []*domain.
 				s.logger.Error("保存任务日志失败", elog.Int64("execID", report.ExecutionState.ID), elog.FieldErr(logErr))
 			} else {
 				// 成功保存日志后，通过 SSE 广播给对应的 Execution 订阅者
-				sse.GetExecutionLogsHub().Broadcast(persistedLog.ExecutionID, sse.TaskLogEvent{
+				s.events.Logs.Broadcast(persistedLog.ExecutionID, sse.TaskLogEvent{
 					ID:          persistedLog.ID,
 					TaskID:      persistedLog.TaskID,
 					ExecutionID: persistedLog.ExecutionID,
@@ -662,6 +665,6 @@ func (s *executionService) broadcastExecutionEvent(id int64) {
 		}
 
 		// 广播给该任务的特定订阅者
-		sse.GetTaskExecutionsHub().Broadcast(exec.Task.ID, evt)
+		s.events.Executions.Broadcast(exec.Task.ID, evt)
 	}()
 }

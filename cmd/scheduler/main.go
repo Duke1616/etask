@@ -44,10 +44,12 @@ func main() {
 func startServer() {
 	// 1. 初始化共享基础设施
 	base := ioc.InitBase()
-	app := &ioc.App{Base: base}
+	app := ioc.NewApp()
 
 	// 2. 按模式加载所需模块
-	app.LoadByModes(base, []string{ioc.ModeScheduler})
+	if err := app.LoadByModes(base, []string{ioc.ModeScheduler}); err != nil {
+		elog.Panic("load_mode_error", elog.FieldErr(err))
+	}
 
 	// 3. 启动后台任务和服务
 	ctx := context.Background()
