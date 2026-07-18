@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Duke1616/etask/internal/domain"
 )
@@ -130,6 +131,11 @@ func readSystemImportDirectory(path, name string) (systemImportNode, int, error)
 		if readErr != nil {
 			return systemImportNode{}, 0, fmt.Errorf("读取文件失败 %s: %w", entryPath, readErr)
 		}
+		// Codebook 只保存 UTF-8 文本，编译缓存等二进制文件不进入源码树。
+		if !utf8.Valid(code) {
+			skipped++
+			continue
+		}
 		node.Children = append(node.Children, systemImportNode{
 			Name: entry.Name(), Path: entryPath, Kind: domain.CodebookKindFile, Code: string(code),
 		})
@@ -138,5 +144,14 @@ func readSystemImportDirectory(path, name string) (systemImportNode, int, error)
 }
 
 func skipSystemImportEntry(name string) bool {
-	return name == ".git" || name == ".DS_Store"
+	switch name {
+	case ".git", ".DS_Store", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache":
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".pyc", ".pyo":
+		return true
+	default:
+		return false
+	}
 }

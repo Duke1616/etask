@@ -106,6 +106,14 @@ func TestPythonArtifactNamespaces(t *testing.T) {
 			want: "project:system",
 		},
 		{
+			name: "SYSTEM 混合制品从根目录导入 Python 模块",
+			before: func(t *testing.T) engine.ArtifactRoots {
+				return engine.ArtifactRoots{System: createFlatPythonArtifact(t)}
+			},
+			code: "from etask.third_party.base.want_result import want_result\nwant_result(status='success')\n",
+			want: "success",
+		},
+		{
 			name: "租户内多个制品库按英文名隔离",
 			before: func(t *testing.T) engine.ArtifactRoots {
 				return engine.ArtifactRoots{Dependencies: createTenantRoot(t, map[string]string{
@@ -114,6 +122,37 @@ func TestPythonArtifactNamespaces(t *testing.T) {
 			},
 			code: "from ops_common.private import util as ops\nfrom db_common.private import util as db\nprint(ops.VALUE + ':' + db.VALUE)\n",
 			want: "ops:db",
+		},
+		{
+			name: "租户制品可以引用 SYSTEM 和其他租户制品",
+			before: func(t *testing.T) engine.ArtifactRoots {
+				system := createPythonArtifact(t, "system")
+				database := createPythonArtifact(t, "db")
+				operations := createPythonArtifactFiles(t, map[string]string{
+					"bridge.py": "from etask.private import util as system\n" +
+						"from db_common.private import util as database\n" +
+						"VALUE = system.VALUE + ':' + database.VALUE\n",
+				})
+				return engine.ArtifactRoots{
+					System: system,
+					Dependencies: createTenantRoot(t, map[string]string{
+						"ops_common": operations, "db_common": database,
+					}),
+				}
+			},
+			code: "from ops_common.private.bridge import VALUE\nprint(VALUE)\n",
+			want: "system:db",
+		},
+		{
+			name: "SYSTEM 模块支持包内相对引用",
+			before: func(t *testing.T) engine.ArtifactRoots {
+				return engine.ArtifactRoots{System: createPythonArtifactFiles(t, map[string]string{
+					"util.py":   "VALUE = 'system'\n",
+					"bridge.py": "from .util import VALUE\nRESULT = VALUE + ':internal'\n",
+				})}
+			},
+			code: "from etask.private.bridge import RESULT\nprint(RESULT)\n",
+			want: "system:internal",
 		},
 		{
 			name: "SYSTEM 模块不泄漏到顶层命名空间",
@@ -161,12 +200,28 @@ func requireEnvironment(t *testing.T, environment []string, key, want string) {
 }
 
 func createPythonArtifact(t *testing.T, value string) string {
+	return createPythonArtifactFiles(t, map[string]string{"util.py": "VALUE = '" + value + "'\n"})
+}
+
+func createPythonArtifactFiles(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
 	packageDir := filepath.Join(root, "python", "private")
 	require.NoError(t, os.MkdirAll(packageDir, 0o750))
 	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "__init__.py"), nil, 0o440))
-	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "util.py"), []byte("VALUE = '"+value+"'\n"), 0o440))
+	for name, code := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(packageDir, name), []byte(code), 0o440))
+	}
+	return root
+}
+
+func createFlatPythonArtifact(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	packageDir := filepath.Join(root, "third_party", "base")
+	require.NoError(t, os.MkdirAll(packageDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "want_result.py"),
+		[]byte("def want_result(**kwargs): print(kwargs['status'])\n"), 0o440))
 	return root
 }
 

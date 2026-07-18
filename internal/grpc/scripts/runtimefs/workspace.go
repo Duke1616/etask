@@ -69,13 +69,16 @@ func (w *workspace) prepare(options engine.WorkspaceOptions) error {
 		if err = os.MkdirAll(modules, 0o750); err != nil {
 			return fmt.Errorf("创建 Python 制品命名空间失败: %w", err)
 		}
+		// 显式 python 目录用于纯 Python 制品；混合语言 SYSTEM 制品则将根目录映射到 etask。
+		pythonRoot := mounted
 		pythonDir := filepath.Join(mounted, "python")
 		if info, statErr := os.Stat(pythonDir); statErr == nil && info.IsDir() {
-			if err = os.Symlink(pythonDir, filepath.Join(modules, "etask")); err != nil {
-				return fmt.Errorf("挂载 SYSTEM Python 命名空间失败: %w", err)
-			}
+			pythonRoot = pythonDir
 		} else if statErr != nil && !os.IsNotExist(statErr) {
 			return fmt.Errorf("检查 SYSTEM Python 目录失败: %w", statErr)
+		}
+		if err = os.Symlink(pythonRoot, filepath.Join(modules, "etask")); err != nil {
+			return fmt.Errorf("挂载 SYSTEM Python 命名空间失败: %w", err)
 		}
 	}
 	// 租户制品依赖已经由 Executor 聚合为具名目录，这里只挂载一次。

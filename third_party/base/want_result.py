@@ -11,8 +11,8 @@ def _emit_fd3(data):
     fd = os.environ.get('EWORK_RESULT_FD')
     if fd:
         try:
-            # 尝试写入 FD
-            with os.fdopen(int(fd), 'w') as f:
+            # 每次写入使用 FD3 的副本，避免关闭公共结果通道，支持连续调用。
+            with os.fdopen(os.dup(int(fd)), 'w', encoding='utf-8') as f:
                 f.write(json_str + '\n')
                 f.flush()
             return

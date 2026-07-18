@@ -18,6 +18,10 @@ func TestSystemImporterCreatesTree(t *testing.T) {
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "config"), []byte("ignored"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".DS_Store"), []byte("ignored"), 0o644))
+	require.NoError(t, os.Mkdir(filepath.Join(root, "__pycache__"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "__pycache__", "main.pyc"), []byte{0xff}, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "module.pyo"), []byte("ignored"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "binary.dat"), []byte{0xff, 0xfe}, 0o644))
 	require.NoError(t, os.Mkdir(filepath.Join(root, "private"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "private", "helper.py"), []byte("helper"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "main.py"), []byte("main"), 0o644))
@@ -57,7 +61,7 @@ func TestSystemImporterCreatesTree(t *testing.T) {
 	require.Equal(t, 4, result.Created)
 	require.Equal(t, 0, result.Updated)
 	require.Equal(t, 0, result.Unchanged)
-	require.Equal(t, 2, result.Skipped)
+	require.Equal(t, 5, result.Skipped)
 }
 
 func TestSystemImporterCreatesVersionForChangedFile(t *testing.T) {

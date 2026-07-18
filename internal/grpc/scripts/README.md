@@ -71,7 +71,38 @@ with open(os.environ["ETASK_ARGS_FILE"], encoding="utf-8") as file:
 
 ## 制品路径
 
-Python 的 SYSTEM 组件固定从 `etask` 命名空间导入，例如 `from etask.private import util`。租户制品使用项目配置的英文命名空间，例如 `from ops_common.private import util`。运行时不会为 SYSTEM 顶层目录创建快捷链接，避免与任务文件或租户制品发生隐式冲突。
+Python 的 SYSTEM 组件固定从 `etask` 命名空间导入。制品存在 `python/` 目录时，该目录直接作为 `etask` 包根；混合语言制品则将整个制品根映射为 `etask`。例如：
+
+```python
+from etask.private import util
+from etask.third_party.base.want_result import want_result
+```
+
+租户制品使用项目配置的英文命名空间，例如制品库 `ops_common`：
+
+```python
+from ops_common.private import util
+```
+
+运行时不会把 SYSTEM 或租户制品泄漏到无命名空间的顶层 import，避免与任务文件发生隐式冲突。
+
+### 制品引用方向
+
+| 引用方向 | 支持情况 | 写法 |
+| --- | --- | --- |
+| 当前脚本 → SYSTEM | 支持 | `from etask...` |
+| 当前脚本 → 租户制品 | 支持 | `from ops_common...` |
+| 租户制品 → SYSTEM | 支持 | `from etask...` |
+| 租户制品 A → 租户制品 B | 支持，但应避免循环引用 | `from db_common...` |
+| SYSTEM → 租户制品 | 不作为稳定契约支持 | SYSTEM 不能依赖租户环境 |
+
+SYSTEM 包内推荐使用相对导入：
+
+```python
+from .want_result import want_result
+```
+
+租户制品之间无需单独声明依赖；一次执行会固定当前租户全部已激活制品的发布版本，并排除当前源码项目自身。因为没有显式依赖元数据，工作区只能展示本次注入的制品列表，无法可靠生成逻辑依赖图。跨制品引用应保持单向，避免 A、B 互相 import。
 
 Shell 使用明确的制品根目录：
 
