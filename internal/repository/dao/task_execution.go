@@ -75,19 +75,20 @@ type TaskExecutionDAO interface {
 	GetByID(ctx context.Context, id int64) (TaskExecution, error)
 	// FindByRequestID 根据执行来源和幂等请求标识查询执行记录。
 	FindByRequestID(ctx context.Context, source, requestID string) (TaskExecution, error)
-	// UpdateStatus 更新执行状态
-	UpdateStatus(ctx context.Context, id int64, status string) error
+	// UpdateStatus 仅在当前状态符合预期时更新执行状态。
+	UpdateStatus(ctx context.Context, id int64, expectedStatuses []string, status string) error
 	// FindRetryableExecutions 查找所有可以重试的执行记录
 	// limit: 查询结果数量限制
 	FindRetryableExecutions(ctx context.Context, limit int) ([]TaskExecution, error)
-	// UpdateRetryResult 更新重试结果
-	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
+	// UpdateRetryResult 仅在当前状态符合预期时更新重试结果。
+	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, expectedStatus, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
 	// SetRunningState 设置任务为运行状态并更新进度
 	SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateProgress 更新任务执行进度、开始时间（仅在RUNNING状态下有效）
 	UpdateProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error
-	// UpdateScheduleResult 更新调度结果
-	UpdateScheduleResult(ctx context.Context, id int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error
+	// UpdateScheduleResult 仅在当前状态符合预期时更新调度结果。
+	// 返回 false 表示状态已被其他请求推进，当前请求没有写入。
+	UpdateScheduleResult(ctx context.Context, id int64, expectedStatuses []string, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) (bool, error)
 	// FindReschedulableExecutions 查找所有可以重调度的执行记录
 	FindReschedulableExecutions(ctx context.Context, limit int) ([]TaskExecution, error)
 	// FindExecutionByPlanID 查找对应planExecID下的所有执行计划
@@ -245,10 +246,12 @@ func (g *GORMTaskExecutionDAO) FindByRequestID(ctx context.Context, source, requ
 	return execution, err
 }
 
-func (g *GORMTaskExecutionDAO) UpdateStatus(ctx context.Context, id int64, status string) error {
-	result := g.db.WithContext(ctx).
-		Model(&TaskExecution{}).
-		Where("id = ?", id).
+func (g *GORMTaskExecutionDAO) UpdateStatus(ctx context.Context, id int64,
+	expectedStatuses []string, status string) error {
+	if len(expectedStatuses) == 0 {
+		return fmt.Errorf("%w: expected statuses are empty", errs.ErrInvalidTaskExecutionStatus)
+	}
+	result := withExecutionStatusCAS(g.db.WithContext(ctx).Model(&TaskExecution{}), id, expectedStatuses).
 		Updates(map[string]any{
 			"status": status,
 			"utime":  time.Now().UnixMilli(),
@@ -257,7 +260,7 @@ func (g *GORMTaskExecutionDAO) UpdateStatus(ctx context.Context, id int64, statu
 		return fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrUpdateExecutionStatusFailed, result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("%w：ID=%d", errs.ErrUpdateExecutionStatusFailed, id)
+		return executionStatusConflict(id)
 	}
 	return nil
 }
@@ -278,10 +281,13 @@ func (g *GORMTaskExecutionDAO) FindRetryableExecutions(ctx context.Context, limi
 	return executions, err
 }
 
-func (g *GORMTaskExecutionDAO) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {
-	result := g.db.WithContext(ctx).
-		Model(&TaskExecution{}).
-		Where("id = ?", id).
+func (g *GORMTaskExecutionDAO) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64,
+	expectedStatus, status string, progress int32, endTime int64,
+	scheduleParams map[string]string, executorNodeID string) error {
+	if expectedStatus == "" {
+		return fmt.Errorf("%w: expected status is empty", errs.ErrInvalidTaskExecutionStatus)
+	}
+	result := withExecutionStatusCAS(g.db.WithContext(ctx).Model(&TaskExecution{}), id, []string{expectedStatus}).
 		Updates(map[string]any{
 			"retry_count":          retryCount,
 			"next_retry_time":      nextRetryTime,
@@ -297,7 +303,7 @@ func (g *GORMTaskExecutionDAO) UpdateRetryResult(ctx context.Context, id, retryC
 		return fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrUpdateExecutionRetryResultFailed, result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("%w: ID=%d", errs.ErrUpdateExecutionRetryResultFailed, id)
+		return executionStatusConflict(id)
 	}
 	return nil
 }
@@ -356,10 +362,13 @@ func (g *GORMTaskExecutionDAO) UpdateProgress(ctx context.Context, id int64, pro
 	return nil
 }
 
-func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int64, status string, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error {
-	result := g.db.WithContext(ctx).
-		Model(&TaskExecution{}).
-		Where("id = ?", id).
+func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int64,
+	expectedStatuses []string, status string, progress int32, endTime int64,
+	scheduleParams map[string]string, executorNodeID string, taskResult string) (bool, error) {
+	if len(expectedStatuses) == 0 {
+		return false, fmt.Errorf("%w: expected statuses are empty", errs.ErrInvalidTaskExecutionStatus)
+	}
+	result := withExecutionStatusCAS(g.db.WithContext(ctx).Model(&TaskExecution{}), id, expectedStatuses).
 		Updates(map[string]any{
 			"status":               status,
 			"running_progress":     progress,
@@ -370,12 +379,22 @@ func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int6
 			"utime":                time.Now().UnixMilli(),
 		})
 	if result.Error != nil {
-		return fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrUpdateExecutionStatusAndEndTimeFailed, result.Error)
+		return false, fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrUpdateExecutionStatusAndEndTimeFailed, result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("%w: ID=%d", errs.ErrUpdateExecutionStatusAndEndTimeFailed, id)
+		return false, nil
 	}
-	return nil
+	return true, nil
+}
+
+// withExecutionStatusCAS 将来源状态写入更新条件，保证状态检查和写入在同一条 SQL 中完成。
+func withExecutionStatusCAS(db *gorm.DB, id int64, expectedStatuses []string) *gorm.DB {
+	return db.Where("id = ? AND status IN ?", id, expectedStatuses)
+}
+
+func executionStatusConflict(id int64) error {
+	return fmt.Errorf("%w: execution not found or status changed, ID=%d",
+		errs.ErrInvalidTaskExecutionStatus, id)
 }
 
 func (g *GORMTaskExecutionDAO) FindReschedulableExecutions(ctx context.Context, limit int) ([]TaskExecution, error) {

@@ -15,8 +15,9 @@ import (
 type TaskExecutionRepository interface {
 	// Create 创建任务执行实例
 	Create(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error)
-	// UpdateStatus 更新执行状态
-	UpdateStatus(ctx context.Context, id int64, status domain.TaskExecutionStatus) error
+	// UpdateStatus 仅在当前状态符合预期时更新执行状态。
+	UpdateStatus(ctx context.Context, id int64, expectedStatuses []domain.TaskExecutionStatus,
+		status domain.TaskExecutionStatus) error
 	// GetByID 根据ID获取执行实例
 	GetByID(ctx context.Context, id int64) (domain.TaskExecution, error)
 	// FindByRequestID 根据执行来源和幂等请求标识查询执行实例。
@@ -24,14 +25,19 @@ type TaskExecutionRepository interface {
 	// FindRetryableExecutions 查找所有可以重试的执行记录
 	// limit: 查询结果数量限制
 	FindRetryableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
-	// UpdateRetryResult 更新重试结果
-	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
+	// UpdateRetryResult 仅在当前状态符合预期时更新重试结果。
+	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64,
+		expectedStatus, status domain.TaskExecutionStatus, progress int32, endTime int64,
+		scheduleParams map[string]string, executorNodeID string) error
 	// SetRunningState 设置任务为运行状态并更新进度
 	SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateRunningProgress 更新任务执行进度（仅在RUNNING状态下有效）
 	UpdateRunningProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error
-	// UpdateScheduleResult 更新调度结果
-	UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error
+	// UpdateScheduleResult 仅在当前状态符合预期时更新调度结果。
+	// 返回 false 表示状态已被其他请求推进，当前请求没有写入。
+	UpdateScheduleResult(ctx context.Context, id int64, expectedStatuses []domain.TaskExecutionStatus,
+		status domain.TaskExecutionStatus, progress int32, endTime int64,
+		scheduleParams map[string]string, executorNodeID string, taskResult string) (bool, error)
 	// FindReschedulableExecutions 查找所有可以重调度的执行记录
 	FindReschedulableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error)
 
@@ -146,8 +152,9 @@ func (r *taskExecutionRepository) Create(ctx context.Context, execution domain.T
 	return r.toDomain(created), nil
 }
 
-func (r *taskExecutionRepository) UpdateStatus(ctx context.Context, id int64, status domain.TaskExecutionStatus) error {
-	return r.dao.UpdateStatus(ctx, id, status.String())
+func (r *taskExecutionRepository) UpdateStatus(ctx context.Context, id int64,
+	expectedStatuses []domain.TaskExecutionStatus, status domain.TaskExecutionStatus) error {
+	return r.dao.UpdateStatus(ctx, id, executionStatusStrings(expectedStatuses), status.String())
 }
 
 func (r *taskExecutionRepository) GetByID(ctx context.Context, id int64) (domain.TaskExecution, error) {
@@ -180,8 +187,11 @@ func (r *taskExecutionRepository) FindRetryableExecutions(ctx context.Context, l
 	}), nil
 }
 
-func (r *taskExecutionRepository) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {
-	return r.dao.UpdateRetryResult(ctx, id, retryCount, nextRetryTime, status.String(), progress, endTime, scheduleParams, executorNodeID)
+func (r *taskExecutionRepository) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64,
+	expectedStatus, status domain.TaskExecutionStatus, progress int32, endTime int64,
+	scheduleParams map[string]string, executorNodeID string) error {
+	return r.dao.UpdateRetryResult(ctx, id, retryCount, nextRetryTime, expectedStatus.String(),
+		status.String(), progress, endTime, scheduleParams, executorNodeID)
 }
 
 func (r *taskExecutionRepository) SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error {
@@ -192,8 +202,20 @@ func (r *taskExecutionRepository) UpdateRunningProgress(ctx context.Context, id 
 	return r.dao.UpdateProgress(ctx, id, progress, executorNodeID)
 }
 
-func (r *taskExecutionRepository) UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error {
-	return r.dao.UpdateScheduleResult(ctx, id, status.String(), progress, endTime, scheduleParams, executorNodeID, taskResult)
+func (r *taskExecutionRepository) UpdateScheduleResult(ctx context.Context, id int64,
+	expectedStatuses []domain.TaskExecutionStatus, status domain.TaskExecutionStatus,
+	progress int32, endTime int64, scheduleParams map[string]string,
+	executorNodeID string, taskResult string) (bool, error) {
+	return r.dao.UpdateScheduleResult(ctx, id, executionStatusStrings(expectedStatuses), status.String(),
+		progress, endTime, scheduleParams, executorNodeID, taskResult)
+}
+
+func executionStatusStrings(statuses []domain.TaskExecutionStatus) []string {
+	result := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		result = append(result, status.String())
+	}
+	return result
 }
 
 func (r *taskExecutionRepository) FindReschedulableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error) {

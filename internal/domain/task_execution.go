@@ -126,6 +126,18 @@ func (t TaskExecutionStatus) IsTerminalStatus() bool {
 	return t.IsSuccess() || t.IsFailed()
 }
 
+// NonTerminalTaskExecutionStatuses 返回允许继续迁移的执行状态。
+// 返回新切片，避免调用方修改共享状态集合。
+func NonTerminalTaskExecutionStatuses() []TaskExecutionStatus {
+	return []TaskExecutionStatus{
+		TaskExecutionStatusWaitingPull,
+		TaskExecutionStatusPrepare,
+		TaskExecutionStatusRunning,
+		TaskExecutionStatusFailedRetryable,
+		TaskExecutionStatusFailedRescheduled,
+	}
+}
+
 // TaskExecution 任务执行记录
 type TaskExecution struct {
 	ID              int64

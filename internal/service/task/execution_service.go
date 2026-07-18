@@ -51,10 +51,15 @@ type ExecutionService interface {
 	SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error
 	// UpdateRunningProgress 更新任务执行进度（仅在RUNNING状态下有效）
 	UpdateRunningProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error
-	// UpdateRetryResult 更新重试结果
-	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error
-	// UpdateScheduleResult 更新调度结果
-	UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error
+	// UpdateRetryResult 仅在当前状态符合预期时更新重试结果。
+	UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64,
+		expectedStatus, status domain.TaskExecutionStatus, progress int32, endTime int64,
+		scheduleParams map[string]string, executorNodeID string) error
+	// UpdateScheduleResult 仅在当前状态符合预期时更新调度结果。
+	// 返回 false 表示状态已被其他请求推进，当前请求没有写入。
+	UpdateScheduleResult(ctx context.Context, id int64, expectedStatuses []domain.TaskExecutionStatus,
+		status domain.TaskExecutionStatus, progress int32, endTime int64,
+		scheduleParams map[string]string, executorNodeID string, taskResult string) (bool, error)
 
 	// HandleReports 处理执行节点上报的执行状态
 	HandleReports(ctx context.Context, reports []*domain.Report) error
@@ -69,7 +74,10 @@ func (s *executionService) RequeuePull(ctx context.Context, executionID int64) e
 	if executionID <= 0 {
 		return fmt.Errorf("执行 ID 非法")
 	}
-	return s.repo.UpdateStatus(ctx, executionID, domain.TaskExecutionStatusWaitingPull)
+	return s.repo.UpdateStatus(ctx, executionID, []domain.TaskExecutionStatus{
+		domain.TaskExecutionStatusFailedRetryable,
+		domain.TaskExecutionStatusFailedRescheduled,
+	}, domain.TaskExecutionStatusWaitingPull)
 }
 
 type executionService struct {
@@ -328,8 +336,11 @@ func (s *executionService) UpdateRunningProgress(ctx context.Context, id int64, 
 	return nil
 }
 
-func (s *executionService) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string) error {
-	err := s.repo.UpdateRetryResult(ctx, id, retryCount, nextRetryTime, status, progress, endTime, scheduleParams, executorNodeID)
+func (s *executionService) UpdateRetryResult(ctx context.Context, id, retryCount, nextRetryTime int64,
+	expectedStatus, status domain.TaskExecutionStatus, progress int32, endTime int64,
+	scheduleParams map[string]string, executorNodeID string) error {
+	err := s.repo.UpdateRetryResult(ctx, id, retryCount, nextRetryTime, expectedStatus,
+		status, progress, endTime, scheduleParams, executorNodeID)
 	if err != nil {
 		return err
 	}
@@ -337,13 +348,24 @@ func (s *executionService) UpdateRetryResult(ctx context.Context, id, retryCount
 	return nil
 }
 
-func (s *executionService) UpdateScheduleResult(ctx context.Context, id int64, status domain.TaskExecutionStatus, progress int32, endTime int64, scheduleParams map[string]string, executorNodeID string, taskResult string) error {
-	err := s.repo.UpdateScheduleResult(ctx, id, status, progress, endTime, scheduleParams, executorNodeID, taskResult)
+func (s *executionService) UpdateScheduleResult(ctx context.Context, id int64,
+	expectedStatuses []domain.TaskExecutionStatus, status domain.TaskExecutionStatus,
+	progress int32, endTime int64, scheduleParams map[string]string,
+	executorNodeID string, taskResult string) (bool, error) {
+	updated, err := s.repo.UpdateScheduleResult(ctx, id, expectedStatuses, status, progress,
+		endTime, scheduleParams, executorNodeID, taskResult)
 	if err != nil {
-		return err
+		return false, err
+	}
+	if !updated {
+		// CAS 未命中时确认记录仍然存在；终态冲突可安全忽略，缺失记录仍需上抛。
+		if _, findErr := s.repo.GetByID(ctx, id); findErr != nil {
+			return false, findErr
+		}
+		return false, nil
 	}
 	s.broadcastExecutionEvent(id)
-	return nil
+	return true, nil
 }
 
 func (s *executionService) HandleReports(ctx context.Context, reports []*domain.Report) error {
@@ -565,6 +587,7 @@ func (s *executionService) updateRetryState(ctx context.Context, execution domai
 		state.ID,
 		execution.RetryCount,
 		execution.NextRetryTime,
+		execution.Status,
 		state.Status,
 		state.RunningProgress,
 		time.Now().UnixMilli(),
@@ -587,8 +610,9 @@ func (s *executionService) updateRetryState(ctx context.Context, execution domai
 }
 
 func (s *executionService) updateState(ctx context.Context, execution domain.TaskExecution, state domain.ExecutionState) error {
-	err := s.UpdateScheduleResult(ctx,
+	updated, err := s.UpdateScheduleResult(ctx,
 		state.ID,
+		[]domain.TaskExecutionStatus{execution.Status},
 		state.Status,
 		state.RunningProgress,
 		time.Now().UnixMilli(),
@@ -602,6 +626,9 @@ func (s *executionService) updateState(ctx context.Context, execution domain.Tas
 			elog.Any("state", state),
 			elog.FieldErr(err))
 		return err
+	}
+	if !updated {
+		return errs.ErrInvalidTaskExecutionStatus
 	}
 	s.logger.Info("更新调度状态成功",
 		elog.Int64("taskID", execution.Task.ID),

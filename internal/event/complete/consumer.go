@@ -51,16 +51,25 @@ func (c *Consumer) Consume(ctx context.Context, message *mq.Message) error {
 }
 
 func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
-	var err error
+	var (
+		updated bool
+		err     error
+	)
 	if evt.ExecStatus.IsSuccess() {
-		err = c.execSvc.UpdateScheduleResult(ctx, evt.ExecID, domain.TaskExecutionStatusSuccess,
+		updated, err = c.execSvc.UpdateScheduleResult(ctx, evt.ExecID,
+			domain.NonTerminalTaskExecutionStatuses(), domain.TaskExecutionStatusSuccess,
 			number100, time.Now().UnixMilli(), nil, evt.ExecNodeId, evt.TaskResult)
 	} else {
-		err = c.execSvc.UpdateScheduleResult(ctx, evt.ExecID, domain.TaskExecutionStatusFailed,
+		updated, err = c.execSvc.UpdateScheduleResult(ctx, evt.ExecID,
+			domain.NonTerminalTaskExecutionStatuses(), domain.TaskExecutionStatusFailed,
 			number0, time.Now().UnixMilli(), nil, evt.ExecNodeId, evt.TaskResult)
 	}
 	if err != nil {
 		return err
+	}
+	// 重复或迟到的完成事件没有抢到状态迁移，不再重复推进任务和释放抢占。
+	if !updated {
+		return nil
 	}
 	// 外部工作流执行没有 etask 正式任务，只需持久化执行终态。
 	if evt.TaskID <= 0 {
