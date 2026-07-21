@@ -140,7 +140,7 @@ func (s *systemImportSyncer) syncFile(ctx context.Context, parentID int64, sourc
 	if strings.TrimSpace(source.Code) == "" {
 		return fmt.Errorf("文件内容为空，无法为已有文件创建新版本: %s", source.Path)
 	}
-	versionID, err := s.svc.CreateVersion(ctx, domain.CodebookVersion{
+	versionID, err := s.svc.CreateVersion(ctx, domain.CodebookVersionCreate{
 		NodeID: existing.ID, Code: source.Code, Message: "SYSTEM 组件库增量导入",
 	})
 	if err != nil {

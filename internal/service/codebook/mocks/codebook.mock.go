@@ -159,7 +159,7 @@ func (c *MockServiceCreateProjectCall) DoAndReturn(f func(context.Context, domai
 }
 
 // CreateVersion mocks base method.
-func (m *MockService) CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error) {
+func (m *MockService) CreateVersion(ctx context.Context, req domain.CodebookVersionCreate) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateVersion", ctx, req)
 	ret0, _ := ret[0].(int64)
@@ -186,13 +186,13 @@ func (c *MockServiceCreateVersionCall) Return(arg0 int64, arg1 error) *MockServi
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockServiceCreateVersionCall) Do(f func(context.Context, domain.CodebookVersion) (int64, error)) *MockServiceCreateVersionCall {
+func (c *MockServiceCreateVersionCall) Do(f func(context.Context, domain.CodebookVersionCreate) (int64, error)) *MockServiceCreateVersionCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceCreateVersionCall) DoAndReturn(f func(context.Context, domain.CodebookVersion) (int64, error)) *MockServiceCreateVersionCall {
+func (c *MockServiceCreateVersionCall) DoAndReturn(f func(context.Context, domain.CodebookVersionCreate) (int64, error)) *MockServiceCreateVersionCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

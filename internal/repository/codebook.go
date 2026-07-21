@@ -40,7 +40,7 @@ type ICodebookRepository interface {
 	// Update 更新代码资源可变字段。
 	Update(ctx context.Context, req domain.Codebook) (int64, error)
 	// CreateVersion 创建代码版本。
-	CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error)
+	CreateVersion(ctx context.Context, req domain.CodebookVersionCreate) (int64, error)
 	// UseVersion 设置代码节点当前使用版本。
 	UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error)
 	// UpdateSort 更新单个代码资源排序。
@@ -223,7 +223,8 @@ func (repo *codebookRepository) Update(ctx context.Context, req domain.Codebook)
 }
 
 // CreateVersion 创建代码版本。
-func (repo *codebookRepository) CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error) {
+func (repo *codebookRepository) CreateVersion(ctx context.Context,
+	req domain.CodebookVersionCreate) (int64, error) {
 	return repo.dao.CreateVersion(ctx, repo.toVersionEntity(req))
 }
 
@@ -341,17 +342,14 @@ func (repo *codebookRepository) toDomain(req dao.Codebook) domain.Codebook {
 	}
 }
 
-func (repo *codebookRepository) toVersionEntity(req domain.CodebookVersion) dao.CodebookVersion {
-	return dao.CodebookVersion{
-		ID:           req.ID,
-		NodeID:       req.NodeID,
-		Scope:        req.Scope.String(),
-		VersionNo:    req.VersionNo,
-		Code:         req.Code,
-		Hash:         req.Hash,
-		Message:      req.Message,
-		AuthorUserID: req.AuthorUserID,
-		CTime:        req.CTime,
+func (repo *codebookRepository) toVersionEntity(
+	req domain.CodebookVersionCreate) dao.CodebookVersionCreate {
+	return dao.CodebookVersionCreate{
+		Version: dao.CodebookVersion{
+			NodeID: req.NodeID, Code: req.Code, Message: req.Message,
+		},
+		ExpectedCurrentVersionID: req.ExpectedCurrentVersionID,
+		SourceKey:                optionalString(req.SourceKey),
 	}
 }
 
@@ -368,6 +366,13 @@ func (repo *codebookRepository) toVersionDomain(req dao.CodebookVersion) domain.
 		AuthorUserID: req.AuthorUserID,
 		CTime:        req.CTime,
 	}
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 func (repo *codebookRepository) toSortEntity(req domain.CodebookSortItem) dao.CodebookSortItem {

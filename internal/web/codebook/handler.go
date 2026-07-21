@@ -332,8 +332,8 @@ func (h *Handler) toVO(req domain.Codebook) Codebook {
 	}
 }
 
-func (h *Handler) toVersionDomain(req CreateVersionReq) domain.CodebookVersion {
-	return domain.CodebookVersion{
+func (h *Handler) toVersionDomain(req CreateVersionReq) domain.CodebookVersionCreate {
+	return domain.CodebookVersionCreate{
 		NodeID:  req.NodeID,
 		Code:    req.Code,
 		Message: req.Message,

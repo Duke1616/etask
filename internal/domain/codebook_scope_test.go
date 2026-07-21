@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,7 +23,17 @@ func TestCodebookScopeValidateWriteAccess(t *testing.T) {
 }
 
 func TestCodebookVersionAllowsEmptyFile(t *testing.T) {
-	version := CodebookVersion{NodeID: 1}
+	version := CodebookVersionCreate{NodeID: 1}
 	err := version.PrepareForNode(Codebook{ID: 1, Kind: CodebookKindFile, Scope: CodebookScopeTenant})
 	require.NoError(t, err)
+}
+
+func TestCodebookVersionCreateValidatesWriteOptions(t *testing.T) {
+	node := Codebook{ID: 1, Kind: CodebookKindFile, Scope: CodebookScopeTenant}
+	for _, testCase := range []CodebookVersionCreate{
+		{NodeID: 1, ExpectedCurrentVersionID: -1},
+		{NodeID: 1, SourceKey: strings.Repeat("x", 129)},
+	} {
+		require.Error(t, testCase.PrepareForNode(node))
+	}
 }

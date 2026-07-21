@@ -115,6 +115,17 @@ type CodebookVersion struct {
 	CTime        int64
 }
 
+// CodebookVersionCreate 描述一次代码版本写入。
+// ExpectedCurrentVersionID 和 SourceKey 仅用于写入时的并发控制与幂等，
+// 不属于已保存版本本身。
+type CodebookVersionCreate struct {
+	NodeID                   int64
+	Code                     string
+	Message                  string
+	ExpectedCurrentVersionID int64
+	SourceKey                string
+}
+
 type CodebookSearch struct {
 	ProjectID int64
 	ParentID  int64
@@ -352,7 +363,7 @@ func (c *Codebook) ToSortItem() CodebookSortItem {
 	}
 }
 
-func (v *CodebookVersion) PrepareForNode(node Codebook) error {
+func (v *CodebookVersionCreate) PrepareForNode(node Codebook) error {
 	if v == nil {
 		return nil
 	}
@@ -362,9 +373,14 @@ func (v *CodebookVersion) PrepareForNode(node Codebook) error {
 	if !node.IsFile() {
 		return fmt.Errorf("%w: 目录不能创建版本", errs.ErrInvalidParameter)
 	}
-	v.TenantID = node.TenantID
-	v.Scope = node.Scope
+	if v.ExpectedCurrentVersionID < 0 {
+		return fmt.Errorf("%w: 预期当前版本 ID 非法", errs.ErrInvalidParameter)
+	}
 	v.Message = strings.TrimSpace(v.Message)
+	v.SourceKey = strings.TrimSpace(v.SourceKey)
+	if len(v.SourceKey) > 128 {
+		return fmt.Errorf("%w: 版本幂等来源过长", errs.ErrInvalidParameter)
+	}
 	return nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/Duke1616/eiam/pkg/web/middleware"
 	"github.com/Duke1616/eiam/pkg/web/sdk"
 	artifactWeb "github.com/Duke1616/etask/internal/web/artifact"
+	codeassistWeb "github.com/Duke1616/etask/internal/web/codeassist"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/manager"
 	poolWeb "github.com/Duke1616/etask/internal/web/pool"
@@ -26,6 +27,7 @@ const Resource = "TASK"
 func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	syncer capability.Syncer, providers []capability.PermissionProvider,
 	taskHdl *manager.Handler, codebookHdl *codebookWeb.Handler, artifactHdl *artifactWeb.Handler,
+	codeassistHdl *codeassistWeb.Handler,
 	previewHdl *previewWeb.Handler,
 	runnerHdl *runnerWeb.Handler, variableHdl *variableWeb.Handler,
 	poolAdminHdl *poolWeb.AdminHandler,
@@ -40,6 +42,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	taskHdl.PublicRoutes(server.Engine)
 	codebookHdl.PublicRoutes(server.Engine)
 	artifactHdl.PublicRoutes(server.Engine)
+	codeassistHdl.PublicRoutes(server.Engine)
 	previewHdl.PublicRoutes(server.Engine)
 	runnerHdl.PublicRoutes(server.Engine)
 	variableHdl.PublicRoutes(server.Engine)
@@ -53,6 +56,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	taskHdl.IdentifyRoutes(server.Engine)
 	codebookHdl.IdentifyRoutes(server.Engine)
 	artifactHdl.IdentifyRoutes(server.Engine)
+	codeassistHdl.IdentifyRoutes(server.Engine)
 	previewHdl.IdentifyRoutes(server.Engine)
 	runnerHdl.IdentifyRoutes(server.Engine)
 	variableHdl.IdentifyRoutes(server.Engine)
@@ -66,6 +70,7 @@ func InitGinWebServer(mdls []gin.HandlerFunc, sdk *sdk.SDK,
 	taskHdl.PrivateRoutes(server.Engine)
 	codebookHdl.PrivateRoutes(server.Engine)
 	artifactHdl.PrivateRoutes(server.Engine)
+	codeassistHdl.PrivateRoutes(server.Engine)
 	previewHdl.PrivateRoutes(server.Engine)
 	runnerHdl.PrivateRoutes(server.Engine)
 	variableHdl.PrivateRoutes(server.Engine)

@@ -45,6 +45,17 @@ web:
 policy:
   auth_url: http://127.0.0.1:8000
 
+# Codebook AI 助手，仅 Scheduler/Web 控制面使用。
+# API Key 通过供应商对应的环境变量注入，不写入配置文件。
+ai:
+  provider: "openai" # 可选 openai、rawchat、qwen
+  endpoint: "https://api.openai.com/v1"
+  model: "gpt-5.6-sol"
+  timeout: "180s"
+  max_output_tokens: 8192
+  max_concurrency: 4
+  reasoning_effort: "low" # 限制隐藏推理消耗，为代码和文本输出保留预算
+
 grpc:
   server:
     scheduler:

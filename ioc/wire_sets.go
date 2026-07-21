@@ -6,6 +6,8 @@ import (
 	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/repository/dao"
 	artifactSvc "github.com/Duke1616/etask/internal/service/artifact"
+	codeassistSvc "github.com/Duke1616/etask/internal/service/codeassist"
+	codeassistRecipe "github.com/Duke1616/etask/internal/service/codeassist/recipe"
 	codebookSvc "github.com/Duke1616/etask/internal/service/codebook"
 	poolSvc "github.com/Duke1616/etask/internal/service/pool"
 	previewSvc "github.com/Duke1616/etask/internal/service/preview"
@@ -16,6 +18,7 @@ import (
 	variableSvc "github.com/Duke1616/etask/internal/service/variable"
 	internalSSE "github.com/Duke1616/etask/internal/sse"
 	artifactWeb "github.com/Duke1616/etask/internal/web/artifact"
+	codeassistWeb "github.com/Duke1616/etask/internal/web/codeassist"
 	codebookWeb "github.com/Duke1616/etask/internal/web/codebook"
 	"github.com/Duke1616/etask/internal/web/manager"
 	poolWeb "github.com/Duke1616/etask/internal/web/pool"
@@ -66,6 +69,15 @@ var (
 		codebookSvc.NewWorkspaceService,
 		wire.Bind(new(codebookSvc.WorkspaceSourceReader), new(repository.ICodebookRepository)),
 		codebookWeb.NewHandler,
+	)
+
+	CodeAssistSet = wire.NewSet(
+		InitAIProvider,
+		codeassistRecipe.NewCatalog,
+		dao.NewGORMCodeAssistDAO,
+		repository.NewCodeAssistRepository,
+		codeassistSvc.NewService,
+		codeassistWeb.NewHandler,
 	)
 
 	ArtifactSet = wire.NewSet(

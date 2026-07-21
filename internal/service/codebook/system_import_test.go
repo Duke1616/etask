@@ -82,7 +82,7 @@ func TestSystemImporterCreatesVersionForChangedFile(t *testing.T) {
 			ID: 2, Scope: domain.CodebookScopeSystem, ParentID: 1, Name: "main.py",
 			Kind: domain.CodebookKindFile, Code: "old",
 		}, nil),
-		svc.EXPECT().CreateVersion(ctx, domain.CodebookVersion{
+		svc.EXPECT().CreateVersion(ctx, domain.CodebookVersionCreate{
 			NodeID: 2, Code: "new", Message: "SYSTEM 组件库增量导入",
 		}).Return(int64(7), nil),
 		svc.EXPECT().UseVersion(ctx, int64(2), int64(7)).Return(int64(1), nil),

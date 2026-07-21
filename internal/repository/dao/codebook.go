@@ -64,16 +64,24 @@ func (CodebookProject) TableName() string {
 
 // CodebookVersion 映射代码资源内容版本表。
 type CodebookVersion struct {
-	ID           int64  `gorm:"primaryKey;column:id;type:bigint;autoIncrement;comment:'代码版本自增ID'"`
-	NodeID       int64  `gorm:"column:node_id;type:bigint;not null;index;uniqueIndex:uniq_codebook_version_no,priority:1;comment:'代码节点ID'"`
-	TenantID     int64  `gorm:"column:tenant_id;type:bigint unsigned;not null;default:0;index;comment:'租户ID'" eiam:"shared:scope = 'SYSTEM'"`
-	Scope        string `gorm:"column:scope;type:varchar(32);not null;default:'TENANT';index;comment:'作用域 SYSTEM/TENANT'"`
-	VersionNo    int64  `gorm:"column:version_no;type:bigint;not null;default:1;uniqueIndex:uniq_codebook_version_no,priority:2;comment:'版本号'"`
-	Code         string `gorm:"column:code;type:text;comment:'脚本源码内容'"`
-	Hash         string `gorm:"column:hash;type:varchar(64);comment:'源码哈希'"`
-	Message      string `gorm:"column:message;type:varchar(255);comment:'版本说明'"`
-	AuthorUserID int64  `gorm:"column:author_user_id;type:bigint unsigned;not null;default:0;comment:'作者用户ID'"`
-	CTime        int64  `gorm:"column:ctime;type:bigint;comment:'创建时间(毫秒)'"`
+	ID           int64   `gorm:"primaryKey;column:id;type:bigint;autoIncrement;comment:'代码版本自增ID'"`
+	NodeID       int64   `gorm:"column:node_id;type:bigint;not null;index;uniqueIndex:uniq_codebook_version_no,priority:1;comment:'代码节点ID'"`
+	TenantID     int64   `gorm:"column:tenant_id;type:bigint unsigned;not null;default:0;index;uniqueIndex:uniq_codebook_version_source,priority:1;comment:'租户ID'" eiam:"shared:scope = 'SYSTEM'"`
+	Scope        string  `gorm:"column:scope;type:varchar(32);not null;default:'TENANT';index;comment:'作用域 SYSTEM/TENANT'"`
+	VersionNo    int64   `gorm:"column:version_no;type:bigint;not null;default:1;uniqueIndex:uniq_codebook_version_no,priority:2;comment:'版本号'"`
+	Code         string  `gorm:"column:code;type:text;comment:'脚本源码内容'"`
+	Hash         string  `gorm:"column:hash;type:varchar(64);comment:'源码哈希'"`
+	Message      string  `gorm:"column:message;type:varchar(255);comment:'版本说明'"`
+	SourceKey    *string `gorm:"column:source_key;type:varchar(128);uniqueIndex:uniq_codebook_version_source,priority:2;comment:'版本幂等来源'"`
+	AuthorUserID int64   `gorm:"column:author_user_id;type:bigint unsigned;not null;default:0;comment:'作者用户ID'"`
+	CTime        int64   `gorm:"column:ctime;type:bigint;comment:'创建时间(毫秒)'"`
+}
+
+// CodebookVersionCreate 是版本写入参数，避免将并发条件混入持久化实体。
+type CodebookVersionCreate struct {
+	Version                  CodebookVersion
+	ExpectedCurrentVersionID int64
+	SourceKey                *string
 }
 
 func (CodebookVersion) TableName() string {
@@ -145,7 +153,7 @@ type CodebookDAO interface {
 	// Update 更新代码节点可变字段。
 	Update(ctx context.Context, c Codebook, code string) (int64, error)
 	// CreateVersion 创建代码版本。
-	CreateVersion(ctx context.Context, version CodebookVersion) (int64, error)
+	CreateVersion(ctx context.Context, request CodebookVersionCreate) (int64, error)
 	// UseVersion 设置代码节点当前使用版本。
 	UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error)
 	// UpdateSort 更新单个代码节点的父级、路径和排序号。
@@ -546,7 +554,8 @@ func (g *GORMCodebookDAO) updateVersionCode(tx *gorm.DB, versionID, nodeID int64
 }
 
 // CreateVersion 创建代码版本。
-func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, version CodebookVersion) (int64, error) {
+func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, request CodebookVersionCreate) (int64, error) {
+	version := request.Version
 	now := time.Now().UnixMilli()
 	err := g.dbWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var node Codebook
@@ -554,6 +563,22 @@ func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, version CodebookVer
 			Where("id = ? AND kind = ?", version.NodeID, domain.CodebookKindFile.String()).
 			First(&node).Error; err != nil {
 			return err
+		}
+		if request.SourceKey != nil {
+			var existing CodebookVersion
+			err := tx.Where("node_id = ? AND source_key = ?", version.NodeID, *request.SourceKey).
+				First(&existing).Error
+			if err == nil {
+				version.ID = existing.ID
+				return nil
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+		if request.ExpectedCurrentVersionID > 0 &&
+			node.CurrentVersionID != request.ExpectedCurrentVersionID {
+			return errs.ErrCodebookVersionConflict
 		}
 
 		var maxVersionNo int64
@@ -565,6 +590,7 @@ func (g *GORMCodebookDAO) CreateVersion(ctx context.Context, version CodebookVer
 		}
 
 		version.Scope = node.Scope
+		version.SourceKey = request.SourceKey
 		version.VersionNo = maxVersionNo + 1
 		if version.AuthorUserID == 0 {
 			version.AuthorUserID = codebookAuthorUserID(ctx)

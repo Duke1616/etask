@@ -26,6 +26,7 @@ func InitSchedulerApplication(base *Base) *SchedulerApplication {
 	wire.Build(
 		TaskSet,
 		CodebookSet,
+		CodeAssistSet,
 		ArtifactSet,
 		RunnerSet,
 		VariableSet,

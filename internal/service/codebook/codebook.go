@@ -33,7 +33,7 @@ type Service interface {
 	// Update 校验并更新脚本模板。
 	Update(ctx context.Context, req domain.Codebook) (int64, error)
 	// CreateVersion 校验并创建脚本版本。
-	CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error)
+	CreateVersion(ctx context.Context, req domain.CodebookVersionCreate) (int64, error)
 	// UseVersion 设置脚本模板当前使用版本。
 	UseVersion(ctx context.Context, nodeID, versionID int64) (int64, error)
 	// Sort 拖拽排序代码资源节点，支持跨目录移动。
@@ -186,7 +186,7 @@ func (s *service) Update(ctx context.Context, req domain.Codebook) (int64, error
 }
 
 // CreateVersion 校验并创建脚本版本。
-func (s *service) CreateVersion(ctx context.Context, req domain.CodebookVersion) (int64, error) {
+func (s *service) CreateVersion(ctx context.Context, req domain.CodebookVersionCreate) (int64, error) {
 	if req.NodeID <= 0 {
 		return 0, fmt.Errorf("%w: 代码资源 ID 非法: %d", errs.ErrInvalidParameter, req.NodeID)
 	}
