@@ -8,18 +8,42 @@ import (
 	"time"
 
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"google.golang.org/grpc"
 )
 
+// ClientPoolOption 客户端连接池选项
+type ClientPoolOption func(*clientPoolOptions)
+
+type clientPoolOptions struct {
+	tokenProvider jwtinterceptor.TokenProvider
+}
+
+// WithPoolTokenProvider 注入令牌签发提供策略 (如集群 RSA 私钥)
+func WithPoolTokenProvider(provider jwtinterceptor.TokenProvider) ClientPoolOption {
+	return func(o *clientPoolOptions) {
+		o.tokenProvider = provider
+	}
+}
+
+// WithPoolSigner 注入动态签名器兼容语法糖
+func WithPoolSigner(signer jwtinterceptor.SignerFunc) ClientPoolOption {
+	return func(o *clientPoolOptions) {
+		builder := jwtinterceptor.NewClientInterceptorBuilder("", jwtinterceptor.WithClientSigner(signer))
+		_ = builder
+	}
+}
+
 type Clients[T any] struct {
-	clients   map[string]clientEntry[T]
-	registry  registry.Registry
-	timeout   time.Duration
-	authToken string
-	creator   func(conn *grpc.ClientConn) T
-	mu        sync.Mutex
-	closed    bool
+	clients       map[string]clientEntry[T]
+	registry      registry.Registry
+	timeout       time.Duration
+	authToken     string
+	tokenProvider jwtinterceptor.TokenProvider
+	creator       func(conn *grpc.ClientConn) T
+	mu            sync.Mutex
+	closed        bool
 }
 
 type clientEntry[T any] struct {
@@ -32,13 +56,20 @@ func NewClients[T any](
 	timeout time.Duration,
 	authToken string,
 	creator func(conn *grpc.ClientConn) T,
+	opts ...ClientPoolOption,
 ) *Clients[T] {
+	var options clientPoolOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	return &Clients[T]{
-		registry:  registry,
-		timeout:   timeout,
-		authToken: authToken,
-		creator:   creator,
-		clients:   make(map[string]clientEntry[T]),
+		registry:      registry,
+		timeout:       timeout,
+		authToken:     authToken,
+		tokenProvider: options.tokenProvider,
+		creator:       creator,
+		clients:       make(map[string]clientEntry[T]),
 	}
 }
 
@@ -73,7 +104,9 @@ func (c *Clients[T]) Get(serviceName string) T {
 		grpcpkg.WithServiceName(serviceName),
 		grpcpkg.WithTimeout(c.timeout),
 	}
-	if c.authToken != "" {
+	if c.tokenProvider != nil {
+		opts = append(opts, grpcpkg.WithTokenProvider(c.tokenProvider))
+	} else if c.authToken != "" {
 		opts = append(opts, grpcpkg.WithClientJWTAuth(c.authToken))
 	}
 

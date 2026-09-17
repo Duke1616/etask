@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/sdk/executor"
 	"github.com/Duke1616/etask/sdk/executor/artifact"
@@ -19,7 +20,8 @@ type Executor struct {
 type Option func(*options)
 
 type options struct {
-	artifacts artifact.Preparer
+	artifacts      artifact.Preparer
+	pubKeyProvider jwtinterceptor.PublicKeyProvider
 }
 
 // New 创建、注册并初始化可直接交给 EGO 启动的节点。
@@ -44,6 +46,11 @@ func WithArtifactPreparer(preparer artifact.Preparer) Option {
 	return func(options *options) { options.artifacts = preparer }
 }
 
+// WithPublicKeyProvider 注入可选的 RSA 公钥验证提供器。
+func WithPublicKeyProvider(provider jwtinterceptor.PublicKeyProvider) Option {
+	return func(options *options) { options.pubKeyProvider = provider }
+}
+
 // NewExecutor 创建未初始化的节点，供高级装配和测试使用。
 func NewExecutor(config Config, reg registry.Registry, opts ...Option) (*Executor, error) {
 	applied := options{}
@@ -52,9 +59,12 @@ func NewExecutor(config Config, reg registry.Registry, opts ...Option) (*Executo
 			option(&applied)
 		}
 	}
-	runtimeOptions := make([]runtime.Option, 0, 1)
+	runtimeOptions := make([]runtime.Option, 0, 2)
 	if applied.artifacts != nil {
 		runtimeOptions = append(runtimeOptions, runtime.WithArtifactPreparer(applied.artifacts))
+	}
+	if applied.pubKeyProvider != nil {
+		runtimeOptions = append(runtimeOptions, runtime.WithPublicKeyProvider(applied.pubKeyProvider))
 	}
 	inner, err := runtime.NewExecutor(config.runtimeConfig(), reg, runtimeOptions...)
 	if err != nil {

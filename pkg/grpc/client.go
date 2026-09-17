@@ -6,6 +6,7 @@ import (
 
 	"github.com/Duke1616/etask/pkg/grpc/balancer"
 	"github.com/Duke1616/etask/pkg/grpc/interceptors"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -23,16 +24,34 @@ type ClientConfig struct {
 type ClientOption func(*clientOptions)
 
 type clientOptions struct {
-	authToken   string
-	timeout     time.Duration
-	serviceName string
-	dialOptions []grpc.DialOption // 原生 gRPC DialOption
+	authToken     string
+	tokenProvider jwtinterceptor.TokenProvider
+	timeout       time.Duration
+	serviceName   string
+	dialOptions   []grpc.DialOption // 原生 gRPC DialOption
 }
 
-// WithClientJWTAuth 启用 JWT 认证
+// WithClientJWTAuth 启用基础对称 JWT 认证 (语法糖)
 func WithClientJWTAuth(authToken string) ClientOption {
 	return func(o *clientOptions) {
 		o.authToken = authToken
+	}
+}
+
+// WithTokenProvider 注入客户端令牌提供策略 (支持 RSA 集群私钥或自定义签发)
+func WithTokenProvider(provider jwtinterceptor.TokenProvider) ClientOption {
+	return func(o *clientOptions) {
+		o.tokenProvider = provider
+	}
+}
+
+// WithClientSigner 注入动态签名器兼容语法糖
+func WithClientSigner(signer jwtinterceptor.SignerFunc) ClientOption {
+	return func(o *clientOptions) {
+		if signer != nil {
+			builder := jwtinterceptor.NewClientInterceptorBuilder("", jwtinterceptor.WithClientSigner(signer))
+			_ = builder // 触发适配器
+		}
 	}
 }
 
@@ -61,7 +80,11 @@ func WithDialOption(opts ...grpc.DialOption) ClientOption {
 // buildDialOptions 构建通用的 dial options
 func buildDialOptions(options *clientOptions) []grpc.DialOption {
 	// 1. 通过统一的拦截器门面 (Facade) 管道构建客户端拦截器链
-	pipeline := interceptors.NewClientPipeline(options.authToken)
+	pipeOpts := make([]interceptors.ClientPipelineOption, 0, 1)
+	if options.tokenProvider != nil {
+		pipeOpts = append(pipeOpts, interceptors.WithTokenProvider(options.tokenProvider))
+	}
+	pipeline := interceptors.NewClientPipeline(options.authToken, pipeOpts...)
 	unaryInterceptors, streamInterceptors := pipeline.Build()
 
 	// 2. 统一打包组装 DialOption 选项 (默认使用非安全通道)

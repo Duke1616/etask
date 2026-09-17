@@ -12,10 +12,10 @@ import (
 
 func TestLocalStore_Lifecycle(t *testing.T) {
 	testCases := []struct {
-		name     string
-		key      string
-		content  string
-		opts     func(content string) PutOptions
+		name    string
+		key     string
+		content string
+		opts    func(content string) PutOptions
 	}{
 		{
 			name:    "写入读取并删除合法对象",
@@ -117,18 +117,18 @@ func TestLocalStore_Validation(t *testing.T) {
 			errTarget: ErrInvalidKey,
 		},
 		{
-			name:      "拒绝大小不一致",
-			key:       "valid/file",
-			content:   "x",
-			options:   PutOptions{Size: 2},
-			errMsg:    "Blob 大小不一致",
+			name:    "拒绝大小不一致",
+			key:     "valid/file",
+			content: "x",
+			options: PutOptions{Size: 2},
+			errMsg:  "Blob 大小不一致",
 		},
 		{
-			name:      "拒绝校验和不一致",
-			key:       "valid/file",
-			content:   "x",
-			options:   PutOptions{Size: 1, Checksum: strings.Repeat("0", 64)},
-			errMsg:    "Blob 校验和不一致",
+			name:    "拒绝校验和不一致",
+			key:     "valid/file",
+			content: "x",
+			options: PutOptions{Size: 1, Checksum: strings.Repeat("0", 64)},
+			errMsg:  "Blob 校验和不一致",
 		},
 	}
 

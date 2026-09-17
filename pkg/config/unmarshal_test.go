@@ -71,6 +71,6 @@ test:
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(5368709120), cfg.MaxDownloadSize) // 5GB
-	assert.Equal(t, int(52428800), cfg.MaxFileCount)       // 50MB
+	assert.Equal(t, int(52428800), cfg.MaxFileCount)        // 50MB
 	assert.Equal(t, 2*time.Hour, cfg.Timeout)
 }

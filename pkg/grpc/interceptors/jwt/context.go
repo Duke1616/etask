@@ -46,3 +46,18 @@ func parseID(val interface{}) int64 {
 		return 0
 	}
 }
+
+type audienceCtxKey struct{}
+
+// WithAudience 将期望的目标受众注入 Context
+func WithAudience(ctx context.Context, aud string) context.Context {
+	return context.WithValue(ctx, audienceCtxKey{}, aud)
+}
+
+// GetAudience 从 Context 提取目标受众
+func GetAudience(ctx context.Context) string {
+	if val, ok := ctx.Value(audienceCtxKey{}).(string); ok {
+		return val
+	}
+	return ""
+}

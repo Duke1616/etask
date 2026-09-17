@@ -12,6 +12,7 @@ import (
 	"github.com/Duke1616/etask/internal/domain"
 	programmapper "github.com/Duke1616/etask/internal/execution/program"
 	"github.com/Duke1616/etask/pkg/grpc/balancer"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/pool"
 	"github.com/gotomicro/ego/core/elog"
 	"google.golang.org/grpc/codes"
@@ -55,6 +56,7 @@ func (r *GRPCInvoker) Run(ctx context.Context, exec domain.TaskExecution) (domai
 	// 设置调用超时(30秒), 防止无 executor 节点时无限等待
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	callCtx = jwtinterceptor.WithAudience(callCtx, exec.Task.GrpcConfig.ServiceName)
 
 	resp, err := client.Execute(callCtx, &executorv1.ExecuteRequest{
 		Eid:             exec.ID,

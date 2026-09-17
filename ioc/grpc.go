@@ -18,6 +18,7 @@ import (
 	"github.com/Duke1616/etask/internal/grpc/scripts"
 	"github.com/Duke1616/etask/pkg/config"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/pool"
 	registrysdk "github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/sdk/executor/artifact"
@@ -82,9 +83,11 @@ func InitExecutor(reg registrysdk.Registry,
 		Client:         clientCfg,
 	}
 
-	exec, err := node.NewExecutor(cfg, reg,
+	nodeOpts := []node.Option{
 		node.WithArtifactPreparer(artifactPreparer),
-	)
+	}
+
+	exec, err := node.NewExecutor(cfg, reg, nodeOpts...)
 	if err != nil {
 		panic(err)
 	}
@@ -105,13 +108,21 @@ func InitExecutor(reg registrysdk.Registry,
 func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcapi.ReporterServer,
 	task *grpcapi.TaskServer, agent *grpcapi.AgentServer, codebook *grpcapi.CodebookServer,
 	runner *grpcapi.RunnerServer, artifact *grpcapi.ArtifactServer,
-	scheduler *grpcapi.SchedulerServer) *grpcpkg.Server {
+	scheduler *grpcapi.SchedulerServer, km jwtinterceptor.IClusterKeyManager) *grpcpkg.Server {
 	var cfg grpcpkg.ServerConfig
 	if err := config.UnmarshalKey("grpc.server.scheduler", &cfg); err != nil {
 		panic(err)
 	}
 
-	server := grpcpkg.NewServer(cfg, registry, grpcpkg.WithJWTAuth(cfg.AuthToken))
+	serverOpts := []grpcpkg.ServerOption{grpcpkg.WithJWTAuth(cfg.AuthToken)}
+	if km != nil {
+		// 在向注册中心注册服务实例时，将集群 RSA 公钥广播到元数据中，使下游 Executor 免直连 Redis
+		serverOpts = append(serverOpts, grpcpkg.WithMetadata(map[string]any{
+			"public_key": km.ExportPublicKeyPEM(),
+		}))
+	}
+
+	server := grpcpkg.NewServer(cfg, registry, serverOpts...)
 	reporterv1.RegisterReporterServiceServer(server.Server, reporter)
 	taskv1.RegisterTaskServiceServer(server.Server, task)
 	executorv1.RegisterAgentServiceServer(server.Server, agent)
@@ -124,11 +135,16 @@ func InitSchedulerNodeGRPCServer(registry registrysdk.Registry, reporter *grpcap
 	return server
 }
 
-func InitExecutorServiceGRPCClients(reg registrysdk.Registry) *pool.Clients[executorv1.ExecutorServiceClient] {
+func InitExecutorServiceGRPCClients(reg registrysdk.Registry, km jwtinterceptor.IClusterKeyManager) *pool.Clients[executorv1.ExecutorServiceClient] {
 	const defaultTimeout = time.Second
 	var cfg grpcpkg.ClientConfig
-	if err := config.UnmarshalKey("grpc.client.executor", &cfg); err != nil {
-		panic(err)
+	// 可选兼容读取：即使配置文件已删除该项，也安全保持零值并自动进入 RSA 动态签名
+	_ = config.UnmarshalKey("grpc.client.executor", &cfg)
+
+	poolOpts := make([]pool.ClientPoolOption, 0, 1)
+	// 若未显式配置静态 authToken 且密钥管理器就绪，则自动挂载基于集群 RSA 的动态签名策略
+	if cfg.AuthToken == "" && km != nil {
+		poolOpts = append(poolOpts, pool.WithPoolTokenProvider(jwtinterceptor.NewRSATokenProvider(km)))
 	}
 
 	return pool.NewClients(
@@ -137,7 +153,9 @@ func InitExecutorServiceGRPCClients(reg registrysdk.Registry) *pool.Clients[exec
 		cfg.AuthToken,
 		func(conn *grpc.ClientConn) executorv1.ExecutorServiceClient {
 			return executorv1.NewExecutorServiceClient(conn)
-		})
+		},
+		poolOpts...,
+	)
 }
 
 // resolveServer 确定最终的 NodeID

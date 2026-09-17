@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Duke1616/etask/pkg/grpc/interceptors"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/pkg/netx"
 	"github.com/gotomicro/ego/core/constant"
@@ -60,6 +61,7 @@ type Server struct {
 	started        atomic.Bool
 	logger         *elog.Component
 	metadata       map[string]any // 附加元数据
+	authenticator  jwtinterceptor.Authenticator
 }
 
 // ServerOption Server 配置选项
@@ -70,6 +72,13 @@ type ServerOption func(*Server)
 func WithJWTAuth(authToken string) ServerOption {
 	return func(s *Server) {
 		s.config.AuthToken = authToken
+	}
+}
+
+// WithAuthenticator 注入服务端统一身份认证门面
+func WithAuthenticator(auth jwtinterceptor.Authenticator) ServerOption {
+	return func(s *Server) {
+		s.authenticator = auth
 	}
 }
 
@@ -111,7 +120,11 @@ func NewServer(cfg ServerConfig, reg registry.Registry, opts ...ServerOption) *S
 
 // buildInterceptors 管道化组装服务端拦截器链，通过统一的门面 (Facade) 管道进行有序构建
 func (s *Server) buildInterceptors() ([]grpc.UnaryServerInterceptor, []grpc.StreamServerInterceptor) {
-	pipeline := interceptors.NewServerPipeline(s.config.AuthToken)
+	pipeOpts := make([]interceptors.ServerPipelineOption, 0, 1)
+	if s.authenticator != nil {
+		pipeOpts = append(pipeOpts, interceptors.WithAuthenticator(s.authenticator))
+	}
+	pipeline := interceptors.NewServerPipeline(s.config.AuthToken, pipeOpts...)
 	return pipeline.Build()
 }
 

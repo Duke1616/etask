@@ -325,7 +325,7 @@ func TestService_TerminateExecution(t *testing.T) {
 			},
 		},
 		{
-			name: "参数非法被拒绝",
+			name:    "参数非法被拒绝",
 			command: TerminateExecutionCommand{ExecutionID: 0},
 			setupMock: func(ctrl *gomock.Controller) terminationSvc.Service {
 				mock := terminationmocks.NewMockService(ctrl)
@@ -335,7 +335,7 @@ func TestService_TerminateExecution(t *testing.T) {
 			wantErrIs: ErrInvalidCommand,
 		},
 		{
-			name: "终止被拒绝",
+			name:    "终止被拒绝",
 			command: TerminateExecutionCommand{ExecutionID: 100},
 			setupMock: func(ctrl *gomock.Controller) terminationSvc.Service {
 				mock := terminationmocks.NewMockService(ctrl)

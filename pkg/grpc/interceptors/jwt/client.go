@@ -3,75 +3,116 @@ package jwt
 import (
 	"context"
 
-	"github.com/Duke1616/eiam/pkg/ctxutil"
-	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-// ClientInterceptorBuilder 客户端拦截器构建器
-type ClientInterceptorBuilder struct {
-	jwtKey string
+// ClientInterceptor 客户端 JWT 认证拦截器
+type ClientInterceptor struct {
+	provider TokenProvider
 }
 
-// NewClientInterceptorBuilder 创建客户端拦截器构建器
-func NewClientInterceptorBuilder(jwtKey string) *ClientInterceptorBuilder {
-	return &ClientInterceptorBuilder{
-		jwtKey: jwtKey,
+// NewClientInterceptor 基于指定令牌签发策略创建客户端拦截器
+func NewClientInterceptor(provider TokenProvider) *ClientInterceptor {
+	return &ClientInterceptor{
+		provider: provider,
 	}
 }
 
 // UnaryClientInterceptor 创建一元客户端拦截器
-func (b *ClientInterceptorBuilder) UnaryClientInterceptor() grpc.UnaryClientInterceptor {
+func (c *ClientInterceptor) UnaryClientInterceptor() grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		return invoker(b.withJWTContext(ctx), method, req, reply, cc, opts...)
+		return invoker(c.withJWTContext(ctx), method, req, reply, cc, opts...)
 	}
 }
 
-// StreamClientInterceptor 为流式请求注入与一元请求相同的 JWT metadata。
-func (b *ClientInterceptorBuilder) StreamClientInterceptor() grpc.StreamClientInterceptor {
+// StreamClientInterceptor 创建流式客户端拦截器
+func (c *ClientInterceptor) StreamClientInterceptor() grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn,
 		method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-		return streamer(b.withJWTContext(ctx), desc, cc, method, opts...)
+		return streamer(c.withJWTContext(ctx), desc, cc, method, opts...)
 	}
 }
 
-func (b *ClientInterceptorBuilder) withJWTContext(ctx context.Context) context.Context {
-	if b.hasJWTInContext(ctx) {
+func (c *ClientInterceptor) withJWTContext(ctx context.Context) context.Context {
+	if c.hasJWTInContext(ctx) {
 		return ctx
 	}
-	return b.injectJWTContext(ctx)
+	return c.injectJWTContext(ctx)
 }
 
-// hasJWTInContext 检查 context 中是否已经有 JWT 信息
-func (b *ClientInterceptorBuilder) hasJWTInContext(ctx context.Context) bool {
+func (c *ClientInterceptor) hasJWTInContext(ctx context.Context) bool {
 	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		return false
 	}
-
 	authHeaders := md.Get(AuthorizationKey)
 	return len(authHeaders) > 0
 }
 
-// injectJWTContext 注入 jwt context
-func (b *ClientInterceptorBuilder) injectJWTContext(ctx context.Context) context.Context {
-	jwtAuth := NewJwtAuth(b.jwtKey)
-
-	// 自动将当前上下文的租户 ID 和用户 ID 注入到服务间自签发的 JWT Claims 中，实现透明透传
-	claims := jwt.MapClaims{}
-	if tid := ctxutil.GetTenantID(ctx); tid > 0 {
-		claims["tenant_id"] = tid
-	}
-	if uid := ctxutil.GetUserID(ctx); uid > 0 {
-		claims["user_id"] = uid
-	}
-
-	tokenString, err := jwtAuth.Encode(claims)
-	if err != nil {
+func (c *ClientInterceptor) injectJWTContext(ctx context.Context) context.Context {
+	if c.provider == nil {
 		return ctx
 	}
-
-	// 追加， 不可以是覆盖
+	tokenString, err := c.provider.ProvideToken(ctx)
+	if err != nil || tokenString == "" {
+		return ctx
+	}
 	return metadata.AppendToOutgoingContext(ctx, AuthorizationKey, BearerPrefix+tokenString)
+}
+
+// --- 向后兼容实现 ---
+
+// SignerFunc 动态签发函数兼容别名
+type SignerFunc func(ctx context.Context, claims map[string]interface{}) (string, error)
+
+type customSignerTokenProvider struct {
+	signer SignerFunc
+	opts   providerOptions
+}
+
+func (p *customSignerTokenProvider) ProvideToken(ctx context.Context) (string, error) {
+	claims := buildBaseClaims(ctx, p.opts)
+	return p.signer(ctx, claims)
+}
+
+// ClientOption 客户端拦截器兼容选项
+type ClientOption func(*clientInterceptorOptions)
+
+type clientInterceptorOptions struct {
+	signer SignerFunc
+}
+
+// WithClientSigner 兼容老版本的动态签名器选项
+func WithClientSigner(signer SignerFunc) ClientOption {
+	return func(o *clientInterceptorOptions) {
+		o.signer = signer
+	}
+}
+
+// ClientInterceptorBuilder 保持对原有类名的兼容
+type ClientInterceptorBuilder struct {
+	*ClientInterceptor
+}
+
+// NewClientInterceptorBuilder 保持老构造函数的签名兼容
+func NewClientInterceptorBuilder(jwtKey string, opts ...ClientOption) *ClientInterceptorBuilder {
+	var options clientInterceptorOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	var provider TokenProvider
+	if options.signer != nil {
+		provider = &customSignerTokenProvider{
+			signer: options.signer,
+			opts:   defaultProviderOptions(),
+		}
+	} else if jwtKey != "" {
+		provider = NewHMACTokenProvider(jwtKey)
+	}
+
+	return &ClientInterceptorBuilder{
+		ClientInterceptor: NewClientInterceptor(provider),
+	}
 }

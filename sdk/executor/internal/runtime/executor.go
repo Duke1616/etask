@@ -10,6 +10,7 @@ import (
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
 	"github.com/Duke1616/etask/sdk/executor/artifact"
 	enginepkg "github.com/Duke1616/etask/sdk/executor/internal/engine"
@@ -35,6 +36,7 @@ type Executor struct {
 	executionClient executorv1.TaskExecutionServiceClient
 	artifactClient  artifactv1.ArtifactServiceClient
 	artifacts       artifact.Preparer
+	pubKeyProvider  jwtinterceptor.PublicKeyProvider
 	engine          *enginepkg.Engine
 	logger          *elog.Component
 
@@ -56,6 +58,13 @@ type Option func(*Executor)
 func WithArtifactPreparer(preparer artifact.Preparer) Option {
 	return func(executor *Executor) {
 		executor.artifacts = preparer
+	}
+}
+
+// WithPublicKeyProvider 注入可选的 RSA 公钥验证提供器。
+func WithPublicKeyProvider(provider jwtinterceptor.PublicKeyProvider) Option {
+	return func(executor *Executor) {
+		executor.pubKeyProvider = provider
 	}
 }
 

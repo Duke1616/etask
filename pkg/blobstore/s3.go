@@ -65,7 +65,7 @@ func NewS3(cfg S3Config) (*S3, error) {
 		MaxIdleConns:          100,
 		MaxIdleConnsPerHost:   50,
 		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:  10 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 

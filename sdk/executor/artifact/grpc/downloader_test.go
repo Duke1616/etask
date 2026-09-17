@@ -64,11 +64,11 @@ func TestDownloader_UninitializedClient(t *testing.T) {
 
 func TestDownloader_DownloadArtifact(t *testing.T) {
 	testCases := []struct {
-		name      string
-		stream    *mockChunkStream
-		callErr   error
-		wantData  string
-		wantErr   string
+		name     string
+		stream   *mockChunkStream
+		callErr  error
+		wantData string
+		wantErr  string
 	}{
 		{
 			name: "成功分块流式写入并终止于 EOF",

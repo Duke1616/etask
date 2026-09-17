@@ -63,6 +63,7 @@ var (
 	SecuritySet = wire.NewSet(
 		InitCrypto,
 		InitVariableProtector,
+		InitClusterKeyManager,
 	)
 
 	TaskSet = wire.NewSet(

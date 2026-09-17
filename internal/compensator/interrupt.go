@@ -11,6 +11,7 @@ import (
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/pkg/grpc/balancer"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/pool"
 	"github.com/gotomicro/ego/core/elog"
 )
@@ -131,6 +132,7 @@ func (t *InterruptCompensator) interruptTaskExecution(ctx context.Context, execu
 	}
 	client := t.grpcClients.Get(execution.Task.GrpcConfig.ServiceName)
 	ctx = balancer.WithSpecificNodeID(ctx, execution.ExecutorNodeID)
+	ctx = jwtinterceptor.WithAudience(ctx, execution.Task.GrpcConfig.ServiceName)
 	resp, err := client.Interrupt(ctx, &executorv1.InterruptRequest{
 		Eid: execution.ID,
 	})

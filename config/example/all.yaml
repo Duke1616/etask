@@ -155,7 +155,7 @@ grpc:
       listen_addr: "0.0.0.0:9004"
       # 广播地址，留空则自动检测
       advertise_addr: ""
-      # 身份认证 Token，留空则不启用
+      # 身份认证 Token。留空且启用 Redis 时自动开启集群 RSA 动态自愈认证；显式填写则使用对称 HMAC 验证
       auth_token: ""
   client:
     # 调度中心投递任务执行通知时使用。
@@ -166,9 +166,7 @@ grpc:
     scheduler:
       name: "scheduler"
       auth_token: ""
-    # 调度中心访问 Executor 时使用，需与 server.executor.auth_token 一致
-    executor:
-      auth_token: ""
+
 
 scheduler:
   # 批量获取任务的超时时间

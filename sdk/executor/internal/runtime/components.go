@@ -12,6 +12,7 @@ import (
 	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	reporterv1 "github.com/Duke1616/etask/api/proto/gen/etask/reporter/v1"
 	grpcpkg "github.com/Duke1616/etask/pkg/grpc"
+	jwtinterceptor "github.com/Duke1616/etask/pkg/grpc/interceptors/jwt"
 	"github.com/Duke1616/etask/pkg/grpc/interceptors/tenant"
 	artifactgrpc "github.com/Duke1616/etask/sdk/executor/artifact/grpc"
 	enginepkg "github.com/Duke1616/etask/sdk/executor/internal/engine"
@@ -90,11 +91,28 @@ func (e *Executor) initEngine() {
 }
 
 func (e *Executor) initServer() {
+	pubProvider := e.pubKeyProvider
+	// 若未显式注入公钥提供者，且注册中心就绪，则自动通过注册中心获取调度中心广播的 RSA 公钥 (免直连 Redis)
+	if pubProvider == nil && e.registry != nil {
+		targetService := e.config.Client.Name
+		if targetService == "" {
+			targetService = "scheduler"
+		}
+		pubProvider = jwtinterceptor.NewRegistryPublicKeyProvider(e.registry, targetService, 5*time.Minute)
+	}
+
+	// 构建身份认证器（若未配置公钥且未配置静态 Token，底层自动安全降级为明文租户透传）
+	auth := jwtinterceptor.NewJwtAuth(
+		e.config.Server.AuthToken,
+		jwtinterceptor.WithPublicKeyProvider(pubProvider),
+		jwtinterceptor.WithExpectedAudience(e.config.Server.ServiceName),
+	)
+
 	// 初始化 gRPC 服务并注册执行服务
 	e.server = grpcpkg.NewServer(
 		e.config.Server,
 		e.registry,
-		grpcpkg.WithJWTAuth(e.config.Server.AuthToken),
+		grpcpkg.WithAuthenticator(auth),
 		grpcpkg.WithMetadata(e.buildMetadata()),
 	)
 	executorv1.RegisterExecutorServiceServer(e.server.Server, e)
