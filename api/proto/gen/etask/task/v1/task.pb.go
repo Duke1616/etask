@@ -747,6 +747,7 @@ type Task struct {
 	Program                *ProgramSpec                 `protobuf:"bytes,18,opt,name=program,proto3" json:"program,omitempty"`                                                                                                               // 用户声明的程序来源
 	RunnerId               int64                        `protobuf:"varint,19,opt,name=runner_id,json=runnerId,proto3" json:"runner_id,omitempty"`                                                                                            // 可选的执行单元引用
 	ExecutionNotifications []*ExecutionNotificationRule `protobuf:"bytes,20,rep,name=execution_notifications,json=executionNotifications,proto3" json:"execution_notifications,omitempty"`                                                   // 执行终态消息通知规则
+	SkipHoliday            bool                         `protobuf:"varint,21,opt,name=skip_holiday,json=skipHoliday,proto3" json:"skip_holiday,omitempty"`                                                                                   // 是否跳过法定节假日放假
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -921,6 +922,13 @@ func (x *Task) GetExecutionNotifications() []*ExecutionNotificationRule {
 	return nil
 }
 
+func (x *Task) GetSkipHoliday() bool {
+	if x != nil {
+		return x.SkipHoliday
+	}
+	return false
+}
+
 // CreateTaskRequest 创建任务请求
 type CreateTaskRequest struct {
 	state                  protoimpl.MessageState       `protogen:"open.v1"`
@@ -937,6 +945,7 @@ type CreateTaskRequest struct {
 	Program                *ProgramSpec                 `protobuf:"bytes,11,opt,name=program,proto3" json:"program,omitempty"`                                                                                                              // 用户声明的程序来源
 	RunnerId               int64                        `protobuf:"varint,12,opt,name=runner_id,json=runnerId,proto3" json:"runner_id,omitempty"`                                                                                           // 可选的执行单元引用
 	ExecutionNotifications []*ExecutionNotificationRule `protobuf:"bytes,13,rep,name=execution_notifications,json=executionNotifications,proto3" json:"execution_notifications,omitempty"`                                                  // 执行终态消息通知规则
+	SkipHoliday            bool                         `protobuf:"varint,14,opt,name=skip_holiday,json=skipHoliday,proto3" json:"skip_holiday,omitempty"`                                                                                  // 是否跳过法定节假日放假
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -1060,6 +1069,13 @@ func (x *CreateTaskRequest) GetExecutionNotifications() []*ExecutionNotification
 		return x.ExecutionNotifications
 	}
 	return nil
+}
+
+func (x *CreateTaskRequest) GetSkipHoliday() bool {
+	if x != nil {
+		return x.SkipHoliday
+	}
+	return false
 }
 
 type CreateTaskResponse struct {
@@ -1413,7 +1429,7 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"recipients\x12;\n" +
 	"\bchannels\x18\x03 \x03(\x0e2\x1f.ealert.notification.v1.ChannelR\bchannels\x12&\n" +
 	"\x0ftemplate_set_id\x18\x04 \x01(\x03R\rtemplateSetId\x12\x18\n" +
-	"\aenabled\x18\x05 \x01(\bR\aenabled\"\x9c\b\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\"\xbf\b\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
@@ -1437,13 +1453,14 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	"\bmetadata\x18\x11 \x03(\v2!.etask.task.v1.Task.MetadataEntryR\bmetadata\x124\n" +
 	"\aprogram\x18\x12 \x01(\v2\x1a.etask.task.v1.ProgramSpecR\aprogram\x12\x1b\n" +
 	"\trunner_id\x18\x13 \x01(\x03R\brunnerId\x12a\n" +
-	"\x17execution_notifications\x18\x14 \x03(\v2(.etask.task.v1.ExecutionNotificationRuleR\x16executionNotifications\x1aA\n" +
+	"\x17execution_notifications\x18\x14 \x03(\v2(.etask.task.v1.ExecutionNotificationRuleR\x16executionNotifications\x12!\n" +
+	"\fskip_holiday\x18\x15 \x01(\bR\vskipHoliday\x1aA\n" +
 	"\x13ScheduleParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf3\x06\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x96\a\n" +
 	"\x11CreateTaskRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.etask.task.v1.TaskTypeR\x04type\x12\x1b\n" +
@@ -1460,7 +1477,8 @@ const file_etask_task_v1_task_proto_rawDesc = "" +
 	" \x03(\v2..etask.task.v1.CreateTaskRequest.MetadataEntryR\bmetadata\x124\n" +
 	"\aprogram\x18\v \x01(\v2\x1a.etask.task.v1.ProgramSpecR\aprogram\x12\x1b\n" +
 	"\trunner_id\x18\f \x01(\x03R\brunnerId\x12a\n" +
-	"\x17execution_notifications\x18\r \x03(\v2(.etask.task.v1.ExecutionNotificationRuleR\x16executionNotifications\x1aA\n" +
+	"\x17execution_notifications\x18\r \x03(\v2(.etask.task.v1.ExecutionNotificationRuleR\x16executionNotifications\x12!\n" +
+	"\fskip_holiday\x18\x0e \x01(\bR\vskipHoliday\x1aA\n" +
 	"\x13ScheduleParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +

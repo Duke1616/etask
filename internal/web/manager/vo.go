@@ -10,6 +10,7 @@ type CreateTaskReq struct {
 	RunnerID               int64                          `json:"runner_id"`
 	Type                   string                         `json:"type"`      // 任务类型: RECURRING-定时任务, ONE_TIME-一次性任务
 	CronExpr               string                         `json:"cron_expr"` // cron 表达式（定时任务必填，一次性任务可选用于定时触发）
+	SkipHoliday            bool                           `json:"skip_holiday"` // 是否跳过法定节假日放假
 	GrpcConfig             *GrpcConfig                    `json:"grpc_config"`
 	HTTPConfig             *HTTPConfig                    `json:"http_config"`
 	RetryConfig            *RetryConfig                   `json:"retry_config"`
@@ -102,6 +103,7 @@ type UpdateTaskReq struct {
 	Name                   string                         `json:"name"`
 	Type                   string                         `json:"type"`      // 任务类型: RECURRING-定时任务, ONE_TIME-一次性任务
 	CronExpr               string                         `json:"cron_expr"` // cron 表达式（定时任务必填，一次性任务可选用于定时触发）
+	SkipHoliday            bool                           `json:"skip_holiday"` // 是否跳过法定节假日放假
 	GrpcConfig             *GrpcConfig                    `json:"grpc_config"`
 	HTTPConfig             *HTTPConfig                    `json:"http_config"`
 	RetryConfig            *RetryConfig                   `json:"retry_config"`
@@ -120,6 +122,7 @@ type TaskVO struct {
 	Name                   string                         `json:"name"`
 	Type                   string                         `json:"type"`
 	CronExpr               string                         `json:"cron_expr"`
+	SkipHoliday            bool                           `json:"skip_holiday"`
 	Status                 string                         `json:"status"`
 	NextTime               int64                          `json:"next_time"`
 	MaxExecutionSeconds    int64                          `json:"max_execution_seconds"`

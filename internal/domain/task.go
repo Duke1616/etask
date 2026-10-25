@@ -6,6 +6,7 @@ import (
 	"time"
 
 	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
+	"github.com/Duke1616/etask/internal/domain/calendar"
 	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/pkg/variable"
 	"github.com/Duke1616/etask/pkg/retry"
@@ -57,6 +58,7 @@ type Task struct {
 	RunnerID              int64    // 可选的执行单元引用；非零时由 Runner 提供程序和执行路由
 	Type                  TaskType // 任务类型: RECURRING-定时任务, ONE_TIME-一次性任务
 	CronExpr              string   // cron 表达式（定时任务必填，一次性任务可选用于定时触发）
+	SkipHoliday           bool     // 是否跳过法定节假日放假（开启后如遇国庆、春节长假自动顺延至上班首日）
 	GrpcConfig            *GrpcConfig
 	Program               *ProgramSpec
 	HTTPConfig            *HTTPConfig
@@ -296,6 +298,11 @@ func (t *Task) CalculateNextTime() (time.Time, error) {
 	s, err := p.Parse(t.CronExpr)
 	if err != nil {
 		return time.Time{}, err
+	}
+
+	// 开启跳过法定节假日时，自动顺延跳过放假日期（如国庆、春节长假）
+	if t.SkipHoliday {
+		s = calendar.NewSkipHolidaySchedule(s)
 	}
 
 	return s.Next(time.Now()), nil

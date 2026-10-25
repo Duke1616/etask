@@ -30,6 +30,7 @@ type Task struct {
 	RunnerID              sql.NullInt64                                      `gorm:"column:runner_id;type:bigint;index;comment:'引用的执行单元ID'"`
 	Type                  string                                             `gorm:"type:ENUM('RECURRING', 'ONE_TIME');not null;default:'RECURRING';comment:'任务类型: RECURRING-定时任务(循环执行), ONE_TIME-一次性任务(执行一次后停止)'"`
 	CronExpr              string                                             `gorm:"type:varchar(100);not null;comment:'cron表达式'"`
+	SkipHoliday           bool                                               `gorm:"type:tinyint(1);not null;default:0;comment:'是否跳过法定节假日放假'"`
 	GrpcConfig            sqlx.JSONColumn[domain.GrpcConfig]                 `gorm:"type:json;comment:'gRPC配置：{\"serviceName\": \"user-service\"}'"`
 	Program               sqlx.JSONColumn[domain.ProgramSpec]                `gorm:"type:json;comment:'用户声明的程序来源'"`
 	HTTPConfig            sqlx.JSONColumn[domain.HTTPConfig]                 `gorm:"type:json;comment:'HTTP配置：{\"endpoint\": \"https://host:port/api\"}'"`
@@ -509,6 +510,7 @@ func taskUpdateFields(task Task) map[string]any {
 		"runner_id":             task.RunnerID,
 		"type":                  task.Type,
 		"cron_expr":             task.CronExpr,
+		"skip_holiday":          task.SkipHoliday,
 		"grpc_config":           task.GrpcConfig,
 		"program":               task.Program,
 		"http_config":           task.HTTPConfig,

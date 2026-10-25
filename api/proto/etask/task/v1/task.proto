@@ -116,6 +116,7 @@ message Task {
   ProgramSpec program = 18; // 用户声明的程序来源
   int64 runner_id = 19; // 可选的执行单元引用
   repeated ExecutionNotificationRule execution_notifications = 20; // 执行终态消息通知规则
+  bool skip_holiday = 21; // 是否跳过法定节假日放假
 }
 
 // CreateTaskRequest 创建任务请求
@@ -133,6 +134,7 @@ message CreateTaskRequest {
   ProgramSpec program = 11; // 用户声明的程序来源
   int64 runner_id = 12; // 可选的执行单元引用
   repeated ExecutionNotificationRule execution_notifications = 13; // 执行终态消息通知规则
+  bool skip_holiday = 14; // 是否跳过法定节假日放假
 }
 
 message CreateTaskResponse {
