@@ -22,31 +22,32 @@ const (
 
 // Task 任务表DAO对象
 type Task struct {
-	ID                    int64                               `gorm:"type:bigint;primaryKey;autoIncrement;"`
-	TenantID              int64                               `gorm:"type:bigint unsigned;not null;default:0;index;uniqueIndex:uniq_idx_name_tenant,priority:1;comment:'租户ID'"`
-	BizID                 int64                               `gorm:"type:bigint unsigned;not null;default:0;comment:biz_id"`
-	BizKey                string                              `gorm:"type:varchar(255);not null;default:'';index:idx_biz;comment:'业务方唯一标识，如工单号'"`
-	Name                  string                              `gorm:"type:varchar(255);not null;uniqueIndex:uniq_idx_name_tenant,priority:2;comment:'任务名称'"`
-	RunnerID              sql.NullInt64                       `gorm:"column:runner_id;type:bigint;index;comment:'引用的执行单元ID'"`
-	Type                  string                              `gorm:"type:ENUM('RECURRING', 'ONE_TIME');not null;default:'RECURRING';comment:'任务类型: RECURRING-定时任务(循环执行), ONE_TIME-一次性任务(执行一次后停止)'"`
-	CronExpr              string                              `gorm:"type:varchar(100);not null;comment:'cron表达式'"`
-	GrpcConfig            sqlx.JSONColumn[domain.GrpcConfig]  `gorm:"type:json;comment:'gRPC配置：{\"serviceName\": \"user-service\"}'"`
-	Program               sqlx.JSONColumn[domain.ProgramSpec] `gorm:"type:json;comment:'用户声明的程序来源'"`
-	HTTPConfig            sqlx.JSONColumn[domain.HTTPConfig]  `gorm:"type:json;comment:'HTTP配置：{\"endpoint\": \"https://host:port/api\"}'"`
-	RetryConfig           sqlx.JSONColumn[domain.RetryConfig] `gorm:"type:json;comment:'重试配置'"`
-	ScheduleParams        sqlx.JSONColumn[map[string]string]  `gorm:"type:json;comment:'每次执行要用到的基础调度参数'"`
-	MaxExecutionSeconds   int64                               `gorm:"type:bigint;not null;default:86400;comment:'最大执行秒数，默认24小时'"`
-	ScheduleNodeID        sql.NullString                      `gorm:"type:varchar(255);index:idx_schedule_node_id_status,priority:1;comment:'当前抢占的调度节点ID'"`
-	NextTime              int64                               `gorm:"type:bigint;not null;index:idx_next_time_status_utime,priority:1;comment:'下次执行时间'"`
-	Status                string                              `gorm:"type:ENUM('ACTIVE', 'PREEMPTED', 'INACTIVE', 'COMPLETED');not null;default:'ACTIVE';index:idx_next_time_status_utime,priority:2;index:idx_schedule_node_id_status,priority:2;comment:'任务状态: ACTIVE-可调度, PREEMPTED-已抢占, INACTIVE-停止执行, COMPLETED-已完成。'"`
-	Version               int64                               `gorm:"type:bigint;not null;default:1;comment:'版本号，用于乐观锁'"`
-	Ctime                 int64                               `gorm:"comment:'创建时间'"`
-	Utime                 int64                               `gorm:"index:idx_next_time_status_utime,priority:3;comment:'更新时间'"`
-	ExecMode              string                              `gorm:"type:ENUM('PUSH', 'PULL');not null;default:'PUSH';comment:'本次调度采用的执行模式，由 scheduler 选节点时写入'"`
-	Metadata              sqlx.JSONColumn[map[string]string]  `gorm:"type:json;comment:'任务参数元数据'"`
-	PendingParamOverrides sqlx.JSONColumn[map[string]string]  `gorm:"-"`
-	ParamOverrideRules    []TaskParamOverrideRule             `gorm:"-"`
-	NotificationRules     []TaskExecutionNotificationRule     `gorm:"-"`
+	ID                    int64                                              `gorm:"type:bigint;primaryKey;autoIncrement;"`
+	TenantID              int64                                              `gorm:"type:bigint unsigned;not null;default:0;index;uniqueIndex:uniq_idx_name_tenant,priority:1;comment:'租户ID'"`
+	BizID                 int64                                              `gorm:"type:bigint unsigned;not null;default:0;comment:biz_id"`
+	BizKey                string                                             `gorm:"type:varchar(255);not null;default:'';index:idx_biz;comment:'业务方唯一标识，如工单号'"`
+	Name                  string                                             `gorm:"type:varchar(255);not null;uniqueIndex:uniq_idx_name_tenant,priority:2;comment:'任务名称'"`
+	RunnerID              sql.NullInt64                                      `gorm:"column:runner_id;type:bigint;index;comment:'引用的执行单元ID'"`
+	Type                  string                                             `gorm:"type:ENUM('RECURRING', 'ONE_TIME');not null;default:'RECURRING';comment:'任务类型: RECURRING-定时任务(循环执行), ONE_TIME-一次性任务(执行一次后停止)'"`
+	CronExpr              string                                             `gorm:"type:varchar(100);not null;comment:'cron表达式'"`
+	GrpcConfig            sqlx.JSONColumn[domain.GrpcConfig]                 `gorm:"type:json;comment:'gRPC配置：{\"serviceName\": \"user-service\"}'"`
+	Program               sqlx.JSONColumn[domain.ProgramSpec]                `gorm:"type:json;comment:'用户声明的程序来源'"`
+	HTTPConfig            sqlx.JSONColumn[domain.HTTPConfig]                 `gorm:"type:json;comment:'HTTP配置：{\"endpoint\": \"https://host:port/api\"}'"`
+	RetryConfig           sqlx.JSONColumn[domain.RetryConfig]                `gorm:"type:json;comment:'重试配置'"`
+	ScheduleParams        sqlx.JSONColumn[map[string]string]                 `gorm:"type:json;comment:'每次执行要用到的基础调度参数'"`
+	MaxExecutionSeconds   int64                                              `gorm:"type:bigint;not null;default:86400;comment:'最大执行秒数，默认24小时'"`
+	ScheduleNodeID        sql.NullString                                     `gorm:"type:varchar(255);index:idx_schedule_node_id_status,priority:1;comment:'当前抢占的调度节点ID'"`
+	NextTime              int64                                              `gorm:"type:bigint;not null;index:idx_next_time_status_utime,priority:1;comment:'下次执行时间'"`
+	Status                string                                             `gorm:"type:ENUM('ACTIVE', 'PREEMPTED', 'INACTIVE', 'COMPLETED');not null;default:'ACTIVE';index:idx_next_time_status_utime,priority:2;index:idx_schedule_node_id_status,priority:2;comment:'任务状态: ACTIVE-可调度, PREEMPTED-已抢占, INACTIVE-停止执行, COMPLETED-已完成。'"`
+	Version               int64                                              `gorm:"type:bigint;not null;default:1;comment:'版本号，用于乐观锁'"`
+	Ctime                 int64                                              `gorm:"comment:'创建时间'"`
+	Utime                 int64                                              `gorm:"index:idx_next_time_status_utime,priority:3;comment:'更新时间'"`
+	ExecMode              string                                             `gorm:"type:ENUM('PUSH', 'PULL');not null;default:'PUSH';comment:'本次调度采用的执行模式，由 scheduler 选节点时写入'"`
+	Metadata              sqlx.JSONColumn[map[string]string]                 `gorm:"type:json;comment:'任务参数元数据'"`
+	BusinessNotification  sqlx.JSONColumn[domain.BusinessNotificationConfig] `gorm:"type:json;comment:'业务消息推送配置'"`
+	PendingParamOverrides sqlx.JSONColumn[map[string]string]                 `gorm:"-"`
+	ParamOverrideRules    []TaskParamOverrideRule                            `gorm:"-"`
+	NotificationRules     []TaskExecutionNotificationRule                    `gorm:"-"`
 }
 
 // TableName 指定表名
@@ -518,6 +519,7 @@ func taskUpdateFields(task Task) map[string]any {
 		"version":               gorm.Expr("version + 1"),
 		"utime":                 time.Now().UnixMilli(),
 		"metadata":              task.Metadata,
+		"business_notification": task.BusinessNotification,
 	}
 }
 

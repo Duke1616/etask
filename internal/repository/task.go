@@ -321,31 +321,37 @@ func (r *taskRepository) toEntity(task domain.Task) (dao.Task, error) {
 		metadata = sqlx.JSONColumn[map[string]string]{Val: task.Metadata, Valid: true}
 	}
 
+	var businessNotification sqlx.JSONColumn[domain.BusinessNotificationConfig]
+	if task.BusinessNotification != nil {
+		businessNotification = sqlx.JSONColumn[domain.BusinessNotificationConfig]{Val: *task.BusinessNotification, Valid: true}
+	}
+
 	return dao.Task{
-		ID:                  task.ID,
-		TenantID:            task.TenantID,
-		BizID:               task.BizID,
-		BizKey:              task.BizKey,
-		Name:                task.Name,
-		RunnerID:            runnerID,
-		Type:                task.Type.String(),
-		CronExpr:            task.CronExpr,
-		GrpcConfig:          grpcConfig,
-		Program:             program,
-		HTTPConfig:          httpConfig,
-		RetryConfig:         retryConfig,
-		ScheduleParams:      scheduleParams,
-		MaxExecutionSeconds: task.MaxExecutionSeconds,
-		ScheduleNodeID:      scheduleNodeID,
-		NextTime:            task.NextTime,
-		Status:              task.Status.String(),
-		Version:             task.Version,
-		Ctime:               task.CTime,
-		Utime:               task.UTime,
-		ExecMode:            task.ExecMode.String(),
-		Metadata:            metadata,
-		NotificationRules:   toDAOExecutionNotificationRules(task.NotificationRules),
-		ParamOverrideRules:  toDAOOverrideRules(task.ParamOverrideRules),
+		ID:                   task.ID,
+		TenantID:             task.TenantID,
+		BizID:                task.BizID,
+		BizKey:               task.BizKey,
+		Name:                 task.Name,
+		RunnerID:             runnerID,
+		Type:                 task.Type.String(),
+		CronExpr:             task.CronExpr,
+		GrpcConfig:           grpcConfig,
+		Program:              program,
+		HTTPConfig:           httpConfig,
+		RetryConfig:          retryConfig,
+		ScheduleParams:       scheduleParams,
+		MaxExecutionSeconds:  task.MaxExecutionSeconds,
+		ScheduleNodeID:       scheduleNodeID,
+		NextTime:             task.NextTime,
+		Status:               task.Status.String(),
+		Version:              task.Version,
+		Ctime:                task.CTime,
+		Utime:                task.UTime,
+		ExecMode:             task.ExecMode.String(),
+		Metadata:             metadata,
+		BusinessNotification: businessNotification,
+		NotificationRules:    toDAOExecutionNotificationRules(task.NotificationRules),
+		ParamOverrideRules:   toDAOOverrideRules(task.ParamOverrideRules),
 	}, nil
 }
 
@@ -403,6 +409,11 @@ func (r *taskRepository) toDomain(daoTask *dao.Task) (domain.Task, error) {
 		metadata = daoTask.Metadata.Val
 	}
 
+	var businessNotification *domain.BusinessNotificationConfig
+	if daoTask.BusinessNotification.Valid {
+		businessNotification = &daoTask.BusinessNotification.Val
+	}
+
 	return domain.Task{
 		ID:                    daoTask.ID,
 		TenantID:              daoTask.TenantID,
@@ -426,6 +437,7 @@ func (r *taskRepository) toDomain(daoTask *dao.Task) (domain.Task, error) {
 		CTime:                 daoTask.Ctime,
 		ExecMode:              domain.ExecMode(daoTask.ExecMode),
 		Metadata:              metadata,
+		BusinessNotification:  businessNotification,
 		NotificationRules:     toDomainExecutionNotificationRules(daoTask.NotificationRules),
 		PendingParamOverrides: daoTask.PendingParamOverrides.Val,
 		ParamOverrideRules:    toDomainOverrideRules(daoTask.ParamOverrideRules),

@@ -83,6 +83,9 @@ func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
 		return err
 	}
 	c.notifyCompletion(ctx, evt, t, status)
+	if status.IsSuccess() {
+		c.dispatchBusinessNotifications(ctx, evt, t)
+	}
 
 	// 只有状态还是 PREEMPTED 的任务才需要释放
 	// 定时任务由 Release 广播最终的 ACTIVE 状态和下次触发时间。
@@ -124,6 +127,28 @@ func (c *Consumer) notifyCompletion(ctx context.Context, evt event.Event, t doma
 			elog.Int64("taskID", evt.TaskID),
 			elog.Int64("executionID", evt.ExecID),
 			elog.String("status", status.String()),
+			elog.FieldErr(err))
+	}
+}
+
+// dispatchBusinessNotifications 投递任务产出的业务通知；通知失败只记录日志，不影响任务状态收敛。
+func (c *Consumer) dispatchBusinessNotifications(ctx context.Context, evt event.Event, t domain.Task) {
+	if c.notifier == nil || t.BusinessNotification == nil || !t.BusinessNotification.Enabled {
+		return
+	}
+
+	execution, err := c.execSvc.FindByID(ctx, evt.ExecID)
+	if err != nil {
+		c.logger.Error("查询任务业务通知快照失败",
+			elog.Int64("taskID", evt.TaskID),
+			elog.Int64("executionID", evt.ExecID),
+			elog.FieldErr(err))
+		return
+	}
+	if err = c.notifier.DispatchBusinessNotifications(ctx, *t.BusinessNotification, execution); err != nil {
+		c.logger.Error("投递任务业务通知失败",
+			elog.Int64("taskID", evt.TaskID),
+			elog.Int64("executionID", evt.ExecID),
 			elog.FieldErr(err))
 	}
 }

@@ -19,6 +19,7 @@ type CreateTaskReq struct {
 	Program                *ProgramSpec                   `json:"program"`               // 程序来源
 	ParamOverrideRules     []domain.TaskParamOverrideRule `json:"param_override_rules"`
 	ExecutionNotifications []ExecutionNotificationRule    `json:"execution_notifications"`
+	BusinessNotification   *BusinessNotificationVO        `json:"business_notification,omitempty"` // 业务消息推送配置
 }
 
 type ProgramSpec struct {
@@ -70,6 +71,16 @@ type NotificationRecipient struct {
 	TargetIDs []int64 `json:"target_ids"` // 调用方预先转换的数值 ID。
 }
 
+// BusinessNotificationVO 定义任务执行产出业务消息的独立推送配置。
+type BusinessNotificationVO struct {
+	Enabled        bool                    `json:"enabled"`                   // 是否启用业务消息推送
+	Mode           string                  `json:"mode,omitempty"`            // 接收模式：DYNAMIC-动态识别（默认），STATIC-固定指定
+	Channels       []string                `json:"channels"`                  // 投递渠道（如 WECHAT, LARK_CARD）
+	TemplateSetID  int64                   `json:"template_set_id"`           // 绑定的 EAlert 模板集 ID
+	IdentifierType string                  `json:"identifier_type,omitempty"` // 动态模式使用：接收人目标标识维度（USERNAME 或 USER_ID）
+	Recipients     []NotificationRecipient `json:"recipients,omitempty"`      // 固定模式使用：预设的业务接收对象列表
+}
+
 type PageReq struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -100,6 +111,7 @@ type UpdateTaskReq struct {
 	Program                *ProgramSpec                   `json:"program"`               // 程序来源
 	ParamOverrideRules     []domain.TaskParamOverrideRule `json:"param_override_rules"`
 	ExecutionNotifications []ExecutionNotificationRule    `json:"execution_notifications"`
+	BusinessNotification   *BusinessNotificationVO        `json:"business_notification,omitempty"` // 业务消息推送配置
 }
 
 type TaskVO struct {
@@ -122,6 +134,7 @@ type TaskVO struct {
 	Program                *ProgramSpec                   `json:"program"`
 	ParamOverrideRules     []domain.TaskParamOverrideRule `json:"param_override_rules"`
 	ExecutionNotifications []ExecutionNotificationRule    `json:"execution_notifications"`
+	BusinessNotification   *BusinessNotificationVO        `json:"business_notification,omitempty"`
 }
 
 type ListTaskResp struct {

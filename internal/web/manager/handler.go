@@ -458,6 +458,7 @@ func toVO(src domain.Task) TaskVO {
 		Program:                toProgramVO(src.Program),
 		ParamOverrideRules:     src.ParamOverrideRules,
 		ExecutionNotifications: toNotificationVOs(src.NotificationRules),
+		BusinessNotification:  toBusinessNotificationVO(src.BusinessNotification),
 		CTime:                  src.CTime,
 		UTime:                  src.UTime,
 		Version:                src.Version,
@@ -503,9 +504,10 @@ func toDomain(req CreateTaskReq) domain.Task {
 		Status:              domain.TaskStatusActive,
 		BizID:               bizid.Task,
 		Metadata:            req.Metadata,
-		Program:             toDomainProgram(req.Program),
-		ParamOverrideRules:  req.ParamOverrideRules,
-		NotificationRules:   toDomainNotifications(req.ExecutionNotifications),
+		Program:              toDomainProgram(req.Program),
+		ParamOverrideRules:   req.ParamOverrideRules,
+		NotificationRules:    toDomainNotifications(req.ExecutionNotifications),
+		BusinessNotification: toDomainBusinessNotification(req.BusinessNotification),
 	}
 
 	if req.GrpcConfig != nil {
@@ -547,9 +549,10 @@ func toUpdateDomain(req UpdateTaskReq) domain.Task {
 		ScheduleParams:      req.ScheduleParams,
 		BizID:               bizid.Task,
 		Metadata:            req.Metadata,
-		Program:             toDomainProgram(req.Program),
-		ParamOverrideRules:  req.ParamOverrideRules,
-		NotificationRules:   toDomainNotifications(req.ExecutionNotifications),
+		Program:              toDomainProgram(req.Program),
+		ParamOverrideRules:   req.ParamOverrideRules,
+		NotificationRules:    toDomainNotifications(req.ExecutionNotifications),
+		BusinessNotification: toDomainBusinessNotification(req.BusinessNotification),
 	}
 
 	if req.GrpcConfig != nil {
@@ -616,6 +619,34 @@ func toNotificationVO(rule domain.ExecutionNotificationRule, _ int) ExecutionNot
 		Enabled:       rule.Enabled,
 		Channels:      lo.Map(rule.Channels, toNotificationChannel),
 		Recipients:    lo.Map(rule.Recipients, toNotificationRecipient),
+	}
+}
+
+func toBusinessNotificationVO(src *domain.BusinessNotificationConfig) *BusinessNotificationVO {
+	if src == nil {
+		return nil
+	}
+	return &BusinessNotificationVO{
+		Enabled:        src.Enabled,
+		Mode:           string(src.Mode),
+		Channels:       lo.Map(src.Channels, toNotificationChannel),
+		TemplateSetID:  src.TemplateSetID,
+		IdentifierType: string(src.IdentifierType),
+		Recipients:     lo.Map(src.Recipients, toNotificationRecipient),
+	}
+}
+
+func toDomainBusinessNotification(src *BusinessNotificationVO) *domain.BusinessNotificationConfig {
+	if src == nil {
+		return nil
+	}
+	return &domain.BusinessNotificationConfig{
+		Enabled:        src.Enabled,
+		Mode:           domain.BusinessRecipientMode(src.Mode),
+		Channels:       lo.Map(src.Channels, toDomainNotificationChannel),
+		TemplateSetID:  src.TemplateSetID,
+		IdentifierType: domain.RecipientIdentifierType(src.IdentifierType),
+		Recipients:     lo.Map(src.Recipients, toDomainNotificationRecipient),
 	}
 }
 

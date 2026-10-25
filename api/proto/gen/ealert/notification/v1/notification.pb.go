@@ -9,7 +9,9 @@ package notificationv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	_ "google.golang.org/protobuf/types/known/anypb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
+	_ "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -22,24 +24,32 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Business 表示通知所属业务。
+// 业务类型
 type Business int32
 
 const (
-	// 未指定业务类型。
-	Business_BUSINESS_UNSPECIFIED Business = 0
-	// 任务执行消息。
+	// 未指定业务类型
+	Business_Business_UNSPECIFIED Business = 0
+	// 告警消息
+	Business_ALERT Business = 1
+	// 工单消息
+	Business_TICKET Business = 2
+	// 任务执行消息
 	Business_TASK Business = 3
 )
 
 // Enum value maps for Business.
 var (
 	Business_name = map[int32]string{
-		0: "BUSINESS_UNSPECIFIED",
+		0: "Business_UNSPECIFIED",
+		1: "ALERT",
+		2: "TICKET",
 		3: "TASK",
 	}
 	Business_value = map[string]int32{
-		"BUSINESS_UNSPECIFIED": 0,
+		"Business_UNSPECIFIED": 0,
+		"ALERT":                1,
+		"TICKET":               2,
 		"TASK":                 3,
 	}
 )
@@ -71,19 +81,19 @@ func (Business) EnumDescriptor() ([]byte, []int) {
 	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{0}
 }
 
-// Channel 表示通知投递渠道。
+// 渠道类型枚举
 type Channel int32
 
 const (
-	// 未指定渠道。
+	// 未指定渠道
 	Channel_CHANNEL_UNSPECIFIED Channel = 0
-	// 飞书卡片。
+	// 飞书卡片
 	Channel_LARK_CARD Channel = 1
-	// 邮件。
+	// 邮件
 	Channel_EMAIL Channel = 2
-	// 站内信。
+	// 站内信
 	Channel_IN_APP Channel = 3
-	// 微信。
+	// 微信
 	Channel_WECHAT Channel = 4
 )
 
@@ -132,21 +142,21 @@ func (Channel) EnumDescriptor() ([]byte, []int) {
 	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{1}
 }
 
-// SendStatus 表示单渠道发送状态。
+// 通知发送状态枚举
 type SendStatus int32
 
 const (
-	// 未指定发送状态。
+	// 未指定通知发送状态
 	SendStatus_SEND_STATUS_UNSPECIFIED SendStatus = 0
-	// 事务消息准备阶段。
+	// 事务消息，准备阶段
 	SendStatus_PREPARE SendStatus = 1
-	// 已取消。
+	// 事务消息，取消发送
 	SendStatus_CANCELED SendStatus = 2
-	// 等待发送。
+	// 等待发送，普通消息的默认状态，事务消息的确认发送状态（二者重合故用一个状态表示）
 	SendStatus_PENDING SendStatus = 3
-	// 发送成功。
+	// 发送成功
 	SendStatus_SUCCEEDED SendStatus = 4
-	// 发送失败。
+	// 发送失败
 	SendStatus_FAILED SendStatus = 5
 )
 
@@ -197,23 +207,77 @@ func (SendStatus) EnumDescriptor() ([]byte, []int) {
 	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{2}
 }
 
-// RecipientSelectorType 表示接收对象的解析规则。
+// 接收者类型
+type ReceiverType int32
+
+const (
+	// 未指定，默认为用户
+	ReceiverType_RECEIVER_TYPE_UNSPECIFIED ReceiverType = 0
+	// 用户 (user_id/email/phone)
+	ReceiverType_USER ReceiverType = 1
+	// 群组 (chat_id)
+	ReceiverType_CHAT_GROUP ReceiverType = 2
+)
+
+// Enum value maps for ReceiverType.
+var (
+	ReceiverType_name = map[int32]string{
+		0: "RECEIVER_TYPE_UNSPECIFIED",
+		1: "USER",
+		2: "CHAT_GROUP",
+	}
+	ReceiverType_value = map[string]int32{
+		"RECEIVER_TYPE_UNSPECIFIED": 0,
+		"USER":                      1,
+		"CHAT_GROUP":                2,
+	}
+)
+
+func (x ReceiverType) Enum() *ReceiverType {
+	p := new(ReceiverType)
+	*p = x
+	return p
+}
+
+func (x ReceiverType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReceiverType) Descriptor() protoreflect.EnumDescriptor {
+	return file_ealert_notification_v1_notification_proto_enumTypes[3].Descriptor()
+}
+
+func (ReceiverType) Type() protoreflect.EnumType {
+	return &file_ealert_notification_v1_notification_proto_enumTypes[3]
+}
+
+func (x ReceiverType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReceiverType.Descriptor instead.
+func (ReceiverType) EnumDescriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{3}
+}
+
+// 接收对象选择器类型。
+// 选择器描述业务上的接收对象，EAlert 会在投递前将其解析为具体用户。
 type RecipientSelectorType int32
 
 const (
-	// 未指定解析规则。
+	// 未指定选择器类型。
 	RecipientSelectorType_RECIPIENT_SELECTOR_TYPE_UNSPECIFIED RecipientSelectorType = 0
-	// EIAM 用户 ID。
+	// 指定用户，通过 target_ids 提供 EIAM 用户 ID。
 	RecipientSelectorType_RECIPIENT_USER RecipientSelectorType = 1
-	// EAlert 团队 ID。
+	// 指定团队，通过 target_ids 提供 EAlert 团队 ID。
 	RecipientSelectorType_RECIPIENT_TEAM RecipientSelectorType = 2
-	// EIAM 部门 ID。
+	// 指定部门，通过 target_ids 提供 EIAM 部门 ID，解析结果为部门成员。
 	RecipientSelectorType_RECIPIENT_DEPARTMENT RecipientSelectorType = 3
-	// EAlert 值班计划 ID。
+	// 指定值班计划，通过 target_ids 提供 EAlert 值班计划 ID，解析结果为当前值班人员。
 	RecipientSelectorType_RECIPIENT_ONCALL RecipientSelectorType = 4
-	// 指定 EIAM 用户所在部门的领导。
+	// 指定用户所属部门的领导列表，通过 target_ids 提供作为查询起点的 EIAM 用户 ID。
 	RecipientSelectorType_RECIPIENT_DEPARTMENT_LEADER RecipientSelectorType = 5
-	// 指定 EIAM 用户所在部门的分管领导。
+	// 指定用户所属部门的分管领导，通过 target_ids 提供作为查询起点的 EIAM 用户 ID。
 	RecipientSelectorType_RECIPIENT_SUPERVISING_LEADER RecipientSelectorType = 6
 )
 
@@ -250,11 +314,11 @@ func (x RecipientSelectorType) String() string {
 }
 
 func (RecipientSelectorType) Descriptor() protoreflect.EnumDescriptor {
-	return file_ealert_notification_v1_notification_proto_enumTypes[3].Descriptor()
+	return file_ealert_notification_v1_notification_proto_enumTypes[4].Descriptor()
 }
 
 func (RecipientSelectorType) Type() protoreflect.EnumType {
-	return &file_ealert_notification_v1_notification_proto_enumTypes[3]
+	return &file_ealert_notification_v1_notification_proto_enumTypes[4]
 }
 
 func (x RecipientSelectorType) Number() protoreflect.EnumNumber {
@@ -263,48 +327,48 @@ func (x RecipientSelectorType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RecipientSelectorType.Descriptor instead.
 func (RecipientSelectorType) EnumDescriptor() ([]byte, []int) {
-	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{3}
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{4}
 }
 
-// ErrorCode 表示 EAlert 业务错误。
+// 错误代码枚举
 type ErrorCode int32
 
 const (
-	// 未指定错误，通常表示成功。
+	// 未指定错误码
 	ErrorCode_ERROR_CODE_UNSPECIFIED ErrorCode = 0
-	// 请求参数非法。
+	// 无效参数
 	ErrorCode_INVALID_PARAMETER ErrorCode = 1
-	// 频率受限。
+	// 频率限制
 	ErrorCode_RATE_LIMITED ErrorCode = 2
-	// 模板不存在。
+	// 模板未找到
 	ErrorCode_TEMPLATE_NOT_FOUND ErrorCode = 3
-	// 渠道已禁用。
+	// 渠道被禁用
 	ErrorCode_CHANNEL_DISABLED ErrorCode = 4
-	// 创建通知失败。
+	// 创建通知失败
 	ErrorCode_CREATE_NOTIFICATION_FAILED ErrorCode = 5
-	// 业务 ID 不存在。
+	// 业务ID未找到
 	ErrorCode_BIZ_ID_NOT_FOUND ErrorCode = 6
-	// 通知不存在。
+	// 通知未找到
 	ErrorCode_NOTIFICATION_NOT_FOUND ErrorCode = 7
-	// 没有可用供应商。
+	// 无可用供应商
 	ErrorCode_NO_AVAILABLE_PROVIDER ErrorCode = 8
-	// 没有可用渠道。
+	// 无可用渠道
 	ErrorCode_NO_AVAILABLE_CHANNEL ErrorCode = 9
-	// 发送通知失败。
+	// 发送通知失败
 	ErrorCode_SEND_NOTIFICATION_FAILED ErrorCode = 10
-	// 业务配置不存在。
+	// 业务配置不存在
 	ErrorCode_CONFIG_NOT_FOUND ErrorCode = 11
-	// 未提供配额配置。
+	// 没有提供配额相关配置
 	ErrorCode_NO_QUOTA_CONFIG ErrorCode = 12
-	// 配额已耗尽。
+	// 额度已用完
 	ErrorCode_NO_QUOTA ErrorCode = 13
-	// 配额记录不存在。
+	// 额度记录不存在
 	ErrorCode_QUOTA_NOT_FOUND ErrorCode = 14
-	// 供应商不存在。
+	// 供应商记录不存在
 	ErrorCode_PROVIDER_NOT_FOUND ErrorCode = 15
-	// 未知渠道。
+	// 未知渠道类型
 	ErrorCode_UNKNOWN_CHANNEL ErrorCode = 16
-	// 接收对象解析失败。
+	// 接收对象解析失败
 	ErrorCode_RECIPIENT_RESOLUTION_FAILED ErrorCode = 17
 )
 
@@ -363,11 +427,11 @@ func (x ErrorCode) String() string {
 }
 
 func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_ealert_notification_v1_notification_proto_enumTypes[4].Descriptor()
+	return file_ealert_notification_v1_notification_proto_enumTypes[5].Descriptor()
 }
 
 func (ErrorCode) Type() protoreflect.EnumType {
-	return &file_ealert_notification_v1_notification_proto_enumTypes[4]
+	return &file_ealert_notification_v1_notification_proto_enumTypes[5]
 }
 
 func (x ErrorCode) Number() protoreflect.EnumNumber {
@@ -376,23 +440,319 @@ func (x ErrorCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ErrorCode.Descriptor instead.
 func (ErrorCode) EnumDescriptor() ([]byte, []int) {
-	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{4}
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{5}
 }
 
-// RecipientSelector 描述一组已标准化为数值 ID 的接收对象。
+// RecipientIdentifierType 定义接收对象标识的语义维度。
+type RecipientIdentifierType int32
+
+const (
+	RecipientIdentifierType_RECIPIENT_IDENTIFIER_UNSPECIFIED RecipientIdentifierType = 0
+	// 内部数值 ID（默认），如用户 ID、团队 ID
+	RecipientIdentifierType_RECIPIENT_IDENTIFIER_ID RecipientIdentifierType = 1
+	// 用户名 / 域账号（如 sAMAccountName）
+	RecipientIdentifierType_RECIPIENT_IDENTIFIER_USERNAME RecipientIdentifierType = 2
+	// 邮箱地址
+	RecipientIdentifierType_RECIPIENT_IDENTIFIER_EMAIL RecipientIdentifierType = 3
+	// 手机号
+	RecipientIdentifierType_RECIPIENT_IDENTIFIER_MOBILE RecipientIdentifierType = 4
+	// 第三方渠道 OpenID（飞书 open_id、企微 userid 等）
+	RecipientIdentifierType_RECIPIENT_IDENTIFIER_OPEN_ID RecipientIdentifierType = 5
+)
+
+// Enum value maps for RecipientIdentifierType.
+var (
+	RecipientIdentifierType_name = map[int32]string{
+		0: "RECIPIENT_IDENTIFIER_UNSPECIFIED",
+		1: "RECIPIENT_IDENTIFIER_ID",
+		2: "RECIPIENT_IDENTIFIER_USERNAME",
+		3: "RECIPIENT_IDENTIFIER_EMAIL",
+		4: "RECIPIENT_IDENTIFIER_MOBILE",
+		5: "RECIPIENT_IDENTIFIER_OPEN_ID",
+	}
+	RecipientIdentifierType_value = map[string]int32{
+		"RECIPIENT_IDENTIFIER_UNSPECIFIED": 0,
+		"RECIPIENT_IDENTIFIER_ID":          1,
+		"RECIPIENT_IDENTIFIER_USERNAME":    2,
+		"RECIPIENT_IDENTIFIER_EMAIL":       3,
+		"RECIPIENT_IDENTIFIER_MOBILE":      4,
+		"RECIPIENT_IDENTIFIER_OPEN_ID":     5,
+	}
+)
+
+func (x RecipientIdentifierType) Enum() *RecipientIdentifierType {
+	p := new(RecipientIdentifierType)
+	*p = x
+	return p
+}
+
+func (x RecipientIdentifierType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RecipientIdentifierType) Descriptor() protoreflect.EnumDescriptor {
+	return file_ealert_notification_v1_notification_proto_enumTypes[6].Descriptor()
+}
+
+func (RecipientIdentifierType) Type() protoreflect.EnumType {
+	return &file_ealert_notification_v1_notification_proto_enumTypes[6]
+}
+
+func (x RecipientIdentifierType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RecipientIdentifierType.Descriptor instead.
+func (RecipientIdentifierType) EnumDescriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{6}
+}
+
+// 通知
+type Notification struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	BizId Business               `protobuf:"varint,1,opt,name=biz_id,json=bizId,proto3,enum=ealert.notification.v1.Business" json:"biz_id,omitempty"`
+	// 业务方某个业务内部的唯一标识
+	Key string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	// 接收者标识(可以是用户ID、邮箱、手机号等)
+	Receivers []string `protobuf:"bytes,3,rep,name=receivers,proto3" json:"receivers,omitempty"`
+	// 发送渠道
+	Channel Channel `protobuf:"varint,4,opt,name=channel,proto3,enum=ealert.notification.v1.Channel" json:"channel,omitempty"`
+	// 模板ID
+	TemplateId int64 `protobuf:"varint,5,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	// 模版集合 ID, 如果传递集合优先通过集合查找
+	TemplateSetId int64 `protobuf:"varint,6,opt,name=template_set_id,json=templateSetId,proto3" json:"template_set_id,omitempty"`
+	// 模板参数
+	TemplateParams *structpb.Struct `protobuf:"bytes,7,opt,name=template_params,json=templateParams,proto3" json:"template_params,omitempty"`
+	// 接收者类型
+	ReceiverType  ReceiverType `protobuf:"varint,8,opt,name=receiver_type,json=receiverType,proto3,enum=ealert.notification.v1.ReceiverType" json:"receiver_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Notification) Reset() {
+	*x = Notification{}
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Notification) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Notification) ProtoMessage() {}
+
+func (x *Notification) ProtoReflect() protoreflect.Message {
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Notification.ProtoReflect.Descriptor instead.
+func (*Notification) Descriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Notification) GetBizId() Business {
+	if x != nil {
+		return x.BizId
+	}
+	return Business_Business_UNSPECIFIED
+}
+
+func (x *Notification) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *Notification) GetReceivers() []string {
+	if x != nil {
+		return x.Receivers
+	}
+	return nil
+}
+
+func (x *Notification) GetChannel() Channel {
+	if x != nil {
+		return x.Channel
+	}
+	return Channel_CHANNEL_UNSPECIFIED
+}
+
+func (x *Notification) GetTemplateId() int64 {
+	if x != nil {
+		return x.TemplateId
+	}
+	return 0
+}
+
+func (x *Notification) GetTemplateSetId() int64 {
+	if x != nil {
+		return x.TemplateSetId
+	}
+	return 0
+}
+
+func (x *Notification) GetTemplateParams() *structpb.Struct {
+	if x != nil {
+		return x.TemplateParams
+	}
+	return nil
+}
+
+func (x *Notification) GetReceiverType() ReceiverType {
+	if x != nil {
+		return x.ReceiverType
+	}
+	return ReceiverType_RECEIVER_TYPE_UNSPECIFIED
+}
+
+// 同步单条发送通知请求
+type SendNotificationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notification  *Notification          `protobuf:"bytes,1,opt,name=notification,proto3" json:"notification,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendNotificationRequest) Reset() {
+	*x = SendNotificationRequest{}
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendNotificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendNotificationRequest) ProtoMessage() {}
+
+func (x *SendNotificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendNotificationRequest.ProtoReflect.Descriptor instead.
+func (*SendNotificationRequest) Descriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SendNotificationRequest) GetNotification() *Notification {
+	if x != nil {
+		return x.Notification
+	}
+	return nil
+}
+
+// 同步单条发送通知响应
+type SendNotificationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 通知平台生成的通知ID
+	NotificationId uint64 `protobuf:"varint,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	// 发送状态
+	Status SendStatus `protobuf:"varint,2,opt,name=status,proto3,enum=ealert.notification.v1.SendStatus" json:"status,omitempty"`
+	// 失败时的错误代码
+	ErrorCode ErrorCode `protobuf:"varint,3,opt,name=error_code,json=errorCode,proto3,enum=ealert.notification.v1.ErrorCode" json:"error_code,omitempty"`
+	// 错误详情
+	ErrorMessage  string `protobuf:"bytes,4,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendNotificationResponse) Reset() {
+	*x = SendNotificationResponse{}
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendNotificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendNotificationResponse) ProtoMessage() {}
+
+func (x *SendNotificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendNotificationResponse.ProtoReflect.Descriptor instead.
+func (*SendNotificationResponse) Descriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SendNotificationResponse) GetNotificationId() uint64 {
+	if x != nil {
+		return x.NotificationId
+	}
+	return 0
+}
+
+func (x *SendNotificationResponse) GetStatus() SendStatus {
+	if x != nil {
+		return x.Status
+	}
+	return SendStatus_SEND_STATUS_UNSPECIFIED
+}
+
+func (x *SendNotificationResponse) GetErrorCode() ErrorCode {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
+func (x *SendNotificationResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+// 接收对象选择器。
+// 支持通过数值 ID（target_ids）或多维标识（identifier_type + values）指定接收人。
 type RecipientSelector struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// 解析规则，决定 target_ids 所属的 ID 空间。
+	// 选择器类型，决定其他字段的解析方式。
 	Type RecipientSelectorType `protobuf:"varint,1,opt,name=type,proto3,enum=ealert.notification.v1.RecipientSelectorType" json:"type,omitempty"`
-	// 接收对象 ID；调用方必须在请求 EAlert 前完成标识转换。
-	TargetIds     []int64 `protobuf:"varint,2,rep,packed,name=target_ids,json=targetIds,proto3" json:"target_ids,omitempty"`
+	// 固定接收对象 ID 列表；ID 的含义由 type 决定。
+	// 用户和领导规则使用 EIAM 用户 ID，团队使用 EAlert 团队 ID，部门使用 EIAM 部门 ID，值班使用 EAlert 值班计划 ID。
+	TargetIds []int64 `protobuf:"varint,2,rep,packed,name=target_ids,json=targetIds,proto3" json:"target_ids,omitempty"`
+	// 标识维度：声明 values 列表里的标识所属的语义类型（ID、USERNAME、EMAIL 等）。
+	IdentifierType RecipientIdentifierType `protobuf:"varint,3,opt,name=identifier_type,json=identifierType,proto3,enum=ealert.notification.v1.RecipientIdentifierType" json:"identifier_type,omitempty"`
+	// 具体的标识值列表。
+	Values        []string `protobuf:"bytes,4,rep,name=values,proto3" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RecipientSelector) Reset() {
 	*x = RecipientSelector{}
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[0]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -404,7 +764,7 @@ func (x *RecipientSelector) String() string {
 func (*RecipientSelector) ProtoMessage() {}
 
 func (x *RecipientSelector) ProtoReflect() protoreflect.Message {
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[0]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -417,7 +777,7 @@ func (x *RecipientSelector) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecipientSelector.ProtoReflect.Descriptor instead.
 func (*RecipientSelector) Descriptor() ([]byte, []int) {
-	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{0}
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RecipientSelector) GetType() RecipientSelectorType {
@@ -434,22 +794,148 @@ func (x *RecipientSelector) GetTargetIds() []int64 {
 	return nil
 }
 
-// DispatchNotificationRequest 请求 EAlert 解析接收对象并投递通知。
+func (x *RecipientSelector) GetIdentifierType() RecipientIdentifierType {
+	if x != nil {
+		return x.IdentifierType
+	}
+	return RecipientIdentifierType_RECIPIENT_IDENTIFIER_UNSPECIFIED
+}
+
+func (x *RecipientSelector) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+// 解析接收对象请求。
+type ResolveRecipientsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 接收对象选择器列表；多个选择器的解析结果取并集并按用户 ID 去重。
+	Recipients    []*RecipientSelector `protobuf:"bytes,1,rep,name=recipients,proto3" json:"recipients,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveRecipientsRequest) Reset() {
+	*x = ResolveRecipientsRequest{}
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveRecipientsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveRecipientsRequest) ProtoMessage() {}
+
+func (x *ResolveRecipientsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveRecipientsRequest.ProtoReflect.Descriptor instead.
+func (*ResolveRecipientsRequest) Descriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ResolveRecipientsRequest) GetRecipients() []*RecipientSelector {
+	if x != nil {
+		return x.Recipients
+	}
+	return nil
+}
+
+// 解析接收对象响应。
+type ResolveRecipientsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 去重后的 EIAM 用户 ID 列表。
+	UserIds []int64 `protobuf:"varint,1,rep,packed,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	// 请求级错误代码；解析成功时为 ERROR_CODE_UNSPECIFIED。
+	ErrorCode ErrorCode `protobuf:"varint,2,opt,name=error_code,json=errorCode,proto3,enum=ealert.notification.v1.ErrorCode" json:"error_code,omitempty"`
+	// 请求级错误详情；解析成功时为空。
+	ErrorMessage  string `protobuf:"bytes,3,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveRecipientsResponse) Reset() {
+	*x = ResolveRecipientsResponse{}
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveRecipientsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveRecipientsResponse) ProtoMessage() {}
+
+func (x *ResolveRecipientsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveRecipientsResponse.ProtoReflect.Descriptor instead.
+func (*ResolveRecipientsResponse) Descriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ResolveRecipientsResponse) GetUserIds() []int64 {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+func (x *ResolveRecipientsResponse) GetErrorCode() ErrorCode {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
+func (x *ResolveRecipientsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+// 解析接收对象并投递通知的请求。
 type DispatchNotificationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// 通知所属业务。
+	// 通知所属业务类型，用于业务隔离和通知记录归类。
 	Business Business `protobuf:"varint,1,opt,name=business,proto3,enum=ealert.notification.v1.Business" json:"business,omitempty"`
-	// 业务事件幂等键；重复投递同一事件时必须保持不变。
+	// 调用方生成的幂等键；同一业务事件重复投递时必须保持不变。
+	// EAlert 会在多渠道投递时基于该值生成各渠道的通知键。
+	// 长度不得超过 200 个字符。
 	IdempotencyKey string `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	// 接收对象规则；多个规则的结果取并集。
+	// 接收对象选择器列表；多个选择器的解析结果取并集并按用户 ID 去重。
 	Recipients []*RecipientSelector `protobuf:"bytes,3,rep,name=recipients,proto3" json:"recipients,omitempty"`
-	// 需要投递的渠道。
+	// 投递渠道列表；每个渠道通过模板集解析对应的已发布模板。
 	Channels []Channel `protobuf:"varint,4,rep,packed,name=channels,proto3,enum=ealert.notification.v1.Channel" json:"channels,omitempty"`
-	// EAlert 模板集 ID。
+	// 模板集 ID；与 template_set_key 二选一，保留用于兼容已有调用方。
 	TemplateSetId int64 `protobuf:"varint,5,opt,name=template_set_id,json=templateSetId,proto3" json:"template_set_id,omitempty"`
-	// 模板渲染参数。
+	// 模板渲染参数；字段结构由对应业务的模板契约定义。
 	TemplateParams *structpb.Struct `protobuf:"bytes,6,opt,name=template_params,json=templateParams,proto3" json:"template_params,omitempty"`
-	// 模板集稳定业务 key；与 template_set_id 二选一。
+	// 模板集稳定业务 key；与 template_set_id 二选一，EAlert 按 business 解析。
 	TemplateSetKey string `protobuf:"bytes,7,opt,name=template_set_key,json=templateSetKey,proto3" json:"template_set_key,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -457,7 +943,7 @@ type DispatchNotificationRequest struct {
 
 func (x *DispatchNotificationRequest) Reset() {
 	*x = DispatchNotificationRequest{}
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[1]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -469,7 +955,7 @@ func (x *DispatchNotificationRequest) String() string {
 func (*DispatchNotificationRequest) ProtoMessage() {}
 
 func (x *DispatchNotificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[1]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -482,14 +968,14 @@ func (x *DispatchNotificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DispatchNotificationRequest.ProtoReflect.Descriptor instead.
 func (*DispatchNotificationRequest) Descriptor() ([]byte, []int) {
-	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{1}
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DispatchNotificationRequest) GetBusiness() Business {
 	if x != nil {
 		return x.Business
 	}
-	return Business_BUSINESS_UNSPECIFIED
+	return Business_Business_UNSPECIFIED
 }
 
 func (x *DispatchNotificationRequest) GetIdempotencyKey() string {
@@ -534,18 +1020,18 @@ func (x *DispatchNotificationRequest) GetTemplateSetKey() string {
 	return ""
 }
 
-// NotificationDispatchResult 表示单渠道投递结果。
+// 单个渠道的通知投递结果。
 type NotificationDispatchResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 实际投递渠道。
 	Channel Channel `protobuf:"varint,1,opt,name=channel,proto3,enum=ealert.notification.v1.Channel" json:"channel,omitempty"`
-	// EAlert 通知记录 ID。
+	// EAlert 生成的通知记录 ID；创建通知记录失败时为 0。
 	NotificationId uint64 `protobuf:"varint,2,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	// 发送状态。
+	// 该渠道的通知发送状态。
 	Status SendStatus `protobuf:"varint,3,opt,name=status,proto3,enum=ealert.notification.v1.SendStatus" json:"status,omitempty"`
-	// 失败错误码。
+	// 该渠道投递失败时的错误代码，成功时为 ERROR_CODE_UNSPECIFIED。
 	ErrorCode ErrorCode `protobuf:"varint,4,opt,name=error_code,json=errorCode,proto3,enum=ealert.notification.v1.ErrorCode" json:"error_code,omitempty"`
-	// 失败详情。
+	// 该渠道投递失败时的错误详情，成功时为空。
 	ErrorMessage  string `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -553,7 +1039,7 @@ type NotificationDispatchResult struct {
 
 func (x *NotificationDispatchResult) Reset() {
 	*x = NotificationDispatchResult{}
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[2]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +1051,7 @@ func (x *NotificationDispatchResult) String() string {
 func (*NotificationDispatchResult) ProtoMessage() {}
 
 func (x *NotificationDispatchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[2]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +1064,7 @@ func (x *NotificationDispatchResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationDispatchResult.ProtoReflect.Descriptor instead.
 func (*NotificationDispatchResult) Descriptor() ([]byte, []int) {
-	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{2}
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *NotificationDispatchResult) GetChannel() Channel {
@@ -616,16 +1102,16 @@ func (x *NotificationDispatchResult) GetErrorMessage() string {
 	return ""
 }
 
-// DispatchNotificationResponse 表示一次业务通知的处理结果。
+// 解析接收对象并投递通知的响应。
 type DispatchNotificationResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// 各渠道投递结果。
+	// 各渠道的通知投递结果。
 	Results []*NotificationDispatchResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
-	// 去重后的接收用户数量。
+	// 去重后解析得到的用户数量。
 	ResolvedRecipientCount int32 `protobuf:"varint,2,opt,name=resolved_recipient_count,json=resolvedRecipientCount,proto3" json:"resolved_recipient_count,omitempty"`
-	// 请求级错误码。
+	// 请求级错误代码；接收对象解析或通知构建失败时返回。
 	ErrorCode ErrorCode `protobuf:"varint,3,opt,name=error_code,json=errorCode,proto3,enum=ealert.notification.v1.ErrorCode" json:"error_code,omitempty"`
-	// 请求级错误详情。
+	// 请求级错误详情；请求整体处理成功时为空。
 	ErrorMessage  string `protobuf:"bytes,4,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -633,7 +1119,7 @@ type DispatchNotificationResponse struct {
 
 func (x *DispatchNotificationResponse) Reset() {
 	*x = DispatchNotificationResponse{}
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[3]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -645,7 +1131,7 @@ func (x *DispatchNotificationResponse) String() string {
 func (*DispatchNotificationResponse) ProtoMessage() {}
 
 func (x *DispatchNotificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ealert_notification_v1_notification_proto_msgTypes[3]
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -658,7 +1144,7 @@ func (x *DispatchNotificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DispatchNotificationResponse.ProtoReflect.Descriptor instead.
 func (*DispatchNotificationResponse) Descriptor() ([]byte, []int) {
-	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{3}
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DispatchNotificationResponse) GetResults() []*NotificationDispatchResult {
@@ -689,15 +1175,153 @@ func (x *DispatchNotificationResponse) GetErrorMessage() string {
 	return ""
 }
 
+// 同步批量发送通知请求
+type BatchSendNotificationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notifications []*Notification        `protobuf:"bytes,1,rep,name=notifications,proto3" json:"notifications,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchSendNotificationsRequest) Reset() {
+	*x = BatchSendNotificationsRequest{}
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchSendNotificationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchSendNotificationsRequest) ProtoMessage() {}
+
+func (x *BatchSendNotificationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchSendNotificationsRequest.ProtoReflect.Descriptor instead.
+func (*BatchSendNotificationsRequest) Descriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *BatchSendNotificationsRequest) GetNotifications() []*Notification {
+	if x != nil {
+		return x.Notifications
+	}
+	return nil
+}
+
+// 同步批量发送通知响应
+type BatchSendNotificationsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 所有结果
+	Results []*SendNotificationResponse `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	// 总数
+	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// 成功数
+	SuccessCount  int32 `protobuf:"varint,3,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchSendNotificationsResponse) Reset() {
+	*x = BatchSendNotificationsResponse{}
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchSendNotificationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchSendNotificationsResponse) ProtoMessage() {}
+
+func (x *BatchSendNotificationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ealert_notification_v1_notification_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchSendNotificationsResponse.ProtoReflect.Descriptor instead.
+func (*BatchSendNotificationsResponse) Descriptor() ([]byte, []int) {
+	return file_ealert_notification_v1_notification_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *BatchSendNotificationsResponse) GetResults() []*SendNotificationResponse {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *BatchSendNotificationsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *BatchSendNotificationsResponse) GetSuccessCount() int32 {
+	if x != nil {
+		return x.SuccessCount
+	}
+	return 0
+}
+
 var File_ealert_notification_v1_notification_proto protoreflect.FileDescriptor
 
 const file_ealert_notification_v1_notification_proto_rawDesc = "" +
 	"\n" +
-	")ealert/notification/v1/notification.proto\x12\x16ealert.notification.v1\x1a\x1cgoogle/protobuf/struct.proto\"u\n" +
+	")ealert/notification/v1/notification.proto\x12\x16ealert.notification.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x88\x03\n" +
+	"\fNotification\x127\n" +
+	"\x06biz_id\x18\x01 \x01(\x0e2 .ealert.notification.v1.BusinessR\x05bizId\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\x1c\n" +
+	"\treceivers\x18\x03 \x03(\tR\treceivers\x129\n" +
+	"\achannel\x18\x04 \x01(\x0e2\x1f.ealert.notification.v1.ChannelR\achannel\x12\x1f\n" +
+	"\vtemplate_id\x18\x05 \x01(\x03R\n" +
+	"templateId\x12&\n" +
+	"\x0ftemplate_set_id\x18\x06 \x01(\x03R\rtemplateSetId\x12@\n" +
+	"\x0ftemplate_params\x18\a \x01(\v2\x17.google.protobuf.StructR\x0etemplateParams\x12I\n" +
+	"\rreceiver_type\x18\b \x01(\x0e2$.ealert.notification.v1.ReceiverTypeR\freceiverType\"c\n" +
+	"\x17SendNotificationRequest\x12H\n" +
+	"\fnotification\x18\x01 \x01(\v2$.ealert.notification.v1.NotificationR\fnotification\"\xe6\x01\n" +
+	"\x18SendNotificationResponse\x12'\n" +
+	"\x0fnotification_id\x18\x01 \x01(\x04R\x0enotificationId\x12:\n" +
+	"\x06status\x18\x02 \x01(\x0e2\".ealert.notification.v1.SendStatusR\x06status\x12@\n" +
+	"\n" +
+	"error_code\x18\x03 \x01(\x0e2!.ealert.notification.v1.ErrorCodeR\terrorCode\x12#\n" +
+	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage\"\xe7\x01\n" +
 	"\x11RecipientSelector\x12A\n" +
 	"\x04type\x18\x01 \x01(\x0e2-.ealert.notification.v1.RecipientSelectorTypeR\x04type\x12\x1d\n" +
 	"\n" +
-	"target_ids\x18\x02 \x03(\x03R\ttargetIds\"\xa0\x03\n" +
+	"target_ids\x18\x02 \x03(\x03R\ttargetIds\x12X\n" +
+	"\x0fidentifier_type\x18\x03 \x01(\x0e2/.ealert.notification.v1.RecipientIdentifierTypeR\x0eidentifierType\x12\x16\n" +
+	"\x06values\x18\x04 \x03(\tR\x06values\"e\n" +
+	"\x18ResolveRecipientsRequest\x12I\n" +
+	"\n" +
+	"recipients\x18\x01 \x03(\v2).ealert.notification.v1.RecipientSelectorR\n" +
+	"recipients\"\x9d\x01\n" +
+	"\x19ResolveRecipientsResponse\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\x03R\auserIds\x12@\n" +
+	"\n" +
+	"error_code\x18\x02 \x01(\x0e2!.ealert.notification.v1.ErrorCodeR\terrorCode\x12#\n" +
+	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\"\xa0\x03\n" +
 	"\x1bDispatchNotificationRequest\x12<\n" +
 	"\bbusiness\x18\x01 \x01(\x0e2 .ealert.notification.v1.BusinessR\bbusiness\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12I\n" +
@@ -720,9 +1344,19 @@ const file_ealert_notification_v1_notification_proto_rawDesc = "" +
 	"\x18resolved_recipient_count\x18\x02 \x01(\x05R\x16resolvedRecipientCount\x12@\n" +
 	"\n" +
 	"error_code\x18\x03 \x01(\x0e2!.ealert.notification.v1.ErrorCodeR\terrorCode\x12#\n" +
-	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage*.\n" +
+	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage\"k\n" +
+	"\x1dBatchSendNotificationsRequest\x12J\n" +
+	"\rnotifications\x18\x01 \x03(\v2$.ealert.notification.v1.NotificationR\rnotifications\"\xb2\x01\n" +
+	"\x1eBatchSendNotificationsResponse\x12J\n" +
+	"\aresults\x18\x01 \x03(\v20.ealert.notification.v1.SendNotificationResponseR\aresults\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x05R\n" +
+	"totalCount\x12#\n" +
+	"\rsuccess_count\x18\x03 \x01(\x05R\fsuccessCount*E\n" +
 	"\bBusiness\x12\x18\n" +
-	"\x14BUSINESS_UNSPECIFIED\x10\x00\x12\b\n" +
+	"\x14Business_UNSPECIFIED\x10\x00\x12\t\n" +
+	"\x05ALERT\x10\x01\x12\n" +
+	"\n" +
+	"\x06TICKET\x10\x02\x12\b\n" +
 	"\x04TASK\x10\x03*T\n" +
 	"\aChannel\x12\x17\n" +
 	"\x13CHANNEL_UNSPECIFIED\x10\x00\x12\r\n" +
@@ -740,7 +1374,12 @@ const file_ealert_notification_v1_notification_proto_rawDesc = "" +
 	"\aPENDING\x10\x03\x12\r\n" +
 	"\tSUCCEEDED\x10\x04\x12\n" +
 	"\n" +
-	"\x06FAILED\x10\x05*\xdb\x01\n" +
+	"\x06FAILED\x10\x05*G\n" +
+	"\fReceiverType\x12\x1d\n" +
+	"\x19RECEIVER_TYPE_UNSPECIFIED\x10\x00\x12\b\n" +
+	"\x04USER\x10\x01\x12\x0e\n" +
+	"\n" +
+	"CHAT_GROUP\x10\x02*\xdb\x01\n" +
 	"\x15RecipientSelectorType\x12'\n" +
 	"#RECIPIENT_SELECTOR_TYPE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eRECIPIENT_USER\x10\x01\x12\x12\n" +
@@ -768,9 +1407,18 @@ const file_ealert_notification_v1_notification_proto_rawDesc = "" +
 	"\x0fQUOTA_NOT_FOUND\x10\x0e\x12\x16\n" +
 	"\x12PROVIDER_NOT_FOUND\x10\x0f\x12\x13\n" +
 	"\x0fUNKNOWN_CHANNEL\x10\x10\x12\x1f\n" +
-	"\x1bRECIPIENT_RESOLUTION_FAILED\x10\x112\x99\x01\n" +
-	"\x13NotificationService\x12\x81\x01\n" +
-	"\x14DispatchNotification\x123.ealert.notification.v1.DispatchNotificationRequest\x1a4.ealert.notification.v1.DispatchNotificationResponseB\xf8\x01\n" +
+	"\x1bRECIPIENT_RESOLUTION_FAILED\x10\x11*\xe2\x01\n" +
+	"\x17RecipientIdentifierType\x12$\n" +
+	" RECIPIENT_IDENTIFIER_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17RECIPIENT_IDENTIFIER_ID\x10\x01\x12!\n" +
+	"\x1dRECIPIENT_IDENTIFIER_USERNAME\x10\x02\x12\x1e\n" +
+	"\x1aRECIPIENT_IDENTIFIER_EMAIL\x10\x03\x12\x1f\n" +
+	"\x1bRECIPIENT_IDENTIFIER_MOBILE\x10\x04\x12 \n" +
+	"\x1cRECIPIENT_IDENTIFIER_OPEN_ID\x10\x052\x8a\x03\n" +
+	"\x13NotificationService\x12u\n" +
+	"\x10SendNotification\x12/.ealert.notification.v1.SendNotificationRequest\x1a0.ealert.notification.v1.SendNotificationResponse\x12\x81\x01\n" +
+	"\x14DispatchNotification\x123.ealert.notification.v1.DispatchNotificationRequest\x1a4.ealert.notification.v1.DispatchNotificationResponse\x12x\n" +
+	"\x11ResolveRecipients\x120.ealert.notification.v1.ResolveRecipientsRequest\x1a1.ealert.notification.v1.ResolveRecipientsResponseB\xf8\x01\n" +
 	"\x1acom.ealert.notification.v1B\x11NotificationProtoP\x01ZMgithub.com/Duke1616/etask/api/proto/gen/ealert/notification/v1;notificationv1\xa2\x02\x03ENX\xaa\x02\x16Ealert.Notification.V1\xca\x02\x16Ealert\\Notification\\V1\xe2\x02\"Ealert\\Notification\\V1\\GPBMetadata\xea\x02\x18Ealert::Notification::V1b\x06proto3"
 
 var (
@@ -785,38 +1433,63 @@ func file_ealert_notification_v1_notification_proto_rawDescGZIP() []byte {
 	return file_ealert_notification_v1_notification_proto_rawDescData
 }
 
-var file_ealert_notification_v1_notification_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_ealert_notification_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_ealert_notification_v1_notification_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_ealert_notification_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_ealert_notification_v1_notification_proto_goTypes = []any{
-	(Business)(0),                        // 0: ealert.notification.v1.Business
-	(Channel)(0),                         // 1: ealert.notification.v1.Channel
-	(SendStatus)(0),                      // 2: ealert.notification.v1.SendStatus
-	(RecipientSelectorType)(0),           // 3: ealert.notification.v1.RecipientSelectorType
-	(ErrorCode)(0),                       // 4: ealert.notification.v1.ErrorCode
-	(*RecipientSelector)(nil),            // 5: ealert.notification.v1.RecipientSelector
-	(*DispatchNotificationRequest)(nil),  // 6: ealert.notification.v1.DispatchNotificationRequest
-	(*NotificationDispatchResult)(nil),   // 7: ealert.notification.v1.NotificationDispatchResult
-	(*DispatchNotificationResponse)(nil), // 8: ealert.notification.v1.DispatchNotificationResponse
-	(*structpb.Struct)(nil),              // 9: google.protobuf.Struct
+	(Business)(0),                          // 0: ealert.notification.v1.Business
+	(Channel)(0),                           // 1: ealert.notification.v1.Channel
+	(SendStatus)(0),                        // 2: ealert.notification.v1.SendStatus
+	(ReceiverType)(0),                      // 3: ealert.notification.v1.ReceiverType
+	(RecipientSelectorType)(0),             // 4: ealert.notification.v1.RecipientSelectorType
+	(ErrorCode)(0),                         // 5: ealert.notification.v1.ErrorCode
+	(RecipientIdentifierType)(0),           // 6: ealert.notification.v1.RecipientIdentifierType
+	(*Notification)(nil),                   // 7: ealert.notification.v1.Notification
+	(*SendNotificationRequest)(nil),        // 8: ealert.notification.v1.SendNotificationRequest
+	(*SendNotificationResponse)(nil),       // 9: ealert.notification.v1.SendNotificationResponse
+	(*RecipientSelector)(nil),              // 10: ealert.notification.v1.RecipientSelector
+	(*ResolveRecipientsRequest)(nil),       // 11: ealert.notification.v1.ResolveRecipientsRequest
+	(*ResolveRecipientsResponse)(nil),      // 12: ealert.notification.v1.ResolveRecipientsResponse
+	(*DispatchNotificationRequest)(nil),    // 13: ealert.notification.v1.DispatchNotificationRequest
+	(*NotificationDispatchResult)(nil),     // 14: ealert.notification.v1.NotificationDispatchResult
+	(*DispatchNotificationResponse)(nil),   // 15: ealert.notification.v1.DispatchNotificationResponse
+	(*BatchSendNotificationsRequest)(nil),  // 16: ealert.notification.v1.BatchSendNotificationsRequest
+	(*BatchSendNotificationsResponse)(nil), // 17: ealert.notification.v1.BatchSendNotificationsResponse
+	(*structpb.Struct)(nil),                // 18: google.protobuf.Struct
 }
 var file_ealert_notification_v1_notification_proto_depIdxs = []int32{
-	3,  // 0: ealert.notification.v1.RecipientSelector.type:type_name -> ealert.notification.v1.RecipientSelectorType
-	0,  // 1: ealert.notification.v1.DispatchNotificationRequest.business:type_name -> ealert.notification.v1.Business
-	5,  // 2: ealert.notification.v1.DispatchNotificationRequest.recipients:type_name -> ealert.notification.v1.RecipientSelector
-	1,  // 3: ealert.notification.v1.DispatchNotificationRequest.channels:type_name -> ealert.notification.v1.Channel
-	9,  // 4: ealert.notification.v1.DispatchNotificationRequest.template_params:type_name -> google.protobuf.Struct
-	1,  // 5: ealert.notification.v1.NotificationDispatchResult.channel:type_name -> ealert.notification.v1.Channel
-	2,  // 6: ealert.notification.v1.NotificationDispatchResult.status:type_name -> ealert.notification.v1.SendStatus
-	4,  // 7: ealert.notification.v1.NotificationDispatchResult.error_code:type_name -> ealert.notification.v1.ErrorCode
-	7,  // 8: ealert.notification.v1.DispatchNotificationResponse.results:type_name -> ealert.notification.v1.NotificationDispatchResult
-	4,  // 9: ealert.notification.v1.DispatchNotificationResponse.error_code:type_name -> ealert.notification.v1.ErrorCode
-	6,  // 10: ealert.notification.v1.NotificationService.DispatchNotification:input_type -> ealert.notification.v1.DispatchNotificationRequest
-	8,  // 11: ealert.notification.v1.NotificationService.DispatchNotification:output_type -> ealert.notification.v1.DispatchNotificationResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	0,  // 0: ealert.notification.v1.Notification.biz_id:type_name -> ealert.notification.v1.Business
+	1,  // 1: ealert.notification.v1.Notification.channel:type_name -> ealert.notification.v1.Channel
+	18, // 2: ealert.notification.v1.Notification.template_params:type_name -> google.protobuf.Struct
+	3,  // 3: ealert.notification.v1.Notification.receiver_type:type_name -> ealert.notification.v1.ReceiverType
+	7,  // 4: ealert.notification.v1.SendNotificationRequest.notification:type_name -> ealert.notification.v1.Notification
+	2,  // 5: ealert.notification.v1.SendNotificationResponse.status:type_name -> ealert.notification.v1.SendStatus
+	5,  // 6: ealert.notification.v1.SendNotificationResponse.error_code:type_name -> ealert.notification.v1.ErrorCode
+	4,  // 7: ealert.notification.v1.RecipientSelector.type:type_name -> ealert.notification.v1.RecipientSelectorType
+	6,  // 8: ealert.notification.v1.RecipientSelector.identifier_type:type_name -> ealert.notification.v1.RecipientIdentifierType
+	10, // 9: ealert.notification.v1.ResolveRecipientsRequest.recipients:type_name -> ealert.notification.v1.RecipientSelector
+	5,  // 10: ealert.notification.v1.ResolveRecipientsResponse.error_code:type_name -> ealert.notification.v1.ErrorCode
+	0,  // 11: ealert.notification.v1.DispatchNotificationRequest.business:type_name -> ealert.notification.v1.Business
+	10, // 12: ealert.notification.v1.DispatchNotificationRequest.recipients:type_name -> ealert.notification.v1.RecipientSelector
+	1,  // 13: ealert.notification.v1.DispatchNotificationRequest.channels:type_name -> ealert.notification.v1.Channel
+	18, // 14: ealert.notification.v1.DispatchNotificationRequest.template_params:type_name -> google.protobuf.Struct
+	1,  // 15: ealert.notification.v1.NotificationDispatchResult.channel:type_name -> ealert.notification.v1.Channel
+	2,  // 16: ealert.notification.v1.NotificationDispatchResult.status:type_name -> ealert.notification.v1.SendStatus
+	5,  // 17: ealert.notification.v1.NotificationDispatchResult.error_code:type_name -> ealert.notification.v1.ErrorCode
+	14, // 18: ealert.notification.v1.DispatchNotificationResponse.results:type_name -> ealert.notification.v1.NotificationDispatchResult
+	5,  // 19: ealert.notification.v1.DispatchNotificationResponse.error_code:type_name -> ealert.notification.v1.ErrorCode
+	7,  // 20: ealert.notification.v1.BatchSendNotificationsRequest.notifications:type_name -> ealert.notification.v1.Notification
+	9,  // 21: ealert.notification.v1.BatchSendNotificationsResponse.results:type_name -> ealert.notification.v1.SendNotificationResponse
+	8,  // 22: ealert.notification.v1.NotificationService.SendNotification:input_type -> ealert.notification.v1.SendNotificationRequest
+	13, // 23: ealert.notification.v1.NotificationService.DispatchNotification:input_type -> ealert.notification.v1.DispatchNotificationRequest
+	11, // 24: ealert.notification.v1.NotificationService.ResolveRecipients:input_type -> ealert.notification.v1.ResolveRecipientsRequest
+	9,  // 25: ealert.notification.v1.NotificationService.SendNotification:output_type -> ealert.notification.v1.SendNotificationResponse
+	15, // 26: ealert.notification.v1.NotificationService.DispatchNotification:output_type -> ealert.notification.v1.DispatchNotificationResponse
+	12, // 27: ealert.notification.v1.NotificationService.ResolveRecipients:output_type -> ealert.notification.v1.ResolveRecipientsResponse
+	25, // [25:28] is the sub-list for method output_type
+	22, // [22:25] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_ealert_notification_v1_notification_proto_init() }
@@ -829,8 +1502,8 @@ func file_ealert_notification_v1_notification_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ealert_notification_v1_notification_proto_rawDesc), len(file_ealert_notification_v1_notification_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   4,
+			NumEnums:      7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -49,7 +49,19 @@ func (s *taskAssociationNotificationDAOStub) FindByTaskIDs(context.Context,
 }
 
 func TestTaskRepositoryGetByNameBuildsAggregate(t *testing.T) {
-	taskDAO := &taskAssociationTaskDAOStub{task: &dao.Task{ID: 7, Name: "task"}}
+	taskDAO := &taskAssociationTaskDAOStub{task: &dao.Task{
+		ID:   7,
+		Name: "task",
+		BusinessNotification: sqlx.JSONColumn[domain.BusinessNotificationConfig]{
+			Valid: true,
+			Val: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  88,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+			},
+		},
+	}}
 	paramDAO := &taskAssociationParamDAOStub{
 		rules: []dao.TaskParamOverrideRule{{
 			ParamKey: "region",
@@ -80,4 +92,8 @@ func TestTaskRepositoryGetByNameBuildsAggregate(t *testing.T) {
 	require.Equal(t, "region", task.ParamOverrideRules[0].ParamKey)
 	require.Equal(t, "cn", task.PendingParamOverrides["region"])
 	require.Equal(t, int64(42), task.NotificationRules[0].TemplateSetID)
+	require.NotNil(t, task.BusinessNotification)
+	require.True(t, task.BusinessNotification.Enabled)
+	require.Equal(t, domain.RecipientIdentifierTypeUsername, task.BusinessNotification.IdentifierType)
+	require.Equal(t, int64(88), task.BusinessNotification.TemplateSetID)
 }

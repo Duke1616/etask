@@ -1,10 +1,12 @@
 package domain
 
 import (
+	"fmt"
 	"maps"
 	"time"
 
 	taskv1 "github.com/Duke1616/etask/api/proto/gen/etask/task/v1"
+	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/pkg/variable"
 	"github.com/Duke1616/etask/pkg/retry"
 	"github.com/robfig/cron/v3"
@@ -72,6 +74,99 @@ type Task struct {
 	ParamOverrideRules    []TaskParamOverrideRule     // 手动启动参数的任务级输入约束
 	PendingParamOverrides map[string]string           // 仅供下一次手动启动消费的参数覆盖
 	NotificationRules     []ExecutionNotificationRule // 执行终态消息通知规则
+	BusinessNotification  *BusinessNotificationConfig // 任务产出业务消息的独立推送配置
+}
+
+// BusinessRecipientMode 声明业务通知接收人的决策模式。
+type BusinessRecipientMode string
+
+const (
+	BusinessRecipientModeDynamic BusinessRecipientMode = "DYNAMIC" // 动态识别：从执行产物 notifications 列表中提取接收人并逐一推送
+	BusinessRecipientModeStatic  BusinessRecipientMode = "STATIC"  // 固定指定：将业务产物结果直接推送给预先指定的业务人员或团队
+)
+
+// IsValid 判断业务通知接收模式是否合法。
+func (m BusinessRecipientMode) IsValid() bool {
+	switch m {
+	case BusinessRecipientModeDynamic, BusinessRecipientModeStatic:
+		return true
+	default:
+		return false
+	}
+}
+
+// RecipientIdentifierType 声明任务产出的业务通知接收人目标所属的标识空间维度。
+type RecipientIdentifierType string
+
+const (
+	RecipientIdentifierTypeUsername RecipientIdentifierType = "USERNAME" // 域账号/系统用户名（系统自动批量反查为对应用户 ID）
+	RecipientIdentifierTypeUserID   RecipientIdentifierType = "USER_ID"  // 数值用户 ID（直接按 ID 路由）
+)
+
+// IsValid 判断接收人标识维度是否受系统支持。
+func (t RecipientIdentifierType) IsValid() bool {
+	switch t {
+	case RecipientIdentifierTypeUsername, RecipientIdentifierTypeUserID:
+		return true
+	default:
+		return false
+	}
+}
+
+// BusinessNotificationConfig 定义任务执行产出消息的独立推送配置。
+// 支持根据产物动态识别接收人（1对1推送），或直接投递给预设的业务团队/负责人（1对多汇总推送）。
+type BusinessNotificationConfig struct {
+	Enabled        bool                    `json:"enabled"`         // 是否启用业务消息推送
+	Mode           BusinessRecipientMode   `json:"mode"`            // 接收模式：DYNAMIC-动态识别（默认），STATIC-固定指定
+	Channels       []NotificationChannel   `json:"channels"`        // 投递渠道（如 WECHAT, LARK_CARD）
+	TemplateSetID  int64                   `json:"template_set_id"` // 绑定的 EAlert 模板集 ID
+	IdentifierType RecipientIdentifierType `json:"identifier_type"` // 动态模式使用：接收人目标标识维度（USERNAME 或 USER_ID）
+	Recipients     []NotificationRecipient `json:"recipients"`      // 固定模式使用：预设的业务接收对象列表
+}
+
+// Validate 校验业务通知配置有效性。
+func (c *BusinessNotificationConfig) Validate() error {
+	if c == nil || !c.Enabled {
+		return nil
+	}
+	if len(c.Channels) == 0 {
+		return fmt.Errorf("%w: channels 不能为空", errs.ErrInvalidParameter)
+	}
+	if c.TemplateSetID <= 0 {
+		return fmt.Errorf("%w: template_set_id 必须为正整数", errs.ErrInvalidParameter)
+	}
+	for _, channel := range c.Channels {
+		if !channel.IsValid() {
+			return fmt.Errorf("%w: channels 包含不受支持的渠道 %s", errs.ErrInvalidParameter, channel)
+		}
+	}
+
+	if c.Mode == "" {
+		c.Mode = BusinessRecipientModeDynamic
+	}
+	if !c.Mode.IsValid() {
+		return fmt.Errorf("%w: mode 不受支持: %s", errs.ErrInvalidParameter, c.Mode)
+	}
+
+	switch c.Mode {
+	case BusinessRecipientModeStatic:
+		if len(c.Recipients) == 0 {
+			return fmt.Errorf("%w: 固定指定模式下 recipients 不能为空", errs.ErrInvalidParameter)
+		}
+		for _, recipient := range c.Recipients {
+			if err := recipient.Validate(); err != nil {
+				return fmt.Errorf("%w: recipients 无效: %w", errs.ErrInvalidParameter, err)
+			}
+		}
+	case BusinessRecipientModeDynamic:
+		if c.IdentifierType == "" {
+			c.IdentifierType = RecipientIdentifierTypeUsername
+		}
+		if !c.IdentifierType.IsValid() {
+			return fmt.Errorf("%w: identifier_type 不受支持: %s", errs.ErrInvalidParameter, c.IdentifierType)
+		}
+	}
+	return nil
 }
 
 type TaskParamInputMode string

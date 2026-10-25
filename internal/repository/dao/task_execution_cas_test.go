@@ -54,6 +54,22 @@ func TestTaskUpdateFieldsCanClearProgram(t *testing.T) {
 	require.Equal(t, sqlx.JSONColumn[domain.ProgramSpec]{}, program)
 }
 
+func TestTaskUpdateFieldsIncludesBusinessNotification(t *testing.T) {
+	businessNotification := sqlx.JSONColumn[domain.BusinessNotificationConfig]{
+		Valid: true,
+		Val: domain.BusinessNotificationConfig{
+			Enabled:        true,
+			Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+			TemplateSetID:  88,
+			IdentifierType: domain.RecipientIdentifierTypeUsername,
+		},
+	}
+
+	fields := taskUpdateFields(Task{BusinessNotification: businessNotification})
+
+	require.Equal(t, businessNotification, fields["business_notification"])
+}
+
 func TestClaimPullTaskSQL(t *testing.T) {
 	db, err := gorm.Open(mysql.New(mysql.Config{
 		DSN:                       "gorm:gorm@tcp(localhost:9910)/gorm?charset=utf8mb4&parseTime=True&loc=Local",

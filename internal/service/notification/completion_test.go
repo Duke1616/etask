@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	notificationv1 "github.com/Duke1616/etask/api/proto/gen/ealert/notification/v1"
@@ -12,8 +13,11 @@ import (
 )
 
 type notificationClientStub struct {
-	request *notificationv1.DispatchNotificationRequest
-	calls   int
+	notificationv1.NotificationServiceClient
+	mu       sync.Mutex
+	request  *notificationv1.DispatchNotificationRequest
+	requests []*notificationv1.DispatchNotificationRequest
+	calls    int
 }
 
 type templateClientStub struct {
@@ -29,8 +33,11 @@ func (s *templateClientStub) ResolveTemplateID(_ context.Context, _ *templatev1.
 func (s *notificationClientStub) DispatchNotification(_ context.Context,
 	req *notificationv1.DispatchNotificationRequest,
 	_ ...grpc.CallOption) (*notificationv1.DispatchNotificationResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.calls++
 	s.request = req
+	s.requests = append(s.requests, req)
 	return &notificationv1.DispatchNotificationResponse{
 		Results: []*notificationv1.NotificationDispatchResult{{
 			Channel: notificationv1.Channel_EMAIL, Status: notificationv1.SendStatus_SUCCEEDED,
@@ -177,6 +184,407 @@ func TestValidateDispatchNotificationResponse(t *testing.T) {
 				return
 			}
 			require.ErrorContains(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestEAlertCompletionNotifierDispatchBusinessNotifications(t *testing.T) {
+	testCases := []struct {
+		name         string
+		ctx          func(t *testing.T) context.Context
+		config       domain.BusinessNotificationConfig
+		execution    domain.TaskExecution
+		wantCalls    int
+		wantErr      string
+		validateReqs func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest)
+	}{
+		{
+			name: "成功派发 notifications 列表中的全部目标用户",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelWechat},
+				TemplateSetID:  88,
+				IdentifierType: domain.RecipientIdentifierTypeUserID,
+			},
+			execution: domain.TaskExecution{
+				ID: 101,
+				Task: domain.Task{
+					ID:   12,
+					Name: "ad-password-scanner",
+				},
+				TaskResult: `{"total":2,"notifications":[{"user_id":1001,"username":"zhangsan","days_remaining":3},{"user_id":1002,"username":"lisi","days_remaining":5}]}`,
+			},
+			wantCalls: 2,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 2)
+				reqMap := make(map[string]*notificationv1.DispatchNotificationRequest)
+				for _, r := range reqs {
+					p := r.GetTemplateParams().AsMap()
+					if uname, ok := p["username"].(string); ok {
+						reqMap[uname] = r
+					}
+				}
+
+				// 校验 zhangsan
+				req1, ok := reqMap["zhangsan"]
+				require.True(t, ok)
+				require.Equal(t, int64(88), req1.GetTemplateSetId())
+				require.Equal(t, []int64{1001}, req1.GetRecipients()[0].GetTargetIds())
+				params1 := req1.GetTemplateParams().AsMap()
+				require.Equal(t, float64(3), params1["days_remaining"])
+				require.Equal(t, "ad-password-scanner 业务提醒", params1["Title"])
+
+				// 校验 lisi
+				req2, ok := reqMap["lisi"]
+				require.True(t, ok)
+				require.Equal(t, []int64{1002}, req2.GetRecipients()[0].GetTargetIds())
+				params2 := req2.GetTemplateParams().AsMap()
+				require.Equal(t, float64(5), params2["days_remaining"])
+			},
+		},
+		{
+			name: "STATIC 固定指定模式下将业务产物整体投递给预设人员",
+			config: domain.BusinessNotificationConfig{
+				Enabled:       true,
+				Mode:          domain.BusinessRecipientModeStatic,
+				Channels:      []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID: 66,
+				Recipients: []domain.NotificationRecipient{{
+					Type:      domain.NotificationRecipientTeam,
+					TargetIDs: []int64{999},
+				}},
+			},
+			execution: domain.TaskExecution{
+				ID: 110,
+				Task: domain.Task{
+					ID:   30,
+					Name: "daily-audit-report",
+				},
+				TaskResult: `{"notifications":[{"target":"user1","status":"warning"},{"target":"user2","status":"expired"}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				req := reqs[0]
+				require.Equal(t, int64(66), req.GetTemplateSetId())
+				require.Equal(t, "etask:execution:110:biz_notify:static", req.GetIdempotencyKey())
+				require.Len(t, req.GetRecipients(), 1)
+				require.Equal(t, []int64{999}, req.GetRecipients()[0].GetTargetIds())
+				params := req.GetTemplateParams().AsMap()
+				require.Equal(t, float64(2), params["ItemCount"])
+				require.Equal(t, "daily-audit-report 业务数据产出提醒", params["Title"])
+			},
+		},
+		{
+			name: "STATIC 固定指定模式下无明细条目但有汇总指标时正常派发并扁平合并指标",
+			config: domain.BusinessNotificationConfig{
+				Enabled:       true,
+				Mode:          domain.BusinessRecipientModeStatic,
+				Channels:      []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID: 66,
+				Recipients: []domain.NotificationRecipient{{
+					Type:      domain.NotificationRecipientUser,
+					TargetIDs: []int64{2001},
+				}},
+			},
+			execution: domain.TaskExecution{
+				ID: 111,
+				Task: domain.Task{
+					ID:   31,
+					Name: "summary-only-task",
+				},
+				TaskResult: `{"total_scanned":150,"expired_count":0,"status":"healthy"}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				req := reqs[0]
+				params := req.GetTemplateParams().AsMap()
+				require.Equal(t, float64(0), params["ItemCount"])
+				require.Equal(t, float64(150), params["total_scanned"])
+				require.Equal(t, float64(0), params["expired_count"])
+				require.Equal(t, "healthy", params["status"])
+			},
+		},
+		{
+			name: "未启用配置时不触发派发",
+			config: domain.BusinessNotificationConfig{
+				Enabled: false,
+			},
+			execution: domain.TaskExecution{
+				ID:         102,
+				TaskResult: `{"notifications":[{"user_id":1001}]}`,
+			},
+			wantCalls: 0,
+		},
+		{
+			name: "支持嵌套 params 结构体格式派发",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  99,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+			},
+			execution: domain.TaskExecution{
+				ID: 104,
+				Task: domain.Task{
+					ID:   15,
+					Name: "db-cert-checker",
+				},
+				TaskResult: `{"notifications":[{"recipient":"admin_user","params":{"cert_name":"ssl-gateway","days":7}}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				req := reqs[0]
+				require.Equal(t, int64(99), req.GetTemplateSetId())
+				require.Equal(t, "etask:execution:104:biz_notify:0:admin_user", req.GetIdempotencyKey())
+				require.Equal(t, notificationv1.RecipientIdentifierType_RECIPIENT_IDENTIFIER_USERNAME, req.GetRecipients()[0].GetIdentifierType())
+				require.Equal(t, []string{"admin_user"}, req.GetRecipients()[0].GetValues())
+				params := req.GetTemplateParams().AsMap()
+				require.Equal(t, "admin_user", params["Target"])
+				require.Equal(t, "ssl-gateway", params["cert_name"])
+				require.Equal(t, float64(7), params["days"])
+			},
+		},
+		{
+			name: "支持使用 target 与 user_id 字段并发分发",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelWechat},
+				TemplateSetID:  77,
+				IdentifierType: domain.RecipientIdentifierTypeUserID,
+			},
+			execution: domain.TaskExecution{
+				ID: 105,
+				Task: domain.Task{
+					ID:   18,
+					Name: "ad-password-scanner",
+				},
+				TaskResult: `{"notifications":[{"target":"wangwu","user_id":2001,"days":2},{"target":"zhaoliu","user_id":2002,"days":4}]}`,
+			},
+			wantCalls: 2,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 2)
+			},
+		},
+		{
+			name: "结果中 notifications 列表为空时不触发派发",
+			config: domain.BusinessNotificationConfig{
+				Enabled:       true,
+				Channels:      []domain.NotificationChannel{domain.NotificationChannelWechat},
+				TemplateSetID: 88,
+			},
+			execution: domain.TaskExecution{
+				ID: 103,
+				Task: domain.Task{
+					ID:   12,
+					Name: "ad-password-scanner",
+				},
+				TaskResult: `{"total":0,"notifications":[]}`,
+			},
+			wantCalls: 0,
+		},
+		{
+			name: "Context 已取消时立即中断分发并返回 context canceled 错误",
+			ctx: func(t *testing.T) context.Context {
+				ctx, cancel := context.WithCancel(t.Context())
+				cancel()
+				return ctx
+			},
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelWechat},
+				TemplateSetID:  88,
+				IdentifierType: domain.RecipientIdentifierTypeUserID,
+			},
+			execution: domain.TaskExecution{
+				ID: 104,
+				Task: domain.Task{
+					ID:   12,
+					Name: "ad-password-scanner",
+				},
+				TaskResult: `{"notifications":[{"target":"2001"},{"target":"2002"}]}`,
+			},
+			wantCalls: 0,
+			wantErr:   "context canceled",
+		},
+		{
+			name: "显式声明 USERNAME 直接构建 RecipientIdentifierType_RECIPIENT_IDENTIFIER_USERNAME 委托 EAlert 解析",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  99,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+			},
+			execution: domain.TaskExecution{
+				ID: 106,
+				Task: domain.Task{
+					ID:   20,
+					Name: "ad-password-scanner",
+				},
+				TaskResult: `{"notifications":[{"target":"langtt","days":10},{"target":"wangq","days":-27}]}`,
+			},
+			wantCalls: 2,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 2)
+				targetMap := make(map[string]*notificationv1.RecipientSelector)
+				for _, r := range reqs {
+					target := r.GetTemplateParams().AsMap()["Target"].(string)
+					require.Len(t, r.GetRecipients(), 1)
+					targetMap[target] = r.GetRecipients()[0]
+				}
+
+				require.Equal(t, notificationv1.RecipientIdentifierType_RECIPIENT_IDENTIFIER_USERNAME, targetMap["langtt"].GetIdentifierType())
+				require.Equal(t, []string{"langtt"}, targetMap["langtt"].GetValues())
+
+				require.Equal(t, notificationv1.RecipientIdentifierType_RECIPIENT_IDENTIFIER_USERNAME, targetMap["wangq"].GetIdentifierType())
+				require.Equal(t, []string{"wangq"}, targetMap["wangq"].GetValues())
+			},
+		},
+		{
+			name: "声明为 USER_ID 走老字段 TargetIds 100% 向后兼容",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  99,
+				IdentifierType: domain.RecipientIdentifierTypeUserID,
+			},
+			execution: domain.TaskExecution{
+				ID: 108,
+				Task: domain.Task{
+					ID:   22,
+					Name: "user-id-task",
+				},
+				TaskResult: `{"notifications":[{"target":"1001"}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				require.Equal(t, []int64{1001}, reqs[0].GetRecipients()[0].GetTargetIds())
+			},
+		},
+		{
+			name: "声明为 USER_ID 但接收人非正整数时明确报错",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelWechat},
+				TemplateSetID:  88,
+				IdentifierType: domain.RecipientIdentifierTypeUserID,
+			},
+			execution: domain.TaskExecution{
+				ID: 107,
+				Task: domain.Task{
+					ID:   21,
+					Name: "bad-task",
+				},
+				TaskResult: `{"notifications":[{"target":"not-a-number"}]}`,
+			},
+			wantCalls: 0,
+			wantErr:   "非合法的正整数用户ID",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &notificationClientStub{}
+			notifier := NewEAlertCompletionNotifier(client, nil)
+
+			ctx := t.Context()
+			if tc.ctx != nil {
+				ctx = tc.ctx(t)
+			}
+
+			err := notifier.DispatchBusinessNotifications(ctx, tc.config, tc.execution)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.wantErr)
+			}
+			require.Equal(t, tc.wantCalls, client.calls)
+
+			if tc.validateReqs != nil {
+				tc.validateReqs(t, client.requests)
+			}
+		})
+	}
+}
+
+func TestBuildBusinessRecipientSelector(t *testing.T) {
+	testCases := []struct {
+		name           string
+		identifierType domain.RecipientIdentifierType
+		item           BusinessNotificationItem
+		wantSelector   *notificationv1.RecipientSelector
+		wantErr        string
+	}{
+		{
+			name:           "USERNAME 模式正常解析",
+			identifierType: domain.RecipientIdentifierTypeUsername,
+			item:           BusinessNotificationItem{Target: "langtt"},
+			wantSelector: &notificationv1.RecipientSelector{
+				Type:           notificationv1.RecipientSelectorType_RECIPIENT_USER,
+				IdentifierType: notificationv1.RecipientIdentifierType_RECIPIENT_IDENTIFIER_USERNAME,
+				Values:         []string{"langtt"},
+			},
+		},
+		{
+			name:           "USERNAME 模式目标为空时报错",
+			identifierType: domain.RecipientIdentifierTypeUsername,
+			item:           BusinessNotificationItem{Target: ""},
+			wantErr:        "目标用户名为空",
+		},
+		{
+			name:           "USER_ID 模式正常解析正整数",
+			identifierType: domain.RecipientIdentifierTypeUserID,
+			item:           BusinessNotificationItem{Target: "8888"},
+			wantSelector: &notificationv1.RecipientSelector{
+				Type:      notificationv1.RecipientSelectorType_RECIPIENT_USER,
+				TargetIds: []int64{8888},
+			},
+		},
+		{
+			name:           "USER_ID 模式非数字报错",
+			identifierType: domain.RecipientIdentifierTypeUserID,
+			item:           BusinessNotificationItem{Target: "not-numeric"},
+			wantErr:        "非合法的正整数用户ID",
+		},
+		{
+			name:           "默认模式数字自动走 TargetIds",
+			identifierType: "",
+			item:           BusinessNotificationItem{Target: "666"},
+			wantSelector: &notificationv1.RecipientSelector{
+				Type:      notificationv1.RecipientSelectorType_RECIPIENT_USER,
+				TargetIds: []int64{666},
+			},
+		},
+		{
+			name:           "默认模式非数字自动走 USERNAME",
+			identifierType: "",
+			item:           BusinessNotificationItem{Target: "wangwu"},
+			wantSelector: &notificationv1.RecipientSelector{
+				Type:           notificationv1.RecipientSelectorType_RECIPIENT_USER,
+				IdentifierType: notificationv1.RecipientIdentifierType_RECIPIENT_IDENTIFIER_USERNAME,
+				Values:         []string{"wangwu"},
+			},
+		},
+		{
+			name:           "默认模式目标为空报错",
+			identifierType: "",
+			item:           BusinessNotificationItem{Target: ""},
+			wantErr:        "缺少有效的接收人标识",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			selector, err := buildBusinessRecipientSelector(tc.identifierType, tc.item)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantSelector, selector)
 		})
 	}
 }
