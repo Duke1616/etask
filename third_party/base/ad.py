@@ -1,8 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from ldap3 import Server, Connection, ALL, SUBTREE, DEREF_ALWAYS
 import logging
 
 logger = logging.getLogger(__name__)
+
+# 中国标准时间 (上海时间, UTC+8)
+SHANGHAI_TZ = timezone(timedelta(hours=8))
 
 
 class AD:
@@ -156,7 +159,7 @@ class AD:
         raw_expiry = getattr(entry, "msDS-UserPasswordExpiryTimeComputed", None)
         expiry_dt = None if (is_must_change or is_never_expire) else self.filetime_to_datetime(raw_expiry.value if raw_expiry else None)
         days = int(round((expiry_dt - now).total_seconds() / 86400)) if expiry_dt else None
-        expiry_str = expiry_dt.strftime("%Y-%m-%d %H:%M:%S UTC") if expiry_dt else None
+        expiry_str = expiry_dt.astimezone(SHANGHAI_TZ).strftime("%Y-%m-%d %H:%M:%S") if expiry_dt else None
 
         return {
             "username": str(entry.sAMAccountName or ""),
@@ -226,7 +229,7 @@ class AD:
             # 过滤：仅保留临期 (<= warn_days) 并在逾期追溯期内的账号；若 grace_days 为 0 或 None 则不限制逾期下限
             is_within_grace = True if (not grace_days or grace_days <= 0) else (days >= -grace_days)
             if days <= warn_days and is_within_grace:
-                expiry_str = expiry_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+                expiry_str = expiry_dt.astimezone(SHANGHAI_TZ).strftime("%Y-%m-%d %H:%M:%S")
                 results.append({
                     "username": username,
                     "display_name": display_name,
