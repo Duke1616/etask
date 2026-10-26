@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	programSvc "github.com/Duke1616/etask/internal/service/program"
 	runnerSvc "github.com/Duke1616/etask/internal/service/runner"
 	"github.com/Duke1616/etask/pkg/cryptox"
+	"github.com/ecodeclub/ekit/retry"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -89,32 +91,58 @@ func (s *service) SchedulableTasks(ctx context.Context, preemptedTimeoutMs int64
 }
 
 func (s *service) UpdateNextTime(ctx context.Context, id int64) (domain.Task, error) {
-	task, err := s.GetByID(ctx, id)
+	// 针对心跳续约（Renew）等并发版本递增，借助 ekit/retry 提供最多 3 次 CAS 自旋重试
+	strategy, err := retry.NewExponentialBackoffRetryStrategy(10*time.Millisecond, 100*time.Millisecond, 3)
 	if err != nil {
 		return domain.Task{}, err
 	}
 
-	// 一次性任务：如果 NextTime 在过去（或为0表示立即执行），说明已执行完成，直接设置为 COMPLETED
-	// 这样可以避免 CalculateNextTime 计算出下一次时间
-	if task.Type.IsOneTime() && task.NextTime >= 0 && task.NextTime < time.Now().UnixMilli() {
-		updated, updateErr := s.repo.UpdateStatus(ctx, id, domain.TaskStatusCompleted)
-		updated.NotificationRules = task.NotificationRules
-		return updated, updateErr
-	}
+	for {
+		task, err := s.GetByID(ctx, id)
+		if err != nil {
+			return domain.Task{}, err
+		}
 
-	// 计算下次执行时间
-	if err = s.setNextScheduleTime(&task); err != nil {
-		return domain.Task{}, err
-	}
+		// 一次性任务：如果 NextTime 在过去（或为0表示立即执行），说明已执行完成，直接设置为 COMPLETED
+		// 这样可以避免 CalculateNextTime 计算出下一次时间
+		if task.Type.IsOneTime() && task.NextTime >= 0 && task.NextTime < time.Now().UnixMilli() {
+			updated, updateErr := s.repo.UpdateStatus(ctx, id, domain.TaskStatusCompleted)
+			updated.NotificationRules = task.NotificationRules
+			return updated, updateErr
+		}
 
-	// 如果下次执行时间为零值，说明 cron 不再触发，直接返回（保持原状态）
-	if task.NextTime == 0 {
-		return task, nil
-	}
+		// 计算下次执行时间
+		if err = s.setNextScheduleTime(&task); err != nil {
+			return domain.Task{}, err
+		}
 
-	updated, err := s.repo.UpdateNextTime(ctx, task.ID, task.Version, task.NextTime)
-	updated.NotificationRules = task.NotificationRules
-	return updated, err
+		// 如果下次执行时间为零值，说明 cron 不再触发，直接返回（保持原状态）
+		if task.NextTime == 0 {
+			return task, nil
+		}
+
+		updated, err := s.repo.UpdateNextTime(ctx, task.ID, task.Version, task.NextTime)
+		if err == nil {
+			updated.NotificationRules = task.NotificationRules
+			return updated, nil
+		}
+
+		// 若非乐观锁版本冲突错误，不予重试直接返回
+		if !errors.Is(err, errs.ErrTaskUpdateNextTimeFailed) {
+			return domain.Task{}, err
+		}
+
+		interval, ok := strategy.Next()
+		if !ok {
+			return domain.Task{}, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return domain.Task{}, ctx.Err()
+		case <-time.After(interval):
+		}
+	}
 }
 
 func (s *service) GetByID(ctx context.Context, id int64) (domain.Task, error) {
