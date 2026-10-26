@@ -77,17 +77,27 @@ func (c *Consumer) handleTask(ctx context.Context, evt event.Event) error {
 		return nil
 	}
 
-	// 计算下次运行时间
+	// 1. 获取任务当前快照，先保障本次执行的通知（执行终态通知 + 业务消息推送）及时送达
+	task, err := c.taskSvc.GetByID(ctx, evt.TaskID)
+	if err == nil {
+		c.notifyCompletion(ctx, evt, task, status)
+		if status.IsSuccess() {
+			c.dispatchBusinessNotifications(ctx, evt, task)
+		}
+	} else {
+		c.logger.Error("获取任务信息失败，跳过通知投递",
+			elog.Int64("taskID", evt.TaskID),
+			elog.Int64("executionID", evt.ExecID),
+			elog.FieldErr(err))
+	}
+
+	// 2. 本次执行生命周期收尾后，再推算并更新下一次调度执行时间
 	t, err := c.taskSvc.UpdateNextTime(ctx, evt.TaskID)
 	if err != nil {
 		return err
 	}
-	c.notifyCompletion(ctx, evt, t, status)
-	if status.IsSuccess() {
-		c.dispatchBusinessNotifications(ctx, evt, t)
-	}
 
-	// 只有状态还是 PREEMPTED 的任务才需要释放
+	// 3. 只有状态还是 PREEMPTED 的任务才需要释放
 	// 定时任务由 Release 广播最终的 ACTIVE 状态和下次触发时间。
 	if t.Status == domain.TaskStatusPreempted {
 		return c.acquire.Release(ctx, evt.TaskID, evt.ScheduleNodeID)
