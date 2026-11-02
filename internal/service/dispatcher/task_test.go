@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/errs"
 	acquirermocks "github.com/Duke1616/etask/internal/service/acquirer/mocks"
 	"github.com/Duke1616/etask/internal/service/dispatcher"
 	dispatchermocks "github.com/Duke1616/etask/internal/service/dispatcher/mocks"
@@ -25,9 +26,11 @@ func TestTaskDispatcherRunPlansAfterAcquire(t *testing.T) {
 		planningErr  error
 		wantPlanned  bool
 		wantReleased bool
+		wantErr      error
 	}{
-		{name: "路由使用抢占后的任务", planningErr: planningErr, wantPlanned: true, wantReleased: true},
-		{name: "抢占失败时不规划路由", acquireErr: acquireErr},
+		{name: "路由使用抢占后的任务", planningErr: planningErr, wantPlanned: true, wantReleased: true, wantErr: planningErr},
+		{name: "抢占失败时不规划路由", acquireErr: acquireErr, wantErr: acquireErr},
+		{name: "被其他节点抢先抢占时静默跳过返回nil", acquireErr: errs.ErrTaskPreemptFailed, wantErr: nil},
 	}
 
 	for _, testCase := range testCases {
@@ -49,12 +52,8 @@ func TestTaskDispatcherRunPlansAfterAcquire(t *testing.T) {
 				dispatcher.Config{})
 
 			err := taskDispatcher.Run(context.Background(), domain.Task{ID: 10, Version: 7})
-			wantErr := testCase.planningErr
-			if wantErr == nil {
-				wantErr = testCase.acquireErr
-			}
-			if !errors.Is(err, wantErr) {
-				t.Fatalf("Run() 错误 = %v, 期望包含 %v", err, wantErr)
+			if !errors.Is(err, testCase.wantErr) {
+				t.Fatalf("Run() 错误 = %v, 期望包含 %v", err, testCase.wantErr)
 			}
 		})
 	}

@@ -581,10 +581,14 @@ func (s *executionService) sendCompletedEvent(ctx context.Context, state domain.
 	if !state.Status.IsTerminalStatus() {
 		return errs.ErrInvalidTaskExecutionStatus
 	}
+	execNodeID := state.ExecutorNodeID
+	if execNodeID == "" {
+		execNodeID = execution.ExecutorNodeID
+	}
 	err := s.producer.Produce(ctx, event.Event{
 		ExecID:         execution.ID,
 		ScheduleNodeID: execution.Task.ScheduleNodeID,
-		ExecNodeId:     execution.ExecutorNodeID,
+		ExecNodeId:     execNodeID,
 		ExecStatus:     state.Status,
 		TaskID:         execution.Task.ID,
 		Name:           execution.Task.Name,
@@ -606,6 +610,12 @@ func (s *executionService) ListByTaskID(ctx context.Context, taskID int64, offse
 func (s *executionService) broadcastExecutionEvent(ctx context.Context, id int64) {
 	tenantID := ctxutil.GetTenantID(ctx).Int64()
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Error("广播执行事件协程异常崩溃",
+					elog.Int64("id", id), elog.Any("recover", r))
+			}
+		}()
 		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if tenantID > 0 {

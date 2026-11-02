@@ -109,6 +109,62 @@ func TestUpdateState_RetryExceeded_PublishesFailedCompletion(t *testing.T) {
 	}
 }
 
+func TestUpdateState_PrefersReportedExecutorNodeID(t *testing.T) {
+	testCases := []struct {
+		name              string
+		snapshotNodeID    string
+		reportedNodeID    string
+		wantEventNodeID   string
+	}{
+		{
+			name:            "上报包含真实执行节点且快照为空：优先采用上报节点",
+			snapshotNodeID:  "",
+			reportedNodeID:  "node-live-99",
+			wantEventNodeID: "node-live-99",
+		},
+		{
+			name:            "上报包含最新节点覆盖旧快照节点：优先采用上报节点",
+			snapshotNodeID:  "node-old-1",
+			reportedNodeID:  "node-new-2",
+			wantEventNodeID: "node-new-2",
+		},
+		{
+			name:            "上报节点为空：回退使用快照节点",
+			snapshotNodeID:  "node-fallback",
+			reportedNodeID:  "",
+			wantEventNodeID: "node-fallback",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			producer := &completeProducerStub{}
+			repo := &terminationRepositoryStub{
+				execution: domain.TaskExecution{
+					ID:             200,
+					Status:         domain.TaskExecutionStatusRunning,
+					ExecutorNodeID: tc.snapshotNodeID,
+					Task: domain.Task{
+						ID:   20,
+						Name: "node-track-task",
+					},
+				},
+			}
+			service := &executionService{repo: repo, producer: producer}
+
+			err := service.UpdateState(context.Background(), domain.ExecutionState{
+				ID:             200,
+				Status:         domain.TaskExecutionStatusSuccess,
+				ExecutorNodeID: tc.reportedNodeID,
+				TaskResult:     "success",
+			})
+
+			require.NoError(t, err)
+			require.Equal(t, tc.wantEventNodeID, producer.event.ExecNodeId)
+		})
+	}
+}
+
 type completeProducerStub struct {
 	event event.Event
 }

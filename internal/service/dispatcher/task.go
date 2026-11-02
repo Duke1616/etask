@@ -2,10 +2,12 @@ package dispatcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/errs"
 	"github.com/Duke1616/etask/internal/service/acquirer"
 	"github.com/Duke1616/etask/internal/service/invoker"
 	"github.com/Duke1616/etask/internal/service/task"
@@ -96,6 +98,12 @@ func (s *TaskDispatcher) Run(ctx context.Context, task domain.Task) error {
 	// 先抢占并取得数据库最新快照，避免基于过期配置选择节点和执行模式。
 	acquiredTask, err := s.acquireTask(ctx, task)
 	if err != nil {
+		if errors.Is(err, errs.ErrTaskPreemptFailed) {
+			s.logger.Debug("任务已被其他节点抢占，跳过本次调度",
+				elog.Int64("taskID", task.ID),
+				elog.String("taskName", task.Name))
+			return nil
+		}
 		s.logger.Error("任务抢占失败",
 			elog.Int64("taskID", task.ID),
 			elog.String("taskName", task.Name),
