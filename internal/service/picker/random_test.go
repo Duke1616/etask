@@ -92,3 +92,49 @@ func (r *registryStub) ListServices(context.Context, string) ([]registry.Service
 }
 func (r *registryStub) Subscribe(string) <-chan registry.Event { return nil }
 func (r *registryStub) Close() error                           { return nil }
+
+func TestRandomPickerConcurrentPick(t *testing.T) {
+	services := []registry.ServiceInstance{
+		executorInstance("node-1", "PUSH", `[{"name":"shell"}]`),
+		executorInstance("node-2", "PUSH", `[{"name":"shell"}]`),
+		executorInstance("node-3", "PUSH", `[{"name":"shell"}]`),
+	}
+	reg := &concurrentRegistryStub{services: services}
+	p := NewRandomPicker(reg)
+	task := domain.Task{
+		ExecMode:   domain.ExecModePush,
+		GrpcConfig: &domain.GrpcConfig{ServiceName: "executor", HandlerName: "shell"},
+	}
+
+	const goroutines = 50
+	const iterations = 100
+	done := make(chan struct{})
+
+	for range goroutines {
+		go func() {
+			for range iterations {
+				nodeID, err := p.Pick(context.Background(), task)
+				if err != nil || nodeID == "" {
+					t.Errorf("Pick() 发生错误: %v, nodeID=%s", err, nodeID)
+				}
+			}
+			done <- struct{}{}
+		}()
+	}
+
+	for range goroutines {
+		<-done
+	}
+}
+
+type concurrentRegistryStub struct {
+	services []registry.ServiceInstance
+}
+
+func (r *concurrentRegistryStub) Register(context.Context, registry.ServiceInstance) error   { return nil }
+func (r *concurrentRegistryStub) UnRegister(context.Context, registry.ServiceInstance) error { return nil }
+func (r *concurrentRegistryStub) ListServices(context.Context, string) ([]registry.ServiceInstance, error) {
+	return r.services, nil
+}
+func (r *concurrentRegistryStub) Subscribe(string) <-chan registry.Event { return nil }
+func (r *concurrentRegistryStub) Close() error                           { return nil }

@@ -226,20 +226,23 @@ func (s *Syncer) disableIfNoInstances(ctx context.Context, source poolsource.Sou
 		return
 	}
 
-	timer := time.NewTimer(disableGracePeriod)
-	defer timer.Stop()
+	// 异步延迟二次确认，避免阻塞主事件消费循环
+	go func() {
+		timer := time.NewTimer(disableGracePeriod)
+		defer timer.Stop()
 
-	select {
-	case <-ctx.Done():
-		return
-	case <-timer.C:
-	}
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
 
-	hasInstances, ok = s.hasInstances(ctx, source, poolName)
-	if !ok || hasInstances {
-		return
-	}
-	s.resyncSource(ctx, source)
+		hasInstances, ok = s.hasInstances(ctx, source, poolName)
+		if !ok || hasInstances {
+			return
+		}
+		s.resyncSource(ctx, source)
+	}()
 }
 
 func (s *Syncer) hasInstances(ctx context.Context, source poolsource.Source, poolName string) (bool, bool) {

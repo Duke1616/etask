@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
-	"time"
 
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/pkg/grpc/registry"
@@ -17,7 +16,6 @@ var _ ExecutorNodePicker = &RandomPicker{}
 // RandomPicker 基础随机选择器，职责：从可用节点中随机选出一个节点 ID
 type RandomPicker struct {
 	reg registry.Registry
-	rnd *rand.Rand
 }
 
 // Pick 从支持任务 Handler 的在线 Executor 中随机选择节点。
@@ -43,7 +41,7 @@ func (b *RandomPicker) Pick(ctx context.Context, task domain.Task) (string, erro
 	if len(candidates) == 0 {
 		return "", fmt.Errorf("没有支持处理器 %s 的可用执行节点", task.GrpcConfig.HandlerName)
 	}
-	return candidates[b.rnd.Intn(len(candidates))], nil
+	return candidates[rand.N(len(candidates))], nil
 }
 
 // supportsDispatchMode 只做节点过滤，派发模式仍以已持久化的资源池快照为准。
@@ -58,7 +56,6 @@ func supportsDispatchMode(service registry.ServiceInstance, expected domain.Exec
 func NewRandomPicker(reg registry.Registry) ExecutorNodePicker {
 	return &RandomPicker{
 		reg: reg,
-		rnd: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
