@@ -50,6 +50,8 @@ type TaskExecutionRepository interface {
 	FindByTaskID(ctx context.Context, taskID int64) ([]domain.TaskExecution, error)
 	// HasNonTerminalByTaskID 判断任务是否存在未结束的执行记录。
 	HasNonTerminalByTaskID(ctx context.Context, taskID int64) (bool, error)
+	// FindNonTerminalByTaskID 查询任务下所有未结束的活跃执行记录。
+	FindNonTerminalByTaskID(ctx context.Context, taskID int64) ([]domain.TaskExecution, error)
 	// FindByTaskIDs 批量根据一批任务ID查找它们对应的所有执行记录
 	FindByTaskIDs(ctx context.Context, taskIDs []int64) ([]domain.TaskExecution, error)
 	// ListByTaskID 根据任务ID分页查找执行记录
@@ -93,6 +95,14 @@ func (r *taskExecutionRepository) FindByTaskID(ctx context.Context, taskID int64
 
 func (r *taskExecutionRepository) HasNonTerminalByTaskID(ctx context.Context, taskID int64) (bool, error) {
 	return r.dao.HasNonTerminalByTaskID(ctx, taskID)
+}
+
+func (r *taskExecutionRepository) FindNonTerminalByTaskID(ctx context.Context, taskID int64) ([]domain.TaskExecution, error) {
+	daoExecutions, err := r.dao.FindNonTerminalByTaskID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	return r.toDomains(daoExecutions)
 }
 
 func (r *taskExecutionRepository) FindByTaskIDs(ctx context.Context, taskIDs []int64) ([]domain.TaskExecution, error) {

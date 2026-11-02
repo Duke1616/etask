@@ -315,6 +315,45 @@ func (c *MockTaskExecutionRepositoryFindExecutionsByPlanExecIDCall) DoAndReturn(
 	return c
 }
 
+// FindNonTerminalByTaskID mocks base method.
+func (m *MockTaskExecutionRepository) FindNonTerminalByTaskID(ctx context.Context, taskID int64) ([]domain.TaskExecution, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindNonTerminalByTaskID", ctx, taskID)
+	ret0, _ := ret[0].([]domain.TaskExecution)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindNonTerminalByTaskID indicates an expected call of FindNonTerminalByTaskID.
+func (mr *MockTaskExecutionRepositoryMockRecorder) FindNonTerminalByTaskID(ctx, taskID any) *MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindNonTerminalByTaskID", reflect.TypeOf((*MockTaskExecutionRepository)(nil).FindNonTerminalByTaskID), ctx, taskID)
+	return &MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall{Call: call}
+}
+
+// MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall wrap *gomock.Call
+type MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall) Return(arg0 []domain.TaskExecution, arg1 error) *MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall) Do(f func(context.Context, int64) ([]domain.TaskExecution, error)) *MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall) DoAndReturn(f func(context.Context, int64) ([]domain.TaskExecution, error)) *MockTaskExecutionRepositoryFindNonTerminalByTaskIDCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // FindReschedulableExecutions mocks base method.
 func (m *MockTaskExecutionRepository) FindReschedulableExecutions(ctx context.Context, limit int) ([]domain.TaskExecution, error) {
 	m.ctrl.T.Helper()

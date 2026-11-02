@@ -32,6 +32,8 @@ type Service interface {
 	Request(ctx context.Context, request Request) error
 	// RequestExecution 终止任意可取消的执行记录，并投递物理终止信号。
 	RequestExecution(ctx context.Context, executionID int64, reason string) error
+	// TerminateActiveByTaskID 终止指定任务当前所有未结束的执行实例。
+	TerminateActiveByTaskID(ctx context.Context, taskID int64, reason string) error
 	// Attach 在 execution 创建后应用可能早到的取消意图。
 	Attach(ctx context.Context, execution domain.TaskExecution) (domain.TaskExecution, error)
 	// DeliverPending 投递一批待发送的物理终止信号。
@@ -85,6 +87,23 @@ func (s *service) RequestExecution(ctx context.Context, executionID int64, reaso
 		return err
 	}
 	return nil
+}
+
+func (s *service) TerminateActiveByTaskID(ctx context.Context, taskID int64, reason string) error {
+	if taskID <= 0 {
+		return fmt.Errorf("%w: task ID 非法", ErrInvalidCommand)
+	}
+	actives, err := s.executions.FindNonTerminalByTaskID(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("查询任务 %d 活跃执行记录失败: %w", taskID, err)
+	}
+	var errs []error
+	for _, exec := range actives {
+		if reqErr := s.RequestExecution(ctx, exec.ID, reason); reqErr != nil && !errors.Is(reqErr, ErrRejected) {
+			errs = append(errs, reqErr)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (s *service) Attach(ctx context.Context,

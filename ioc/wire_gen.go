@@ -163,7 +163,7 @@ func InitSchedulerApplication(base *Base) *SchedulerApplication {
 	scheduler := InitScheduler(string2, dispatcher, taskService, taskAcquirer, hubs)
 	retryCompensator := InitRetryCompensator(dispatcher, executionService)
 	rescheduleCompensator := InitRescheduleCompensator(dispatcher, executionService)
-	interruptCompensator := InitInterruptCompensator(clients, executionService)
+	interruptCompensator := InitInterruptCompensator(terminationService, executionService)
 	terminationCompensator := InitTerminationCompensator(terminationService)
 	clientConn := InitEAlertClientConn(registry)
 	notificationServiceClient := InitEAlertNotificationClient(clientConn)

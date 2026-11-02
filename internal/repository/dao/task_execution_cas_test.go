@@ -92,3 +92,54 @@ func TestClaimPullTaskSQL(t *testing.T) {
 	require.Contains(t, sql, "SELECT * FROM `task_executions`")
 	require.Contains(t, sql, "FOR UPDATE SKIP LOCKED")
 }
+
+func TestFindTimeoutExecutionsSQL(t *testing.T) {
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		DSN:                       "gorm:gorm@tcp(localhost:9910)/gorm?charset=utf8mb4&parseTime=True&loc=Local",
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{
+		DryRun:               true,
+		DisableAutomaticPing: true,
+	})
+	require.NoError(t, err)
+
+	now := int64(1000000)
+	var executions []TaskExecution
+	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&TaskExecution{}).
+			Where("(status = ? AND deadline <= ?) OR (status = ? AND utime <= ?)",
+				TaskExecutionStatusRunning, now,
+				TaskExecutionStatusPrepare, now-defaultPrepareTimeoutMs).
+			Order("utime ASC").
+			Limit(10).
+			Find(&executions)
+	})
+
+	require.Contains(t, sql, "status = 'RUNNING'")
+	require.Contains(t, sql, "status = 'PREPARE'")
+	require.Contains(t, sql, "ORDER BY utime ASC")
+}
+
+func TestFindRetryableExecutionsSQL(t *testing.T) {
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		DSN:                       "gorm:gorm@tcp(localhost:9910)/gorm?charset=utf8mb4&parseTime=True&loc=Local",
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{
+		DryRun:               true,
+		DisableAutomaticPing: true,
+	})
+	require.NoError(t, err)
+
+	now := int64(1000000)
+	var executions []TaskExecution
+	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&TaskExecution{}).
+			Where("status = ? AND next_retry_time <= ?", TaskExecutionStatusFailedRetryable, now).
+			Order("next_retry_time ASC").
+			Limit(10).
+			Find(&executions)
+	})
+
+	require.Contains(t, sql, "status = 'FAILED_RETRYABLE'")
+	require.Contains(t, sql, "ORDER BY next_retry_time ASC")
+}

@@ -194,3 +194,41 @@ func (c *MockServiceRequestExecutionCall) DoAndReturn(f func(context.Context, in
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
+
+// TerminateActiveByTaskID mocks base method.
+func (m *MockService) TerminateActiveByTaskID(ctx context.Context, taskID int64, reason string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TerminateActiveByTaskID", ctx, taskID, reason)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TerminateActiveByTaskID indicates an expected call of TerminateActiveByTaskID.
+func (mr *MockServiceMockRecorder) TerminateActiveByTaskID(ctx, taskID, reason any) *MockServiceTerminateActiveByTaskIDCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TerminateActiveByTaskID", reflect.TypeOf((*MockService)(nil).TerminateActiveByTaskID), ctx, taskID, reason)
+	return &MockServiceTerminateActiveByTaskIDCall{Call: call}
+}
+
+// MockServiceTerminateActiveByTaskIDCall wrap *gomock.Call
+type MockServiceTerminateActiveByTaskIDCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceTerminateActiveByTaskIDCall) Return(arg0 error) *MockServiceTerminateActiveByTaskIDCall {
+	c.Call = c.Call.Return(arg0)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceTerminateActiveByTaskIDCall) Do(f func(context.Context, int64, string) error) *MockServiceTerminateActiveByTaskIDCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceTerminateActiveByTaskIDCall) DoAndReturn(f func(context.Context, int64, string) error) *MockServiceTerminateActiveByTaskIDCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}

@@ -106,6 +106,8 @@ type TaskExecutionDAO interface {
 	FindByTaskID(ctx context.Context, taskID int64) ([]TaskExecution, error)
 	// HasNonTerminalByTaskID 判断任务是否存在未结束的执行记录。
 	HasNonTerminalByTaskID(ctx context.Context, taskID int64) (bool, error)
+	// FindNonTerminalByTaskID 查询任务下所有未结束的活跃执行记录。
+	FindNonTerminalByTaskID(ctx context.Context, taskID int64) ([]TaskExecution, error)
 	// ListByTaskID 根据任务ID分页查找执行记录
 	ListByTaskID(ctx context.Context, taskID int64, offset, limit int) ([]TaskExecution, error)
 	// CountByTaskID 根据任务ID统计执行记录总数
@@ -161,6 +163,20 @@ func (g *GORMTaskExecutionDAO) HasNonTerminalByTaskID(ctx context.Context, taskI
 		Limit(1).
 		Find(&row)
 	return result.RowsAffected > 0, result.Error
+}
+
+// FindNonTerminalByTaskID 查询任务下所有未结束的活跃执行记录。
+func (g *GORMTaskExecutionDAO) FindNonTerminalByTaskID(ctx context.Context, taskID int64) ([]TaskExecution, error) {
+	var executions []TaskExecution
+	err := g.db.WithContext(ctx).
+		Select("id", "tenant_id", "task_id", "status").
+		Where("task_id = ? AND status IN ?", taskID, nonTerminalExecutionStatuses()).
+		Order("ctime DESC").
+		Find(&executions).Error
+	if err != nil {
+		return nil, fmt.Errorf("查询任务 %d 未完成执行记录失败: %w", taskID, err)
+	}
+	return executions, nil
 }
 
 func nonTerminalExecutionStatuses() []string {
@@ -337,6 +353,7 @@ func (g *GORMTaskExecutionDAO) FindRetryableExecutions(ctx context.Context, limi
 	err := g.db.WithContext(ctx).
 		Scopes(gormx.IgnoreTenant()).
 		Where("status = ? AND next_retry_time <= ?", TaskExecutionStatusFailedRetryable, now).
+		Order("next_retry_time ASC").
 		Limit(limit).
 		Find(&executions).Error
 	return executions, err
@@ -475,14 +492,20 @@ func (g *GORMTaskExecutionDAO) FindReschedulableExecutions(ctx context.Context, 
 	return executions, err
 }
 
+const defaultPrepareTimeoutMs = 2 * 60 * 1000 // 2 分钟：正常派发与执行器响应仅需毫秒级，超过 2 分钟仍处于 PREPARE 视为调度节点宕机或派发丢失
+
 func (g *GORMTaskExecutionDAO) FindTimeoutExecutions(ctx context.Context, limit int) ([]TaskExecution, error) {
 	var executions []TaskExecution
 	now := time.Now().UnixMilli()
 
+	// 1. 查找运行超时（RUNNING 且 deadline 到期）的执行记录
+	// 2. 查找派发丢失或调度节点崩溃导致的幽灵记录（PREPARE 且超过 2 分钟未流转）
 	err := g.db.WithContext(ctx).
 		Scopes(gormx.IgnoreTenant()).
-		Where("deadline <= ? AND status = ?", now, TaskExecutionStatusRunning).
-		Order("deadline ASC").
+		Where("(status = ? AND deadline <= ?) OR (status = ? AND utime <= ?)",
+			TaskExecutionStatusRunning, now,
+			TaskExecutionStatusPrepare, now-defaultPrepareTimeoutMs).
+		Order("utime ASC").
 		Limit(limit).
 		Find(&executions).Error
 

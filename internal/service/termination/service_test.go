@@ -7,6 +7,7 @@ import (
 
 	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
+	"github.com/Duke1616/etask/internal/repository"
 	repositorymocks "github.com/Duke1616/etask/internal/repository/mocks"
 	invokermocks "github.com/Duke1616/etask/internal/service/invoker/mocks"
 	"github.com/Duke1616/etask/internal/service/termination"
@@ -106,4 +107,73 @@ func TestDeliverPendingSchedulesRetryAfterSignalFailure(t *testing.T) {
 	err := service.DeliverPending(context.Background(), 10)
 
 	require.ErrorContains(t, err, "executor unavailable")
+}
+
+func TestTerminateActiveByTaskID(t *testing.T) {
+	testCases := []struct {
+		name      string
+		taskID    int64
+		mock      func(ctrl *gomock.Controller, cancellations *repositorymocks.MockExecutionCancellationRepository, executions *repositorymocks.MockTaskExecutionRepository)
+		wantErr   error
+		assertErr func(t *testing.T, err error)
+	}{
+		{
+			name:   "非法 taskID",
+			taskID: 0,
+			mock:   func(ctrl *gomock.Controller, cancellations *repositorymocks.MockExecutionCancellationRepository, executions *repositorymocks.MockTaskExecutionRepository) {},
+			wantErr: termination.ErrInvalidCommand,
+		},
+		{
+			name:   "查询活跃执行记录失败",
+			taskID: 100,
+			mock: func(ctrl *gomock.Controller, cancellations *repositorymocks.MockExecutionCancellationRepository, executions *repositorymocks.MockTaskExecutionRepository) {
+				executions.EXPECT().FindNonTerminalByTaskID(gomock.Any(), int64(100)).
+					Return(nil, errors.New("db error"))
+			},
+			assertErr: func(t *testing.T, err error) {
+				require.ErrorContains(t, err, "查询任务 100 活跃执行记录失败")
+			},
+		},
+		{
+			name:   "批量终止活跃执行成功，且容忍部分执行已进入终态被拒绝",
+			taskID: 100,
+			mock: func(ctrl *gomock.Controller, cancellations *repositorymocks.MockExecutionCancellationRepository, executions *repositorymocks.MockTaskExecutionRepository) {
+				executions.EXPECT().FindNonTerminalByTaskID(gomock.Any(), int64(100)).
+					Return([]domain.TaskExecution{
+						{ID: 101, Status: domain.TaskExecutionStatusRunning},
+						{ID: 102, Status: domain.TaskExecutionStatusPrepare},
+					}, nil)
+
+				// 101 取消成功
+				cancellations.EXPECT().Request(gomock.Any(), int64(101), "", "任务停用联动终止").
+					Return(nil)
+				// 102 刚好完成，返回 ErrCancellationRejected，应被吞掉不影响整体
+				cancellations.EXPECT().Request(gomock.Any(), int64(102), "", "任务停用联动终止").
+					Return(repository.ErrCancellationRejected)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			cancellations := repositorymocks.NewMockExecutionCancellationRepository(ctrl)
+			executions := repositorymocks.NewMockTaskExecutionRepository(ctrl)
+			physical := invokermocks.NewMockInvoker(ctrl)
+			ctx := ctxutil.WithTenantID(context.Background(), 7)
+
+			tc.mock(ctrl, cancellations, executions)
+
+			service := termination.NewService(cancellations, executions, physical)
+			err := service.TerminateActiveByTaskID(ctx, tc.taskID, "任务停用联动终止")
+
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+			} else if tc.assertErr != nil {
+				tc.assertErr(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

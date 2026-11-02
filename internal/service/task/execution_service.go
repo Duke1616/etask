@@ -409,7 +409,8 @@ func (s *executionService) UpdateState(ctx context.Context, state domain.Executi
 		if err != nil {
 			// 达到最大重试次数
 			if errors.Is(err, errs.ErrExecutionMaxRetriesExceeded) {
-				// NOTE: 只发送完成事件,由消费者统一更新终止状态
+				// 重试耗尽，将状态推进为最终失败态，由完成消费者统一推进数据库终态并释放任务锁
+				state.Status = domain.TaskExecutionStatusFailed
 				return s.sendCompletedEvent(ctx, state, execution)
 			}
 			// 其他错误才记录并返回

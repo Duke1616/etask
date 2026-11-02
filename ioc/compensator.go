@@ -1,13 +1,11 @@
 package ioc
 
 import (
-	executorv1 "github.com/Duke1616/etask/api/proto/gen/etask/executor/v1"
 	"github.com/Duke1616/etask/internal/compensator"
 	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/Duke1616/etask/internal/service/termination"
 	config "github.com/Duke1616/etask/pkg/config"
-	"github.com/Duke1616/etask/pkg/grpc/pool"
 )
 
 func InitRetryCompensator(
@@ -42,7 +40,7 @@ func InitRescheduleCompensator(
 }
 
 func InitInterruptCompensator(
-	grpcClients *pool.Clients[executorv1.ExecutorServiceClient],
+	terminationSvc termination.Service,
 	execSvc task.ExecutionService,
 ) *compensator.InterruptCompensator {
 	var cfg compensator.InterruptConfig
@@ -51,7 +49,7 @@ func InitInterruptCompensator(
 		panic(err)
 	}
 	return compensator.NewInterruptCompensator(
-		grpcClients,
+		terminationSvc,
 		execSvc,
 		cfg,
 	)

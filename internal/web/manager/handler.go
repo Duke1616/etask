@@ -20,6 +20,7 @@ import (
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/ecodeclub/ginx"
 	"github.com/gin-gonic/gin"
+	"github.com/gotomicro/ego/core/elog"
 	"github.com/samber/lo"
 )
 
@@ -132,9 +133,6 @@ func (h *Handler) TerminateExecution(ctx *ginx.Context, req TerminateExecutionRe
 	if len([]rune(reason)) > 500 {
 		return invalidParameterResult(fmt.Errorf("终止原因不能超过 500 字")), nil
 	}
-	if h.termination == nil {
-		return systemErrorResult, fmt.Errorf("执行终止服务未初始化")
-	}
 	if err = h.termination.RequestExecution(ctx, id, reason); err != nil {
 		return systemErrorResult, err
 	}
@@ -203,6 +201,12 @@ func (h *Handler) Stop(ctx *ginx.Context) (ginx.Result, error) {
 			Code: SystemErrorCode,
 			Msg:  err.Error(),
 		}, err
+	}
+
+	// 联动检查并终止当前处于非终态的执行实例，保证停用即刻全链路刹车
+	if termErr := h.termination.TerminateActiveByTaskID(ctx, id, "任务停用联动终止"); termErr != nil {
+		elog.DefaultLogger.Error("停止任务联动终止执行失败",
+			elog.Int64("taskID", id), elog.FieldErr(termErr))
 	}
 
 	// 停止成功后，主动拉取最新任务状态并广播
