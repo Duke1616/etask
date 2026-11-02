@@ -46,15 +46,10 @@ func (c Config) Validate() error {
 	return nil
 }
 
-type invocationPolicy struct {
-	failurePrefix string
-	releaseTask   bool
-}
-
-var (
-	initialInvocation    = invocationPolicy{failurePrefix: "Invocation failed", releaseTask: true}
-	retryInvocation      = invocationPolicy{failurePrefix: "Invocation failed during retry", releaseTask: true}
-	rescheduleInvocation = invocationPolicy{failurePrefix: "Invocation failed during reschedule"}
+const (
+	initialInvocationPrefix    = "Invocation failed"
+	retryInvocationPrefix      = "Invocation failed during retry"
+	rescheduleInvocationPrefix = "Invocation failed during reschedule"
 )
 
 // NewTaskDispatcher 创建任务派发器。
@@ -165,34 +160,40 @@ func (s *TaskDispatcher) handleNormalTask(ctx context.Context, task domain.Task,
 		return nil
 	}
 
-	return s.invokeAsync(ctx, execution, initialInvocation)
+	return s.invokeAsync(ctx, execution, initialInvocationPrefix)
 }
 
 func (s *TaskDispatcher) invokeAsync(ctx context.Context, execution domain.TaskExecution,
-	policy invocationPolicy) error {
+	failurePrefix string) error {
 	if err := s.acquireInvocationSlot(ctx); err != nil {
-		s.markInvocationFailed(ctx, execution, policy.failurePrefix, err)
-		if policy.releaseTask {
-			s.releaseTask(ctx, execution.Task)
-		}
+		s.markInvocationFailed(ctx, execution, failurePrefix, err)
 		return err
 	}
+	asyncCtx := context.WithoutCancel(ctx)
 	go func() {
 		defer s.releaseInvocationSlot()
-		state, err := s.invoker.Run(ctx, execution)
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Error("执行器调用发生未知崩溃 panic",
+					elog.Int64("task_id", execution.Task.ID),
+					elog.Int64("execution_id", execution.ID),
+					elog.String("task_name", execution.Task.Name),
+					elog.Any("recover", r))
+				s.markInvocationFailed(asyncCtx, execution, "执行节点发生未知崩溃", fmt.Errorf("%v", r))
+			}
+		}()
+
+		state, err := s.invoker.Run(asyncCtx, execution)
 		if err != nil {
 			s.logger.Error("执行器调用失败",
 				elog.Int64("task_id", execution.Task.ID),
 				elog.Int64("execution_id", execution.ID),
 				elog.String("task_name", execution.Task.Name),
 				elog.FieldErr(err))
-			s.markInvocationFailed(ctx, execution, policy.failurePrefix, err)
-			if policy.releaseTask {
-				s.releaseTask(ctx, execution.Task)
-			}
+			s.markInvocationFailed(asyncCtx, execution, failurePrefix, err)
 			return
 		}
-		if err = s.execSvc.UpdateState(ctx, state); err != nil {
+		if err = s.execSvc.UpdateState(asyncCtx, state); err != nil {
 			s.logger.Error("保存执行结果失败",
 				elog.Int64("execution_id", execution.ID), elog.FieldErr(err))
 		}
@@ -260,7 +261,7 @@ func (s *TaskDispatcher) Retry(ctx context.Context, execution domain.TaskExecuti
 		// 其他 Scheduler 已经抢到，或记录已被推进；这是正常的并发结果。
 		return nil
 	}
-	return s.invokeAsync(s.WithExcludedNodeIDContext(ctx, execution.ExecutorNodeID), execution, retryInvocation)
+	return s.invokeAsync(s.WithExcludedNodeIDContext(ctx, execution.ExecutorNodeID), execution, retryInvocationPrefix)
 }
 
 // WithExcludedNodeIDContext 将需要排除的执行节点写入 gRPC 负载均衡上下文。
@@ -284,7 +285,7 @@ func (s *TaskDispatcher) Reschedule(ctx context.Context, execution domain.TaskEx
 		return nil
 	}
 	return s.invokeAsync(s.WithSpecificNodeIDContext(ctx, execution.ExecutorNodeID), execution,
-		rescheduleInvocation)
+		rescheduleInvocationPrefix)
 }
 
 // claimForDispatch 将失败态原子迁移到 PREPARE，避免多个 Scheduler 同时再次调用同一 execution。

@@ -10,6 +10,7 @@ import (
 	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
+	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/service/acquirer"
 	"github.com/Duke1616/etask/internal/service/dispatcher"
 	"github.com/Duke1616/etask/internal/service/task"
@@ -162,27 +163,34 @@ func (s *Scheduler) waitScheduleInterval() bool {
 func (s *Scheduler) scheduleOnce(task domain.Task) error {
 	ctx := taskContext(s.ctx, task.TenantID)
 	err := s.dispatcher.Run(ctx, task)
-	if errors.Is(err, errs.ErrProgramSourceUnavailable) {
-		s.stopTaskWithUnavailableProgram(ctx, task)
+	if isUnrecoverableTaskConfigError(err) {
+		s.stopTaskWithFatalConfig(ctx, task, err)
 	}
 	return err
 }
 
-// stopTaskWithUnavailableProgram 停用仍指向同一失效程序来源的任务。
-// 再次读取并比较程序配置，避免并发编辑已经修复任务后被旧调度结果误停用。
-func (s *Scheduler) stopTaskWithUnavailableProgram(ctx context.Context, scheduled domain.Task) {
+func isUnrecoverableTaskConfigError(err error) bool {
+	return errors.Is(err, errs.ErrProgramSourceUnavailable) ||
+		errors.Is(err, repository.ErrExecutionPoolNotFound) ||
+		errors.Is(err, errs.ErrExecutionPoolNotAllowed)
+}
+
+// stopTaskWithFatalConfig 停用存在不可恢复静态配置错误的任务（如资源池不存在、未授权、程序来源丢失）。
+// 再次读取并校验任务状态与版本号，避免并发编辑已经修复任务后被旧调度结果误停用。
+func (s *Scheduler) stopTaskWithFatalConfig(ctx context.Context, scheduled domain.Task, fatalErr error) {
 	current, err := s.taskSvc.GetByID(ctx, scheduled.ID)
 	if err != nil {
-		s.logger.Error("查询程序来源失效任务失败",
+		s.logger.Error("查询配置失效任务失败",
 			elog.Int64("taskID", scheduled.ID), elog.FieldErr(err))
 		return
 	}
 	if current.Status == domain.TaskStatusInactive || current.Status == domain.TaskStatusCompleted ||
-		!reflect.DeepEqual(current.Program, scheduled.Program) {
+		!reflect.DeepEqual(current.Program, scheduled.Program) ||
+		(scheduled.Version > 0 && current.Version != scheduled.Version) {
 		return
 	}
 	if err = s.taskSvc.Stop(ctx, scheduled.ID); err != nil {
-		s.logger.Error("自动停用程序来源失效任务失败",
+		s.logger.Error("自动停用配置失效任务失败",
 			elog.Int64("taskID", scheduled.ID), elog.String("taskName", scheduled.Name),
 			elog.FieldErr(err))
 		return
@@ -194,8 +202,9 @@ func (s *Scheduler) stopTaskWithUnavailableProgram(ctx context.Context, schedule
 			NextTime: stopped.NextTime, Version: stopped.Version,
 		})
 	}
-	s.logger.Warn("程序来源不存在，任务已自动停用",
-		elog.Int64("taskID", scheduled.ID), elog.String("taskName", scheduled.Name))
+	s.logger.Warn("任务配置存在不可恢复错误，已自动停用避免热循环打爆系统",
+		elog.Int64("taskID", scheduled.ID), elog.String("taskName", scheduled.Name),
+		elog.FieldErr(fatalErr))
 }
 
 // taskContext 注入租户及原始租户，供后续业务流程使用。

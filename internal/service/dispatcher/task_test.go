@@ -211,3 +211,43 @@ func TestTaskDispatcherLimitsConcurrentInvocations(t *testing.T) {
 		}
 	}
 }
+
+func TestTaskDispatcherRecoversPanic(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	executions := taskmocks.NewMockExecutionService(ctrl)
+	remote := invokermocks.NewMockInvoker(ctrl)
+	done := make(chan struct{})
+
+	execution := domain.TaskExecution{
+		ID: 99, Status: domain.TaskExecutionStatusFailedRetryable,
+		Route: domain.ExecutionRoute{DispatchMode: domain.ExecModePush},
+	}
+
+	executions.EXPECT().UpdateScheduleResult(gomock.Any(), execution.ID,
+		[]domain.TaskExecutionStatus{domain.TaskExecutionStatusFailedRetryable},
+		domain.TaskExecutionStatusPrepare, execution.RunningProgress, int64(0),
+		execution.Task.ScheduleParams, "", "").Return(true, nil)
+
+	remote.EXPECT().Run(gomock.Any(), execution).DoAndReturn(
+		func(context.Context, domain.TaskExecution) (domain.ExecutionState, error) {
+			panic("remote invoker unexpected crash")
+		})
+
+	executions.EXPECT().UpdateState(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, state domain.ExecutionState) error {
+			require.Equal(t, domain.TaskExecutionStatusFailed, state.Status)
+			require.Contains(t, state.TaskResult, "remote invoker unexpected crash")
+			close(done)
+			return nil
+		})
+
+	d := dispatcher.NewTaskDispatcher("scheduler-1", executions, nil, remote, nil, dispatcher.Config{})
+	err := d.Retry(t.Context(), execution)
+	require.NoError(t, err)
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("panic was not recovered or failed state was not persisted")
+	}
+}

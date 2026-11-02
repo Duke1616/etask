@@ -9,6 +9,7 @@ import (
 	"github.com/Duke1616/eiam/pkg/ctxutil"
 	"github.com/Duke1616/etask/internal/domain"
 	"github.com/Duke1616/etask/internal/errs"
+	"github.com/Duke1616/etask/internal/repository"
 	"github.com/Duke1616/etask/internal/service/task"
 	"github.com/gotomicro/ego/core/elog"
 	"github.com/stretchr/testify/require"
@@ -167,6 +168,22 @@ func TestSchedulerDoesNotStopTaskAfterProgramWasChanged(t *testing.T) {
 
 	require.ErrorIs(t, err, errs.ErrProgramSourceUnavailable)
 	require.Zero(t, tasks.stoppedID)
+}
+
+func TestSchedulerStopsTaskWhenExecutionPoolIsNotFound(t *testing.T) {
+	scheduled := domain.Task{ID: 8, TenantID: 20, Name: "资源池缺失任务", Status: domain.TaskStatusActive}
+	tasks := &schedulerTaskServiceStub{current: scheduled}
+	scheduler := &Scheduler{
+		dispatcher: &dispatcherStub{err: repository.ErrExecutionPoolNotFound},
+		taskSvc:    tasks,
+		ctx:        context.Background(),
+		logger:     elog.DefaultLogger.With(elog.FieldComponentName("scheduler.test")),
+	}
+
+	err := scheduler.scheduleOnce(scheduled)
+
+	require.ErrorIs(t, err, repository.ErrExecutionPoolNotFound)
+	require.Equal(t, scheduled.ID, tasks.stoppedID)
 }
 
 type repeatingSchedulerTaskServiceStub struct {
