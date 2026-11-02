@@ -109,6 +109,39 @@ func TestDeliverPendingSchedulesRetryAfterSignalFailure(t *testing.T) {
 	require.ErrorContains(t, err, "executor unavailable")
 }
 
+func TestDeliverPendingSkipsPhysicalSignalWhenAlreadyTerminal(t *testing.T) {
+	terminalStatuses := []domain.TaskExecutionStatus{
+		domain.TaskExecutionStatusSuccess,
+		domain.TaskExecutionStatusFailed,
+		domain.TaskExecutionStatusCancelled,
+	}
+
+	for _, status := range terminalStatuses {
+		t.Run(string(status), func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			cancellations := repositorymocks.NewMockExecutionCancellationRepository(ctrl)
+			executions := repositorymocks.NewMockTaskExecutionRepository(ctrl)
+			physical := invokermocks.NewMockInvoker(ctrl)
+
+			pending := []domain.ExecutionCancellation{{
+				ID: 1, TenantID: 7, ExecutionID: 9, Reason: "管理员终止",
+			}}
+			execution := domain.TaskExecution{ID: 9, Status: status}
+
+			gomock.InOrder(
+				cancellations.EXPECT().ListPending(gomock.Any(), 10).Return(pending, nil),
+				executions.EXPECT().GetByID(gomock.Any(), int64(9)).Return(execution, nil),
+				// 关键断言：已终态执行严禁调用 physical.Terminate，直接标记 MarkSent
+				cancellations.EXPECT().MarkSent(gomock.Any(), int64(1)).Return(nil),
+			)
+			service := termination.NewService(cancellations, executions, physical)
+
+			err := service.DeliverPending(context.Background(), 10)
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestTerminateActiveByTaskID(t *testing.T) {
 	testCases := []struct {
 		name      string

@@ -137,6 +137,10 @@ func (s *service) deliver(ctx context.Context, cancellation domain.ExecutionCanc
 	deliveryCtx = ctxutil.WithOriginTenantID(deliveryCtx, cancellation.TenantID)
 	execution, err := s.executions.GetByID(deliveryCtx, cancellation.ExecutionID)
 	if err == nil {
+		// 若执行记录在持久层已进入终态，无需且不应向可能已清理的执行节点重复投递物理终止信号
+		if execution.Status.IsTerminalStatus() {
+			return s.cancellations.MarkSent(deliveryCtx, cancellation.ID)
+		}
 		err = s.invoker.Terminate(deliveryCtx, execution, cancellation.Reason)
 	}
 	if err == nil {

@@ -143,3 +143,92 @@ func TestFindRetryableExecutionsSQL(t *testing.T) {
 	require.Contains(t, sql, "status = 'FAILED_RETRYABLE'")
 	require.Contains(t, sql, "ORDER BY next_retry_time ASC")
 }
+
+func TestUpdateScheduleResultUpdatesDoesNotOverwriteWithNull(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		scheduleParams       map[string]string
+		executorNodeID       string
+		wantHasParamsField   bool
+		wantHasExecutorField bool
+	}{
+		{
+			name:                 "完成事件 nil 参数与空节点 ID：严禁清空已有字段",
+			scheduleParams:       nil,
+			executorNodeID:       "",
+			wantHasParamsField:   false,
+			wantHasExecutorField: false,
+		},
+		{
+			name:                 "附带有效重调度参数与执行节点 ID：正常包含更新字段",
+			scheduleParams:       map[string]string{"key": "value"},
+			executorNodeID:       "node-1",
+			wantHasParamsField:   true,
+			wantHasExecutorField: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			updates := updateScheduleResultUpdates(
+				domain.TaskExecutionStatusSuccess.String(),
+				100,
+				12345678,
+				tc.scheduleParams,
+				tc.executorNodeID,
+				"success",
+			)
+
+			_, hasParams := updates["task_schedule_params"]
+			require.Equal(t, tc.wantHasParamsField, hasParams)
+
+			_, hasExecutor := updates["executor_node_id"]
+			require.Equal(t, tc.wantHasExecutorField, hasExecutor)
+		})
+	}
+}
+
+func TestUpdateRetryResultUpdatesDoesNotOverwriteWithNull(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		scheduleParams       map[string]string
+		executorNodeID       string
+		wantHasParamsField   bool
+		wantHasExecutorField bool
+	}{
+		{
+			name:                 "重试 nil 参数与空节点 ID：严禁清空已有字段",
+			scheduleParams:       nil,
+			executorNodeID:       "",
+			wantHasParamsField:   false,
+			wantHasExecutorField: false,
+		},
+		{
+			name:                 "附带有效重试参数与执行节点 ID：正常包含更新字段",
+			scheduleParams:       map[string]string{"retry": "1"},
+			executorNodeID:       "node-retry-1",
+			wantHasParamsField:   true,
+			wantHasExecutorField: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			updates := updateRetryResultUpdates(
+				1,
+				999999,
+				TaskExecutionStatusFailedRetryable,
+				0,
+				12345678,
+				tc.scheduleParams,
+				tc.executorNodeID,
+			)
+
+			_, hasParams := updates["task_schedule_params"]
+			require.Equal(t, tc.wantHasParamsField, hasParams)
+
+			_, hasExecutor := updates["executor_node_id"]
+			require.Equal(t, tc.wantHasExecutorField, hasExecutor)
+		})
+	}
+}

@@ -365,17 +365,9 @@ func (g *GORMTaskExecutionDAO) UpdateRetryResult(ctx context.Context, id, retryC
 	if expectedStatus == "" {
 		return fmt.Errorf("%w: expected status is empty", errs.ErrInvalidTaskExecutionStatus)
 	}
+	updates := updateRetryResultUpdates(retryCount, nextRetryTime, status, progress, endTime, scheduleParams, executorNodeID)
 	result := withExecutionStatusCAS(g.db.WithContext(ctx).Model(&TaskExecution{}), id, []string{expectedStatus}).
-		Updates(map[string]any{
-			"retry_count":          retryCount,
-			"next_retry_time":      nextRetryTime,
-			"status":               status,
-			"running_progress":     progress,
-			"etime":                endTime,
-			"task_schedule_params": scheduleParams,
-			"executor_node_id":     sql.NullString{String: executorNodeID, Valid: executorNodeID != ""},
-			"utime":                time.Now().UnixMilli(),
-		})
+		Updates(updates)
 
 	if result.Error != nil {
 		return fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrUpdateExecutionRetryResultFailed, result.Error)
@@ -384,6 +376,25 @@ func (g *GORMTaskExecutionDAO) UpdateRetryResult(ctx context.Context, id, retryC
 		return executionStatusConflict(id)
 	}
 	return nil
+}
+
+func updateRetryResultUpdates(retryCount, nextRetryTime int64, status string, progress int32, endTime int64,
+	scheduleParams map[string]string, executorNodeID string) map[string]any {
+	updates := map[string]any{
+		"retry_count":      retryCount,
+		"next_retry_time":  nextRetryTime,
+		"status":           status,
+		"running_progress": progress,
+		"etime":            endTime,
+		"utime":            time.Now().UnixMilli(),
+	}
+	if scheduleParams != nil {
+		updates["task_schedule_params"] = sqlx.JSONColumn[map[string]string]{Val: scheduleParams, Valid: true}
+	}
+	if executorNodeID != "" {
+		updates["executor_node_id"] = sql.NullString{String: executorNodeID, Valid: true}
+	}
+	return updates
 }
 
 func (g *GORMTaskExecutionDAO) SetRunningState(ctx context.Context, id int64, progress int32, executorNodeID string) error {
@@ -399,47 +410,74 @@ func (g *GORMTaskExecutionDAO) SetRunningState(ctx context.Context, id int64, pr
 		return fmt.Errorf("%w: 查询执行记录失败: %w", errs.ErrSetExecutionStateRunningFailed, err)
 	}
 
+	// 若当前记录已经进入终态，晚到的 RUNNING 上报直接幂等忽略，避免覆盖终态或引发报错风暴
+	if domain.TaskExecutionStatus(execution.Status).IsTerminalStatus() {
+		return nil
+	}
+
 	// 重新计算deadline
 	newDeadline := now + execution.TaskMaxExecutionSeconds*milliseconds
+
+	updates := map[string]any{
+		"status":           TaskExecutionStatusRunning,
+		"running_progress": progress,
+		"stime":            now,
+		"deadline":         newDeadline,
+		"utime":            now,
+	}
+	if executorNodeID != "" {
+		updates["executor_node_id"] = sql.NullString{String: executorNodeID, Valid: true}
+	}
 
 	result := g.db.WithContext(ctx).
 		Scopes(gormx.IgnoreTenant()).
 		Model(&TaskExecution{}).
 		Where("id = ? AND (status = ? OR status = ? OR status = ?) ",
 			id, TaskExecutionStatusPrepare, TaskExecutionStatusFailedRetryable, TaskExecutionStatusFailedRescheduled).
-		Updates(map[string]any{
-			"status":           TaskExecutionStatusRunning,
-			"running_progress": progress,
-			"stime":            now,
-			"deadline":         newDeadline,
-			"utime":            now,
-			"executor_node_id": sql.NullString{String: executorNodeID, Valid: executorNodeID != ""},
-		})
+		Updates(updates)
 
 	if result.Error != nil {
 		return fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrSetExecutionStateRunningFailed, result.Error)
 	}
 	if result.RowsAffected == 0 {
+		// 二次核验：若被并发推进为终态，幂等忽略
+		var current TaskExecution
+		if findErr := g.db.WithContext(ctx).Scopes(gormx.IgnoreTenant()).Where("id = ?", id).First(&current).Error; findErr == nil {
+			if domain.TaskExecutionStatus(current.Status).IsTerminalStatus() {
+				return nil
+			}
+		}
 		return fmt.Errorf("%w: 任务不在PREPARE/FAILED_RETRYABLE状态或不存在, ID=%d", errs.ErrSetExecutionStateRunningFailed, id)
 	}
 	return nil
 }
 
 func (g *GORMTaskExecutionDAO) UpdateProgress(ctx context.Context, id int64, progress int32, executorNodeID string) error {
+	updates := map[string]any{
+		"running_progress": progress,
+		"utime":            time.Now().UnixMilli(),
+	}
+	if executorNodeID != "" {
+		updates["executor_node_id"] = sql.NullString{String: executorNodeID, Valid: true}
+	}
+
 	result := g.db.WithContext(ctx).
 		Scopes(gormx.IgnoreTenant()).
 		Model(&TaskExecution{}).
 		Where("id = ? AND status = ?", id, TaskExecutionStatusRunning).
-		Updates(map[string]any{
-			"running_progress": progress,
-			"executor_node_id": sql.NullString{String: executorNodeID, Valid: executorNodeID != ""},
-			"utime":            time.Now().UnixMilli(),
-		})
+		Updates(updates)
 
 	if result.Error != nil {
 		return fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrUpdateExecutionRunningProgressFailed, result.Error)
 	}
 	if result.RowsAffected == 0 {
+		// 二次核验：若已被并发推进为终态，幂等忽略
+		var current TaskExecution
+		if findErr := g.db.WithContext(ctx).Scopes(gormx.IgnoreTenant()).Where("id = ?", id).First(&current).Error; findErr == nil {
+			if domain.TaskExecutionStatus(current.Status).IsTerminalStatus() {
+				return nil
+			}
+		}
 		return fmt.Errorf("%w: 任务不在RUNNING状态或不存在，ID=%d", errs.ErrUpdateExecutionRunningProgressFailed, id)
 	}
 	return nil
@@ -451,16 +489,9 @@ func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int6
 	if len(expectedStatuses) == 0 {
 		return false, fmt.Errorf("%w: expected statuses are empty", errs.ErrInvalidTaskExecutionStatus)
 	}
+	updates := updateScheduleResultUpdates(status, progress, endTime, scheduleParams, executorNodeID, taskResult)
 	result := withExecutionStatusCAS(g.db.WithContext(ctx).Model(&TaskExecution{}), id, expectedStatuses).
-		Updates(map[string]any{
-			"status":               status,
-			"running_progress":     progress,
-			"etime":                endTime,
-			"task_schedule_params": sqlx.JSONColumn[map[string]string]{Val: scheduleParams, Valid: scheduleParams != nil},
-			"executor_node_id":     sql.NullString{String: executorNodeID, Valid: executorNodeID != ""},
-			"task_result":          taskResult,
-			"utime":                time.Now().UnixMilli(),
-		})
+		Updates(updates)
 	if result.Error != nil {
 		return false, fmt.Errorf("%w: 数据库操作失败: %w", errs.ErrUpdateExecutionStatusAndEndTimeFailed, result.Error)
 	}
@@ -468,6 +499,24 @@ func (g *GORMTaskExecutionDAO) UpdateScheduleResult(ctx context.Context, id int6
 		return false, nil
 	}
 	return true, nil
+}
+
+func updateScheduleResultUpdates(status string, progress int32, endTime int64,
+	scheduleParams map[string]string, executorNodeID string, taskResult string) map[string]any {
+	updates := map[string]any{
+		"status":           status,
+		"running_progress": progress,
+		"etime":            endTime,
+		"task_result":      taskResult,
+		"utime":            time.Now().UnixMilli(),
+	}
+	if scheduleParams != nil {
+		updates["task_schedule_params"] = sqlx.JSONColumn[map[string]string]{Val: scheduleParams, Valid: true}
+	}
+	if executorNodeID != "" {
+		updates["executor_node_id"] = sql.NullString{String: executorNodeID, Valid: true}
+	}
+	return updates
 }
 
 // withExecutionStatusCAS 将来源状态写入更新条件，保证状态检查和写入在同一条 SQL 中完成。
