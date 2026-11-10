@@ -209,3 +209,66 @@ Shell 使用明确的制品根目录：
 source "$ETASK_SYSTEM_ROOT/third_party/utils/want_result.sh"
 source "$ETASK_DEPENDENCIES_ROOT/ops_common/scripts/common.sh"
 ```
+
+## 结构化产物与业务通知契约（EAlert 动态通知）
+
+任务脚本可以通过文件描述符 `EWORK_RESULT_FD`（默认为 3）向 ETask 写回 JSON 结构化产物。当任务开启了“**业务通知 - 动态识别（DYNAMIC）**”模式时，平台调度引擎会自动解析执行产物并并发投递至 EAlert（如飞书卡片、企业微信等）。
+
+### 1. 核心数据格式
+
+动态识别模式下，平台从产物中提取待通知对象列表：
+
+```json
+{
+  "summary": "巡检完成",
+  "notifications": [
+    {
+      "username": "luankz",
+      "days_left": 3,
+      "status": "即将到期"
+    }
+  ],
+  "total_count": 100
+}
+```
+
+* **接收人识别优先级**：支持 `target`、`username`、`recipient`、`user_id`（若配置了 `target_field` 则优先按配置提取）。
+* **卡片模板变量**：条目对象中除接收人以外的所有属性，均会自动作为模板参数（`TemplateParams`）注入卡片渲染上下文。
+
+### 2. 脚本推荐写法
+
+#### Python 脚本
+
+使用通用 `want_result` 输出业务结果与通知列表：
+
+```python
+from third_party.base.want_result import want_result
+
+# 业务巡检逻辑...
+expiring_users = [
+    {"username": "luankz", "days_left": 3, "status": "即将到期"},
+    {"username": "zhangsan", "days_left": 1, "status": "待强制重置"},
+]
+
+want_result(
+    summary="AD 账号密码到期巡检完成",
+    notifications=expiring_users,
+    total_scanned=100,
+    critical_count=len(expiring_users),
+)
+```
+
+#### Shell 脚本
+
+```bash
+source "$ETASK_SYSTEM_ROOT/third_party/utils/want_result.sh"
+
+# 输出键值对汇总结果
+want_result "状态" "success" "时间" "$(date '+%F %T')"
+```
+
+### 3. 平台弹性提取与测试演练
+
+* **自定义字段映射（ResultPath）**：任务配置若指定了 `result_path`（如 `expiring_users`），脚本可保留原生业务命名，无需强行重命名为 `notifications`。
+* **通用别名回退**：未配置 `result_path` 时，平台支持自动回退识别 `notifications`、`users`、`items`、`alerts` 以及顶层纯数组。
+* **安全测试演练（TestRedirectTarget）**：在任务配置中设置 `test_redirect_target`（如填入自己的用户名 `luankz`），系统在下发通知时会将所有动态条目安全重定向给测试人，并将真实接收人保留在 `original_target` 变量中，彻底避免在测试阶段打扰真实用户。

@@ -118,12 +118,15 @@ func (t RecipientIdentifierType) IsValid() bool {
 // BusinessNotificationConfig 定义任务执行产出消息的独立推送配置。
 // 支持根据产物动态识别接收人（1对1推送），或直接投递给预设的业务团队/负责人（1对多汇总推送）。
 type BusinessNotificationConfig struct {
-	Enabled        bool                    `json:"enabled"`         // 是否启用业务消息推送
-	Mode           BusinessRecipientMode   `json:"mode"`            // 接收模式：DYNAMIC-动态识别（默认），STATIC-固定指定
-	Channels       []NotificationChannel   `json:"channels"`        // 投递渠道（如 WECHAT, LARK_CARD）
-	TemplateSetID  int64                   `json:"template_set_id"` // 绑定的 EAlert 模板集 ID
-	IdentifierType RecipientIdentifierType `json:"identifier_type"` // 动态模式使用：接收人目标标识维度（USERNAME 或 USER_ID）
-	Recipients     []NotificationRecipient `json:"recipients"`      // 固定模式使用：预设的业务接收对象列表
+	Enabled            bool                    `json:"enabled"`              // 是否启用业务消息推送
+	Mode               BusinessRecipientMode   `json:"mode"`                 // 接收模式：DYNAMIC-动态识别（默认），STATIC-固定指定
+	Channels           []NotificationChannel   `json:"channels"`             // 投递渠道（如 WECHAT, LARK_CARD）
+	TemplateSetID      int64                   `json:"template_set_id"`      // 绑定的 EAlert 模板集 ID
+	IdentifierType     RecipientIdentifierType `json:"identifier_type"`      // 动态模式使用：接收人目标标识维度（USERNAME 或 USER_ID）
+	Recipients         []NotificationRecipient `json:"recipients"`           // 固定模式使用：预设的业务接收对象列表
+	ResultPath         string                  `json:"result_path"`          // 产物中待通知条目的提取路径/字段名（为空默认提取 notifications，兼容任意自定义业务列表）
+	TargetField        string                  `json:"target_field"`         // 接收人目标字段名（为空默认按 target/recipient/user_id/username 优先级提取）
+	TestRedirectTarget string                  `json:"test_redirect_target"` // 安全测试演练：强制将所有动态点对点通知重定向至此目标，防止骚扰真实用户
 }
 
 // Validate 校验业务通知配置有效性。

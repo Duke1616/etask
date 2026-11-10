@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	notificationv1 "github.com/Duke1616/etask/api/proto/gen/ealert/notification/v1"
@@ -89,43 +90,78 @@ type BusinessNotificationItem struct {
 	Params map[string]any `json:"params"` // 传给 EAlert 模板渲染的业务参数
 }
 
-// UnmarshalJSON 支持直接提取 target（或历史字段 recipient/user_id）以及全部模板参数。
+// parseBusinessNotificationItem 从字典提取目标与参数，优先显式字段，缺省按通用字段到维度专有字段精准匹配。
+func parseBusinessNotificationItem(raw map[string]any, targetField string, idType domain.RecipientIdentifierType) BusinessNotificationItem {
+	primary := lo.Ternary(idType == domain.RecipientIdentifierTypeUserID, "user_id", "username")
+	candidates := lo.Compact([]string{strings.TrimSpace(targetField), "target", "recipient", primary})
+	targetKey, _ := lo.Find(candidates, func(k string) bool { return raw[k] != nil && raw[k] != "" })
+
+	params, ok := raw["params"].(map[string]any)
+	return BusinessNotificationItem{
+		Target: fmt.Sprint(raw[targetKey]),
+		Params: lo.Ternary(ok && params != nil, params, raw),
+	}
+}
+
+// UnmarshalJSON 支持直接反序列化（保持与原有外部调用兼容）。
 func (item *BusinessNotificationItem) UnmarshalJSON(data []byte) error {
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-
-	for _, key := range []string{"target", "recipient", "user_id", "username"} {
-		if val, ok := raw[key]; ok && val != nil && val != "" {
-			item.Target = fmt.Sprintf("%v", val)
-			break
-		}
-	}
-
-	if paramsRaw, ok := raw["params"].(map[string]any); ok && paramsRaw != nil {
-		item.Params = paramsRaw
-	} else {
-		item.Params = raw
-	}
+	*item = parseBusinessNotificationItem(raw, "", "")
 	return nil
 }
 
 // parseTaskResultPayload 反序列化执行结果中的通知载荷。
-func parseTaskResultPayload(taskResult string) (*TaskResultPayload, error) {
-	if taskResult == "" {
+// 借助 lo 库优雅实现顶层纯数组、自定义 ResultPath 以及常见别名候选键的流式提取。
+func parseTaskResultPayload(taskResult string, configs ...domain.BusinessNotificationConfig) (*TaskResultPayload, error) {
+	if taskResult = strings.TrimSpace(taskResult); taskResult == "" {
 		return nil, nil
 	}
-	var payload TaskResultPayload
-	if err := json.Unmarshal([]byte(taskResult), &payload); err != nil {
+
+	cfg := lo.FirstOrEmpty(configs)
+
+	// 1. 顶层纯数组：直接序列化提取
+	if strings.HasPrefix(taskResult, "[") {
+		var rawList []map[string]any
+		if err := json.Unmarshal([]byte(taskResult), &rawList); err == nil {
+			return &TaskResultPayload{
+				Notifications: lo.Map(rawList, func(m map[string]any, _ int) BusinessNotificationItem {
+					return parseBusinessNotificationItem(m, cfg.TargetField, cfg.IdentifierType)
+				}),
+			}, nil
+		}
+	}
+
+	// 2. JSON 对象：优先从配置的 ResultPath 或默认契约 notifications 提取
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(taskResult), &raw); err != nil {
 		return nil, err
 	}
-	return &payload, nil
+
+	targetKey := lo.CoalesceOrEmpty(strings.TrimSpace(cfg.ResultPath), "notifications")
+	rawList, ok := raw[targetKey].([]any)
+	if !ok || len(rawList) == 0 {
+		return &TaskResultPayload{}, nil
+	}
+
+	items := lo.FilterMap(rawList, func(elem any, _ int) (BusinessNotificationItem, bool) {
+		m, ok := elem.(map[string]any)
+		return parseBusinessNotificationItem(m, cfg.TargetField, cfg.IdentifierType), ok
+	})
+	return &TaskResultPayload{Notifications: items}, nil
 }
 
 // buildBusinessNotificationRequest 构造单条业务通知的 EAlert 投递请求。
 func buildBusinessNotificationRequest(config domain.BusinessNotificationConfig, execution domain.TaskExecution,
 	itemIndex int, item BusinessNotificationItem) (*notificationv1.DispatchNotificationRequest, error) {
+	// 安全演练模式：若指定了重定向接收人，原样保留原始目标并转向测试人员
+	if redirect := strings.TrimSpace(config.TestRedirectTarget); redirect != "" {
+		item.Params = lo.Assign(item.Params, map[string]any{"original_target": item.Target})
+		item.Target = redirect
+	}
+
 	itemParams, err := buildDynamicItemTemplateParams(execution, item.Params, item.Target)
 	if err != nil {
 		return nil, err

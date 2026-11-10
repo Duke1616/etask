@@ -9,6 +9,7 @@ import (
 	notificationv1 "github.com/Duke1616/etask/api/proto/gen/ealert/notification/v1"
 	templatev1 "github.com/Duke1616/etask/api/proto/gen/ealert/template/v1"
 	"github.com/Duke1616/etask/internal/domain"
+	"github.com/gotomicro/ego/core/elog"
 )
 
 const maxConcurrentDispatch = 10
@@ -24,6 +25,7 @@ type CompletionNotifier interface {
 type alertCompletionNotifier struct {
 	notificationClient notificationv1.NotificationServiceClient
 	templateClient     templatev1.TemplateServiceClient
+	logger             *elog.Component
 }
 
 // NewEAlertCompletionNotifier 创建基于 EAlert 的任务执行通知器。
@@ -32,6 +34,7 @@ func NewEAlertCompletionNotifier(notificationClient notificationv1.NotificationS
 	return &alertCompletionNotifier{
 		notificationClient: notificationClient,
 		templateClient:     templateClient,
+		logger:             elog.DefaultLogger.With(elog.FieldComponentName("notification.CompletionNotifier")),
 	}
 }
 
@@ -84,7 +87,7 @@ func (n *alertCompletionNotifier) DispatchBusinessNotifications(ctx context.Cont
 		return fmt.Errorf("业务通知配置无效: %w", err)
 	}
 
-	payload, _ := parseTaskResultPayload(execution.TaskResult)
+	payload, _ := parseTaskResultPayload(execution.TaskResult, config)
 
 	switch config.Mode {
 	case domain.BusinessRecipientModeStatic:
@@ -95,9 +98,23 @@ func (n *alertCompletionNotifier) DispatchBusinessNotifications(ctx context.Cont
 		return n.dispatchStaticBusinessNotification(ctx, config, execution, payload)
 
 	case domain.BusinessRecipientModeDynamic:
-		// 动态识别模式：必须包含非空的 notifications 待投递条目
+		// 动态识别模式：必须包含非空的待投递条目
 		if payload == nil || len(payload.Notifications) == 0 {
+			if n.logger != nil {
+				sample := execution.TaskResult[:min(len(execution.TaskResult), 200)]
+				n.logger.Warn("任务启用动态业务通知但未提取到有效条目，跳过派发",
+					elog.Int64("executionID", execution.ID),
+					elog.String("taskName", execution.Task.Name),
+					elog.String("resultPath", config.ResultPath),
+					elog.String("sample", sample))
+			}
 			return nil
+		}
+		if config.TestRedirectTarget != "" && n.logger != nil {
+			n.logger.Info("启用测试演练重定向模式",
+				elog.Int64("executionID", execution.ID),
+				elog.String("target", config.TestRedirectTarget),
+				elog.Int("count", len(payload.Notifications)))
 		}
 		return n.dispatchBusinessNotificationItems(ctx, config, execution, payload.Notifications)
 

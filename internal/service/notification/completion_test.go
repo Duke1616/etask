@@ -483,6 +483,171 @@ func TestEAlertCompletionNotifierDispatchBusinessNotifications(t *testing.T) {
 			wantCalls: 0,
 			wantErr:   "非合法的正整数用户ID",
 		},
+		{
+			name: "支持通过 ResultPath 提取自定义业务字段中的用户列表",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  12,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+				ResultPath:     "expiring_users",
+			},
+			execution: domain.TaskExecution{
+				ID: 109,
+				Task: domain.Task{
+					ID:   23,
+					Name: "ad-expiry-task",
+				},
+				TaskResult: `{"total":1,"expiring_users":[{"username":"luankz","days_remaining":5}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				require.Equal(t, []string{"luankz"}, reqs[0].GetRecipients()[0].GetValues())
+				params := reqs[0].GetTemplateParams().AsMap()
+				require.Equal(t, float64(5), params["days_remaining"])
+			},
+		},
+		{
+			name: "支持顶层为纯 JSON 数组的任务产物",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  12,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+			},
+			execution: domain.TaskExecution{
+				ID: 110,
+				Task: domain.Task{
+					ID:   24,
+					Name: "raw-array-task",
+				},
+				TaskResult: `[{"target":"wangwu","status":"ok"}]`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				require.Equal(t, []string{"wangwu"}, reqs[0].GetRecipients()[0].GetValues())
+			},
+		},
+		{
+			name: "配置 ResultPath 为通用数组字段时正常提取",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  12,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+				ResultPath:     "users",
+			},
+			execution: domain.TaskExecution{
+				ID: 111,
+				Task: domain.Task{
+					ID:   25,
+					Name: "users-alias-task",
+				},
+				TaskResult: `{"users":[{"username":"zhaoliu"}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				require.Equal(t, []string{"zhaoliu"}, reqs[0].GetRecipients()[0].GetValues())
+			},
+		},
+		{
+			name: "支持配置 TargetField 提取自定义接收人字段",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  12,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+				ResultPath:     "certs",
+				TargetField:    "owner",
+			},
+			execution: domain.TaskExecution{
+				ID: 112,
+				Task: domain.Task{
+					ID:   26,
+					Name: "cert-task",
+				},
+				TaskResult: `{"certs":[{"owner":"admin_sec","domain":"example.com"}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				require.Equal(t, []string{"admin_sec"}, reqs[0].GetRecipients()[0].GetValues())
+			},
+		},
+		{
+			name: "启用 TestRedirectTarget 测试演练时重定向接收人并保留原始目标",
+			config: domain.BusinessNotificationConfig{
+				Enabled:            true,
+				Channels:           []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:      12,
+				IdentifierType:     domain.RecipientIdentifierTypeUsername,
+				TestRedirectTarget: "luankz",
+			},
+			execution: domain.TaskExecution{
+				ID: 113,
+				Task: domain.Task{
+					ID:   27,
+					Name: "test-mode-task",
+				},
+				TaskResult: `{"notifications":[{"target":"real_user_01","days":3}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				// 实际投递目标被重定向为测试人员
+				require.Equal(t, []string{"luankz"}, reqs[0].GetRecipients()[0].GetValues())
+				params := reqs[0].GetTemplateParams().AsMap()
+				// 原接收人保留在模板参数中便于卡片呈现
+				require.Equal(t, "real_user_01", params["original_target"])
+			},
+		},
+		{
+			name: "同时包含 user_id 和 username 时根据 USERNAME 维度优先提取 username",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  12,
+				IdentifierType: domain.RecipientIdentifierTypeUsername,
+			},
+			execution: domain.TaskExecution{
+				ID: 114,
+				Task: domain.Task{
+					ID:   28,
+					Name: "dual-field-username-task",
+				},
+				TaskResult: `{"notifications":[{"user_id":10099,"username":"dev_alice","info":"ok"}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				require.Equal(t, []string{"dev_alice"}, reqs[0].GetRecipients()[0].GetValues())
+			},
+		},
+		{
+			name: "同时包含 user_id 和 username 时根据 USER_ID 维度优先提取 user_id",
+			config: domain.BusinessNotificationConfig{
+				Enabled:        true,
+				Channels:       []domain.NotificationChannel{domain.NotificationChannelLarkCard},
+				TemplateSetID:  12,
+				IdentifierType: domain.RecipientIdentifierTypeUserID,
+			},
+			execution: domain.TaskExecution{
+				ID: 115,
+				Task: domain.Task{
+					ID:   29,
+					Name: "dual-field-userid-task",
+				},
+				TaskResult: `{"notifications":[{"user_id":10099,"username":"dev_alice","info":"ok"}]}`,
+			},
+			wantCalls: 1,
+			validateReqs: func(t *testing.T, reqs []*notificationv1.DispatchNotificationRequest) {
+				require.Len(t, reqs, 1)
+				require.Equal(t, []int64{10099}, reqs[0].GetRecipients()[0].GetTargetIds())
+			},
+		},
 	}
 
 	for _, tc := range testCases {

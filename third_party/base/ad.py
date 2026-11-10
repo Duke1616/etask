@@ -126,6 +126,57 @@ class AD:
         else:
             raise Exception(f"初始化用户密码失败: {self.conn.result['message']}")
 
+    def disable_user(self, account_name: str) -> bool:
+        """禁用指定域账号（通过将 userAccountControl 属性增加 ACCOUNTDISABLE 0x0002 位）"""
+        attrs = ["distinguishedName", "userAccountControl"]
+        formatted_filter = f"(&(objectCategory=person)(objectClass=user)(sAMAccountName={account_name}))"
+        self.conn.search(search_base=self.base_dn, search_filter=formatted_filter, attributes=attrs)
+        if not self.conn.entries:
+            print(f"[ERROR] 未找到账号: {account_name}")
+            return False
+
+        entry = self.conn.entries[0]
+        user_dn = str(entry.entry_dn)
+        raw_uac = getattr(entry, "userAccountControl", None)
+        uac = int(raw_uac.value if raw_uac else 512)
+
+        # 检查是否已被禁用 (0x0002)
+        if uac & 0x0002:
+            print(f"[INFO] 账号 {account_name} 已经是禁用状态 (UAC: {uac})，无需重复操作")
+            return True
+
+        new_uac = uac | 0x0002
+        success = self.conn.modify(user_dn, {"userAccountControl": [("MODIFY_REPLACE", [new_uac])]})
+        if success:
+            print(f"[SUCCESS] 账号 {account_name} 已成功禁用 (UAC: {uac} -> {new_uac})")
+            return True
+        else:
+            print(f"[ERROR] 禁用失败: {self.conn.result}")
+            return False
+
+    def enable_user(self, account_name: str) -> bool:
+        """启用指定域账号（清除 userAccountControl 属性中的 ACCOUNTDISABLE 0x0002 位）"""
+        attrs = ["distinguishedName", "userAccountControl"]
+        formatted_filter = f"(&(objectCategory=person)(objectClass=user)(sAMAccountName={account_name}))"
+        self.conn.search(search_base=self.base_dn, search_filter=formatted_filter, attributes=attrs)
+        if not self.conn.entries:
+            print(f"[ERROR] 未找到账号: {account_name}")
+            return False
+
+        entry = self.conn.entries[0]
+        user_dn = str(entry.entry_dn)
+        raw_uac = getattr(entry, "userAccountControl", None)
+        uac = int(raw_uac.value if raw_uac else 514)
+
+        new_uac = uac & ~0x0002
+        success = self.conn.modify(user_dn, {"userAccountControl": [("MODIFY_REPLACE", [new_uac])]})
+        if success:
+            print(f"[SUCCESS] 账号 {account_name} 已成功启用 (UAC: {uac} -> {new_uac})")
+            return True
+        else:
+            print(f"[ERROR] 启用失败: {self.conn.result}")
+            return False
+
     @staticmethod
     def filetime_to_datetime(ft_val):
         """将 AD 100ns FileTime 转换为 UTC datetime"""

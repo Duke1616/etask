@@ -5,89 +5,98 @@
 # =============================
 __emit_fd3() {
     local json="$1"
+    local fd="${EWORK_RESULT_FD:-3}"
 
-    # 检查 FD 是否可用（兼容 Linux 和 macOS）
-    if [ -n "$EWORK_RESULT_FD" ]; then
-        # 尝试写入 FD，如果失败则 fallback
-        if echo "$json" >&$EWORK_RESULT_FD 2>/dev/null; then
-            return 0
-        fi
+    # 优雅探测目标描述符是否打开并可写（避免本地调试泄漏 Bad file descriptor 警告）
+    if { true >&$fd; } 2>/dev/null; then
+        echo "$json" >&$fd
+        return 0
     fi
 
-    # 本地调试 fallback（输出到 stderr 避免污染 stdout）
-    echo "[DEBUG] FD3 not available, result: $json" >&2
+    # 本地无对应 FD 时的调试 fallback（输出到 stderr 避免污染标准输出）
+    echo "[DEBUG] FD $fd not available, result: $json" >&2
 }
 
 # =============================
-# 模式 1: want_result 一次性传入所有键值对
-# 用法：want_result key1 value1 key2 value2 ...
+# 模式 1: want_result 输出任务结果
+# 用法 A（键值对）：want_result key1 value1 key2 value2 ...
+# 用法 B（完整JSON）：want_result '{"status":"ok", "notifications":[...]}'
 # =============================
 want_result() {
+    # 1. 单参数直通模式：直接传入合法的 JSON 对象或数组（如 jq 产物）
+    if [ $# -eq 1 ]; then
+        local trimmed="${1#"${1%%[![:space:]]*}"}"
+        case "$trimmed" in
+            "{"*|"["*)
+                __emit_fd3 "$1"
+                return 0
+                ;;
+        esac
+    fi
+
+    # 2. 键值对校验
     if [ $(($# % 2)) -ne 0 ]; then
-        echo "want_result 参数必须是 key value 成对出现" >&2
+        echo "want_result 参数必须是单个 JSON 字符串或成对的 key-value" >&2
         return 1
     fi
 
-    # 直接构建扁平的 JSON 对象（不包含 type 和 data 层级）
+    # 3. 构造 JSON 字符串
     local json='{'
     local first=1
 
     while [ $# -gt 0 ]; do
         local key="$1"
         local value="$2"
-
-        # JSON 转义（简单安全处理）
         key=$(printf '%s' "$key" | sed 's/\"/\\\"/g')
-        value=$(printf '%s' "$value" | sed 's/\"/\\\"/g')
 
-        if [ $first -eq 0 ]; then
-            json+=","
-        fi
+        [ $first -eq 0 ] && json+=","
 
-        json+="\"$key\":\"$value\""
+        # 若 value 本身为 JSON 对象或数组，保持原生嵌套结构不打外层双引号
+        local val_trimmed="${value#"${value%%[![:space:]]*}"}"
+        case "$val_trimmed" in
+            "{"*"}"|"["*"]")
+                json+="\"$key\":$value"
+                ;;
+            *)
+                value=$(printf '%s' "$value" | sed 's/\"/\\\"/g')
+                json+="\"$key\":\"$value\""
+                ;;
+        esac
+
         first=0
-
         shift 2
     done
 
     json+="}"
-
     __emit_fd3 "$json"
 }
 
 # =============================
-# 模式 2: 逐步构建 JSON（兼容旧代码）
-# 用法：
-#   add_to_json key1 value1
-#   add_to_json key2 value2
-#   finalize_json
+# 模式 2: 逐步构建 JSON（兼容历史老代码）
 # =============================
-
-# 初始化 JSON 字符串（全局变量）
 __result_json="{"
 
-# 添加键值对到 JSON 对象
 add_to_json() {
     local key="$1"
     local value="$2"
 
-    # 添加逗号分隔符
-    if [ "$__result_json" != "{" ]; then
-        __result_json+=","
-    fi
+    [ "$__result_json" != "{" ] && __result_json+=","
 
-    # JSON 转义（简单安全处理）
     key=$(printf '%s' "$key" | sed 's/\"/\\\"/g')
-    value=$(printf '%s' "$value" | sed 's/\"/\\\"/g')
-
-    # 将键值对格式化为 JSON
-    __result_json+="\"$key\":\"$value\""
+    local val_trimmed="${value#"${value%%[![:space:]]*}"}"
+    case "$val_trimmed" in
+        "{"*"}"|"["*"]")
+            __result_json+="\"$key\":$value"
+            ;;
+        *)
+            value=$(printf '%s' "$value" | sed 's/\"/\\\"/g')
+            __result_json+="\"$key\":\"$value\""
+            ;;
+    esac
 }
 
-# 结束 JSON 字符串并输出到 FD3
 finalize_json() {
     __result_json+="}"
     __emit_fd3 "$__result_json"
-    # 重置以便下次使用
     __result_json="{"
 }

@@ -634,12 +634,15 @@ func toBusinessNotificationVO(src *domain.BusinessNotificationConfig) *BusinessN
 		return nil
 	}
 	return &BusinessNotificationVO{
-		Enabled:        src.Enabled,
-		Mode:           string(src.Mode),
-		Channels:       lo.Map(src.Channels, toNotificationChannel),
-		TemplateSetID:  src.TemplateSetID,
-		IdentifierType: string(src.IdentifierType),
-		Recipients:     lo.Map(src.Recipients, toNotificationRecipient),
+		Enabled:            src.Enabled,
+		Mode:               string(src.Mode),
+		Channels:           lo.Map(src.Channels, toNotificationChannel),
+		TemplateSetID:      src.TemplateSetID,
+		IdentifierType:     string(src.IdentifierType),
+		Recipients:         lo.Map(src.Recipients, toNotificationRecipient),
+		ResultPath:         src.ResultPath,
+		TargetField:        src.TargetField,
+		TestRedirectTarget: src.TestRedirectTarget,
 	}
 }
 
@@ -648,12 +651,15 @@ func toDomainBusinessNotification(src *BusinessNotificationVO) *domain.BusinessN
 		return nil
 	}
 	return &domain.BusinessNotificationConfig{
-		Enabled:        src.Enabled,
-		Mode:           domain.BusinessRecipientMode(src.Mode),
-		Channels:       lo.Map(src.Channels, toDomainNotificationChannel),
-		TemplateSetID:  src.TemplateSetID,
-		IdentifierType: domain.RecipientIdentifierType(src.IdentifierType),
-		Recipients:     lo.Map(src.Recipients, toDomainNotificationRecipient),
+		Enabled:            src.Enabled,
+		Mode:               domain.BusinessRecipientMode(src.Mode),
+		Channels:           lo.Map(src.Channels, toDomainNotificationChannel),
+		TemplateSetID:      src.TemplateSetID,
+		IdentifierType:     domain.RecipientIdentifierType(src.IdentifierType),
+		Recipients:         lo.Map(src.Recipients, toDomainNotificationRecipient),
+		ResultPath:         src.ResultPath,
+		TargetField:        src.TargetField,
+		TestRedirectTarget: src.TestRedirectTarget,
 	}
 }
 
