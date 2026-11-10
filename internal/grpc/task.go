@@ -428,10 +428,11 @@ func NewSchedulerServer(svc submission.Service) *SchedulerServer {
 func (s *SchedulerServer) RunRunner(ctx context.Context,
 	req *schedulerv1.RunRunnerRequest) (*schedulerv1.RunRunnerResponse, error) {
 	result, err := s.svc.RunRunner(ctx, submission.RunRunnerCommand{
-		RequestID: req.GetRequestId(),
-		RunnerID:  req.GetRunnerId(),
-		Params:    req.GetParams(),
-		Variables: req.GetVariables(),
+		RequestID:           req.GetRequestId(),
+		RunnerID:            req.GetRunnerId(),
+		Params:              req.GetParams(),
+		Variables:           req.GetVariables(),
+		MaxExecutionSeconds: req.GetMaxExecutionSeconds(),
 	})
 	if err != nil {
 		switch {

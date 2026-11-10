@@ -10,7 +10,7 @@ message RunRunnerRequest {
   int64 runner_id = 2;               // 需要执行的 Runner ID
   map<string, string> params = 3;    // 本次执行动态参数
   map<string, string> variables = 4; // 本次执行临时变量覆盖
-  reserved 5;
+  int64 max_execution_seconds = 5;   // 任务最大执行超时秒数，<= 0 则使用系统默认兜底
 }
 
 message RunRunnerResponse {

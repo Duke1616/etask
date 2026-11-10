@@ -36,10 +36,11 @@ var (
 
 // RunRunnerCommand 描述外部工作流提交的一次幂等 Runner 执行。
 type RunRunnerCommand struct {
-	RequestID string
-	RunnerID  int64
-	Params    map[string]string
-	Variables map[string]string
+	RequestID           string
+	RunnerID            int64
+	Params              map[string]string
+	Variables           map[string]string
+	MaxExecutionSeconds int64
 }
 
 // TerminateExecutionCommand 描述外部工作流对一次 execution 的幂等终止请求。
@@ -146,6 +147,11 @@ func (s *service) RunRunner(ctx context.Context, command RunRunnerCommand) (RunR
 // buildDraft 组装工作流 TaskExecution 初始草稿对象。
 func (s *service) buildDraft(command RunRunnerCommand, runner domain.Runner,
 	program *domain.Program, params map[string]string, variables []domain.RunnerVariable) domain.TaskExecution {
+	maxExecutionSeconds := defaultTimeoutSeconds
+	if command.MaxExecutionSeconds > 0 {
+		maxExecutionSeconds = command.MaxExecutionSeconds
+	}
+
 	return domain.TaskExecution{
 		TenantID:  runner.TenantID,
 		RequestID: command.RequestID,
@@ -155,7 +161,7 @@ func (s *service) buildDraft(command RunRunnerCommand, runner domain.Runner,
 			RunnerID:            runner.ID,
 			TenantID:            runner.TenantID,
 			Name:                "工作流执行: " + runner.Name,
-			MaxExecutionSeconds: defaultTimeoutSeconds,
+			MaxExecutionSeconds: maxExecutionSeconds,
 			RetryConfig:         &domain.RetryConfig{MaxRetries: 0},
 			GrpcConfig: &domain.GrpcConfig{
 				ServiceName: runner.Target,
